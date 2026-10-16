@@ -12,6 +12,7 @@
 #include <CDiscordRPCMgr.h>
 #include <CEntryExitManager.h>
 #include <CEntryExitMarkerSync.h>
+#include <CMoneySync.h>
 #include <CWantedSync.h>
 #include <CEntryExitTransitionSync.h>
 #include <CFireManager.h>
@@ -87,6 +88,7 @@ public:
 
             if (/*CNetwork::m_bConnected*/ CNetwork::m_bAuthenticated)
             {
+                CMoneySync::Process();
                 CWantedSync::Process();
 
                 // TODO: refactor
@@ -175,6 +177,11 @@ public:
 
                         onFootUpdate.iFightingStyle = localPlayer->m_nFightingStyle;
                         CKeySync::CollectState(onFootUpdate.keySnapshot);
+
+                        // relative to our own lung capacity, so the receiver doesn't need STAT_LUNG_CAPACITY
+                        float fMaxBreath = CStats::GetFatAndMuscleModifier(STAT_MOD_AIR_IN_LUNG);
+                        onFootUpdate.iBreath = static_cast<uint8_t>(
+                            std::clamp(localPlayer->m_pPlayerData->m_fBreath / fMaxBreath * 100.0f, 0.0f, 100.0f));
 
                         GetPacketFactory().Send(onFootUpdate);
 
