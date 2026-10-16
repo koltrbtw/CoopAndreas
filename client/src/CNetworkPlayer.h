@@ -27,6 +27,7 @@ public:
 	CControllerState m_newControllerState{};
 
 	CNetworkPlayerStats m_stats{};
+	uint8_t m_nWantedLevel = 0;
 	CPedClothesDesc m_pPedClothesDesc{};
 	bool m_bHasBeenConnectedBeforeMe = false;
 

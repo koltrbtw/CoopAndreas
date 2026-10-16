@@ -12,6 +12,7 @@
 #include <CDiscordRPCMgr.h>
 #include <CEntryExitManager.h>
 #include <CEntryExitMarkerSync.h>
+#include <CWantedSync.h>
 #include <CEntryExitTransitionSync.h>
 #include <CFireManager.h>
 #include <CGeneral.h>
@@ -86,6 +87,8 @@ public:
 
             if (/*CNetwork::m_bConnected*/ CNetwork::m_bAuthenticated)
             {
+                CWantedSync::Process();
+
                 // TODO: refactor
                 if (COpCodeSync::ms_bLoadingCutscene && !CLocalPlayer::m_bIsHost && CCutsceneMgr::ms_cutsceneName[0] &&
                     CCutsceneMgr::ms_cutsceneLoadStatus == 2)

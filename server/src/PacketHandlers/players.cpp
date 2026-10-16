@@ -60,6 +60,13 @@ PACKET_HANDLER(ePacketType::ADD_PROJECTILE, Packets::Players::AddProjectile* pAd
     GetPacketFactory().SendToAll(*pAddProjectile, pNetworkPlayer);
 }
 
+PACKET_HANDLER(ePacketType::PLAYER_WANTED_LEVEL, Packets::Players::PlayerWantedLevel* pPlayerWantedLevel, CNetworkPlayer* pNetworkPlayer)
+{
+    pNetworkPlayer->m_nWantedLevel = pPlayerWantedLevel->wantedLevel;
+    pPlayerWantedLevel->senderPlayerid = pNetworkPlayer->m_playerId;
+    GetPacketFactory().SendToAll(*pPlayerWantedLevel, pNetworkPlayer);
+}
+
 PACKET_HANDLER(ePacketType::PLAYER_STATS, Packets::Players::PlayerStats* pPlayerStats, CNetworkPlayer* pNetworkPlayer)
 {
     for (size_t i = 0; i < ARRAY_SIZE(pNetworkPlayer->m_afStats); i++)

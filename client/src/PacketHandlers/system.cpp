@@ -5,6 +5,7 @@
 #include "stdafx.h"
 #include <CWeatherSync.h>
 #include <CMoonSync.h>
+#include <CWantedSync.h>
 #include <game_sa/CTagManager.h>
 
 PACKET_HANDLER(ePacketType::PLAYER_CONNECTED, Packets::System::PlayerConnected* pPlayerConnected)
@@ -76,6 +77,7 @@ PACKET_HANDLER(ePacketType::PLAYER_HANDSHAKE, Packets::System::PlayerHandshake* 
 
     CNetwork::m_bAuthenticated = true;
     CPatch::RevertTemporaryPatches();
+    CWantedSync::Reset();
 
     // stats are sent only when they change, so the server would not know the ones we already have
     CStatsSync::NotifyChanged();
