@@ -7,6 +7,7 @@
 #include <winuser.h>
 #include <CLaunchManager.h>
 #include <Debug/CImGui.h>
+#include <CWindowedMode.h>
 
 semver_t CCore::Version;
 
@@ -59,6 +60,11 @@ void CCore::Init()
     {
         ms_bDebug = true;
         ms_nRunIndex = 1;
+    }
+
+    if (ms_bDebug)
+    {
+        CWindowedMode::Init();
     }
 
     gvm.Detect();

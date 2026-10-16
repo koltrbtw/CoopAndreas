@@ -5,7 +5,15 @@
 
 void CConfigLoader::BuildPath()
 {
-    ms_sDataPath = std::string((const char*)0xC92368) + "\\" + CONFIG_FILE_NAME;  // 0xC92368 - gta_user_dir_path var
+    std::string fileName = CONFIG_FILE_NAME;
+
+    // local debug instances need their own nickname, otherwise the server rejects the second one
+    if (CCore::ms_bDebug)
+    {
+        fileName = "coopandreas" + std::to_string(CCore::ms_nRunIndex) + ".ini";
+    }
+
+    ms_sDataPath = std::string((const char*)0xC92368) + "\\" + fileName;  // 0xC92368 - gta_user_dir_path var
 }
 
 void CConfigLoader::BuildDefaultConfig()

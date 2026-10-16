@@ -439,21 +439,6 @@ void PatchSCM()
     patch::RedirectCall(0x5B915B, CStreaming__AddImageToList_Hook);
 }
 
-static uintptr_t InitInstance_ptr = 0x0;
-HWND InitInstance_Hook(HINSTANCE hInstance)
-{
-    auto result = plugin::CallAndReturnDyn<HWND>(InitInstance_ptr, hInstance);
-
-    int x = 0;
-    int y = 0;
-    if (CCore::ms_nRunIndex == 1)
-    {
-        x = 848;
-    }
-    SetWindowPos(result, 0, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
-    return result;
-}
-
 void CPatch::ApplyPatches()
 {
     PatchSCM();
@@ -465,9 +450,4 @@ void CPatch::ApplyPatches()
 #endif
     RelocateScanCodes();
     PatchLoadScreen();
-    if (CCore::ms_bDebug)
-    {
-        InitInstance_ptr = injector::GetBranchDestination(0x7487A8).as_int();
-        patch::RedirectCall(0x7487A8, InitInstance_Hook);
-    }
 }
