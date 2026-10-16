@@ -4,6 +4,7 @@
 #include <CCompatibilityChecker.h>
 
 #define SCR_NICKNAME_PORT_IP (70)
+#define SCR_MAINMENU (34)
 
 #define ROW_UNSELECTED (-1)
 #define ROW_NICKNAME (0)
@@ -259,9 +260,36 @@ void DrawCustomScreen_NicknamePortIp(CMenuManager* This)
 	//}
 }
 
+// debug instances (--coopd*) skip Start Game -> Connect: the connection is made on initGameEvent,
+// so starting a new game the same way the "New Game" menu entry does (0x577334) is enough
+static void TryAutoStartDebugInstance(CMenuManager* This)
+{
+	static bool bAutoStarted = false;
+
+	if (bAutoStarted || !This->m_bGameNotLoaded || This->m_nCurrentMenuPage != SCR_MAINMENU)
+	{
+		return;
+	}
+
+	bAutoStarted = true;
+
+	if (CNetwork::m_nPort == 0 || !strlen(CLocalPlayer::m_Name) || !CNetwork::IsValidIP(CNetwork::m_IpAddress))
+	{
+		return; // incomplete config, fall back to the menu
+	}
+
+	CGame::bMissionPackGame = 0;
+	This->DoSettingsBeforeStartingAGame();
+}
+
 void __fastcall CMenuManager__DrawStandardMenu_Hook(CMenuManager* This, SKIP_EDX, char a1)
 {
 	CCompatibilityChecker::Process();
+
+	if (CCore::ms_bDebug)
+	{
+		TryAutoStartDebugInstance(This);
+	}
 
 	This->DrawStandardMenu(a1);
 	
