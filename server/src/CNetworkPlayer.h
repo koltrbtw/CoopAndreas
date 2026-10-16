@@ -24,6 +24,7 @@ public:
     vehicleid_t m_vehicleId{};
     bool m_bCorrectVersion = false;
     float m_afStats[14]{};
+    uint8_t m_nWantedLevel = 0;
     Packets::Players::PlayerPlaceWaypoint m_waypointState{};
     CPedClothesDesc m_pPedClothesDesc{};
 

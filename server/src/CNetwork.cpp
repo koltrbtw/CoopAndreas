@@ -223,6 +223,14 @@ void CNetwork::HandlePlayerConnected(ENetPeer* pENetPeer, Packets::System::Playe
             GetPacketFactory().Send(rebuildPacket, pNewNetworkPlayer);
         }
 
+        if (i->m_nWantedLevel > 0)
+        {
+            Packets::Players::PlayerWantedLevel wantedLevelPacket{};
+            wantedLevelPacket.senderPlayerid = i->m_playerId;
+            wantedLevelPacket.wantedLevel = i->m_nWantedLevel;
+            GetPacketFactory().Send(wantedLevelPacket, pNewNetworkPlayer);
+        }
+
         if (i->m_waypointState.place)
         {
             i->m_waypointState.senderPlayerid = i->m_playerId;

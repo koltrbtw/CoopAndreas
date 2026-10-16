@@ -13,6 +13,7 @@
 #include <CEntryExitManager.h>
 #include <CEntryExitMarkerSync.h>
 #include <CMoneySync.h>
+#include <CWantedSync.h>
 #include <CEntryExitTransitionSync.h>
 #include <CFireManager.h>
 #include <CGeneral.h>
@@ -88,6 +89,7 @@ public:
             if (/*CNetwork::m_bConnected*/ CNetwork::m_bAuthenticated)
             {
                 CMoneySync::Process();
+                CWantedSync::Process();
 
                 // TODO: refactor
                 if (COpCodeSync::ms_bLoadingCutscene && !CLocalPlayer::m_bIsHost && CCutsceneMgr::ms_cutsceneName[0] &&

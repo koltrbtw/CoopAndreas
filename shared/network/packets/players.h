@@ -463,6 +463,24 @@ private:
     }
 };
 
+class PlayerWantedLevel : public Packet
+{
+    DEFINE_PACKET_TYPE(PlayerWantedLevel, ePacketType::PLAYER_WANTED_LEVEL, ePacketChannel::EVENT);
+
+public:
+    SenderPlayerId senderPlayerid{};
+    uint8_t wantedLevel{};
+
+private:
+    template <typename Stream>
+    bool Serialize(Stream& stream)
+    {
+        serialize_object(stream, senderPlayerid);
+        serialize_int(stream, wantedLevel, 0, 6);
+        return true;
+    }
+};
+
 class RebuildPlayer : public Packet
 {
     DEFINE_PACKET_TYPE(RebuildPlayer, ePacketType::REBUILD_PLAYER, ePacketChannel::EVENT);
