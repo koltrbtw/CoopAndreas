@@ -360,6 +360,45 @@ void SimulateCopyrightScreen()
     CLoadingScreen::m_bFadeInNextSplashFromBlack = 1;
 }
 
+// InitUserDirectories (0x744FB0) points the user dir (0xC92368), its Gallery (0xC92268) and User Tracks (0xC92168)
+// at "Documents\GTA San Andreas User Files", shared by every game install on the machine. Debug instances keep
+// gta_sa.set, saves and their coopandreas<N>.ini inside the game folder instead
+static char* InitUserDirectories_Debug()
+{
+    char* szUserDir = reinterpret_cast<char*>(0xC92368);
+    char* szGalleryDir = reinterpret_cast<char*>(0xC92268);
+    char* szUserTracksDir = reinterpret_cast<char*>(0xC92168);
+    const size_t nDirSize = 256;
+
+    char szGameDir[MAX_PATH]{};
+    GetModuleFileNameA(nullptr, szGameDir, MAX_PATH);
+    if (char* pLastSlash = strrchr(szGameDir, '\\'))
+    {
+        *pLastSlash = '\0';
+    }
+
+    snprintf(szUserDir, nDirSize, "%s\\CoopAndreas\\debug-user-files", szGameDir);
+    snprintf(szGalleryDir, nDirSize, "%s\\Gallery", szUserDir);
+    snprintf(szUserTracksDir, nDirSize, "%s\\User Tracks", szUserDir);
+
+    CreateDirectoryA(szUserDir, nullptr);
+    CreateDirectoryA(szGalleryDir, nullptr);
+    CreateDirectoryA(szUserTracksDir, nullptr);
+
+    return szUserDir;
+}
+
+void PatchDebugUserDirectory()
+{
+    if (!CCore::ms_bDebug)
+    {
+        return;
+    }
+
+    // the whole function is replaced, it is called from 3 places and always returns 0xC92368
+    patch::RedirectJump(0x744FB0, InitUserDirectories_Debug);
+}
+
 void PatchLoadScreen()
 {
     // Start the game at state 5
@@ -441,6 +480,7 @@ void PatchSCM()
 
 void CPatch::ApplyPatches()
 {
+    PatchDebugUserDirectory();
     PatchSCM();
     PatchPools();
     PatchStreaming();
