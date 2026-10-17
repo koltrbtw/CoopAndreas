@@ -183,6 +183,26 @@ static void LogPlayerAnims()
     };
 
     log(FindPlayerPed(0), "local");
+
+    // the doors of the nearest car: a clone's door sync must not fight the enter / exit tasks
+    static std::string lastDoors;
+    CPlayerPed* pPlayer = FindPlayerPed(0);
+    CVehicle* pVehicle = pPlayer ? FindNearestVehicle(pPlayer->GetPosition(), 10.0f) : nullptr;
+    if (pVehicle && pVehicle->m_nVehicleType == VEHICLE_AUTOMOBILE)
+    {
+        auto pAutomobile = static_cast<CAutomobile*>(pVehicle);
+        CNetworkVehicle* pNetworkVehicle = CNetworkVehicleManager::GetVehicle(pVehicle);
+        char szDoors[128];
+        sprintf_s(szDoors, "clone %d lf %.1f rf %.1f lr %.1f rr %.1f in %x out %x",
+            pNetworkVehicle && !pNetworkVehicle->m_bSyncing, pAutomobile->m_doors[DOOR_FRONT_LEFT].GetAngleOpenRatio(),
+            pAutomobile->m_doors[DOOR_FRONT_RIGHT].GetAngleOpenRatio(), pAutomobile->m_doors[DOOR_REAR_LEFT].GetAngleOpenRatio(),
+            pAutomobile->m_doors[DOOR_REAR_RIGHT].GetAngleOpenRatio(), pVehicle->m_nGettingInFlags, pVehicle->m_nGettingOutFlags);
+        if (lastDoors != szDoors)
+        {
+            lastDoors = szDoors;
+            logger::info("stand debug: doors %u %s", CTimer::m_snTimeInMilliseconds, szDoors);
+        }
+    }
     for (auto pNetworkPlayer : CNetworkPlayerManager::m_pPlayers)
     {
         log(pNetworkPlayer->m_pPed, pNetworkPlayer->GetName().c_str());

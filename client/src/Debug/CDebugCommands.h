@@ -26,7 +26,7 @@
 //   enter-passenger             into the nearest network vehicle as a passenger, as the G key
 //   warp-remote-passenger       warp the other players into seat 0 of the vehicle nearest to them (a late passenger update)
 //   g                           press G for a frame, the passenger enter of CPassengerEnter
-//   watch-anims [ms]            log the active task and the anims of the players on every change
+//   watch-anims [ms]            log the active task and the anims of the players, the doors of the nearest car
 class CDebugCommands
 {
 public:
