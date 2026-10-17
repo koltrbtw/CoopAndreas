@@ -200,6 +200,7 @@ void CNetworkVehicle::BecomeSyncer(const Packets::Vehicles::VehicleHandoff* pHan
     m_bHasRotorSpeed = false;
     m_bKeepSpeed = false;
     m_bHasGear = false;
+    m_nLastIdleUpdateTime = 0;
 
     if (!m_pVehicle)
     {

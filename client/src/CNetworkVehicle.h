@@ -51,6 +51,9 @@ public:
 	float m_fTurretVertical = 0.0f;
 	bool m_bHasRotorSpeed = false;  // a clone: the syncer's rotor / propeller speed, kept every frame
 	float m_fRotorSpeed = 0.0f;
+	// ours without a driver: the last VEHICLE_IDLE_UPDATE sent, the next one goes when something changed
+	Packets::Vehicles::VehicleIdleUpdate m_lastIdleUpdate{};
+	unsigned int m_nLastIdleUpdateTime = 0;
 	unsigned int m_nWakeTime = 0;  // ours: last push of a car frozen above the ground, CTimer time
 	bool m_bDamageApplied = false;  // the first VEHICLE_DAMAGE puts the parts without effects
 	// the front carriage of a train, see CTrainSync; the other carriages have no network id

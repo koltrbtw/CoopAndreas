@@ -80,6 +80,13 @@ struct SVehicleExtras
     float turretHorizontal = 0.0f;
     float turretVertical = 0.0f;
 
+    bool operator==(const SVehicleExtras& r) const
+    {
+        return engineOn == r.engineOn && lightsOn == r.lightsOn && heliSearchLight == r.heliSearchLight &&
+               smokeTrail == r.smokeTrail && hasDoors == r.hasDoors && memcmp(doors, r.doors, sizeof(doors)) == 0 &&
+               hasTurret == r.hasTurret && turretHorizontal == r.turretHorizontal && turretVertical == r.turretVertical;
+    }
+
     template <typename Stream>
     bool Serialize(Stream& stream)
     {
