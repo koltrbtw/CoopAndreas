@@ -169,6 +169,7 @@ public:
     float planeGearState{};
     eDoorLock locked{};
     vehicleid_t trailerid{};  // the vehicle it tows, a trailer or a car behind a tow truck
+    int8_t radioStation = -1;  // eRadioID the driver listens to, for the passengers
 
 private:
     template <typename Stream>
@@ -265,6 +266,8 @@ private:
         {
             serialize_vehicleid(stream, trailerid);
         }
+
+        serialize_int(stream, radioStation, -1, 13);
 
         return true;
     }
