@@ -6,6 +6,31 @@
 #include <CPacketBuffer.h>
 #include <CServerTime.h>
 
+// remote players can't be dragged out of a vehicle here (bDontDragMeOutCar, CNetworkPlayer::CreatePed): a jacker
+// of this game would take them out on this game only. A player's enter task runs in its ProcessControl and its
+// sender plays the same jack (VEHICLE_ENTER), so a player jacking them is let through; so is our copy of a ped's
+// enter task when the ped's syncer is the player sitting there (CNetworkPlayer::AllowJack)
+static void CallProcessControl(CPlayerPed* pPlayerPed)
+{
+    for (CNetworkPlayer* pNetworkPlayer : CNetworkPlayerManager::m_pPlayers)
+    {
+        if (pNetworkPlayer->m_pPed)
+        {
+            pNetworkPlayer->m_pPed->m_nPedFlags.bDontDragMeOutCar = 0;
+        }
+    }
+
+    plugin::CallMethod<0x60EA90, CPlayerPed*>(pPlayerPed);  // CPlayerPed::ProcessControl
+
+    for (CNetworkPlayer* pNetworkPlayer : CNetworkPlayerManager::m_pPlayers)
+    {
+        if (pNetworkPlayer->m_pPed)
+        {
+            pNetworkPlayer->m_pPed->m_nPedFlags.bDontDragMeOutCar = !pNetworkPlayer->IsJackAllowed();
+        }
+    }
+}
+
 static void __fastcall CPlayerPed__ProcessControl_Hook(CPlayerPed* This)
 {
     CPlayerPed* localPlayer = FindPlayerPed(0);
@@ -13,7 +38,7 @@ static void __fastcall CPlayerPed__ProcessControl_Hook(CPlayerPed* This)
     if (This == localPlayer)
     {
         patch::SetRaw(0x6884C4, (void*)"\xD9\x96\x5C\x05\x00\x00", 6, false);
-        plugin::CallMethod<0x60EA90, CPlayerPed*>(This);
+        CallProcessControl(This);
         patch::Nop(0x6884C4, 6, false);
         return;
     }
@@ -22,7 +47,7 @@ static void __fastcall CPlayerPed__ProcessControl_Hook(CPlayerPed* This)
 
     if (player == nullptr)
     {
-        plugin::CallMethod<0x60EA90, CPlayerPed*>(This);
+        CallProcessControl(This);
         return;
     }
 
@@ -30,7 +55,7 @@ static void __fastcall CPlayerPed__ProcessControl_Hook(CPlayerPed* This)
 
     if (playerNum == -1)
     {
-        plugin::CallMethod<0x60EA90, CPlayerPed*>(This);
+        CallProcessControl(This);
         return;
     }
 
@@ -56,7 +81,7 @@ static void __fastcall CPlayerPed__ProcessControl_Hook(CPlayerPed* This)
         player->m_pPed->m_vecMoveSpeed = player->m_onFootSnapshotInterpolated.vecMoveSpeed;
     }*/
 
-    plugin::CallMethod<0x60EA90, CPlayerPed*>(This);
+    CallProcessControl(This);
 
     // player->m_pPed->m_fAimingRotation = player->m_onFootSnapshotInterpolated.aimingRotation.m_angle;
 

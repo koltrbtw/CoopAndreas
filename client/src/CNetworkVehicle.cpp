@@ -163,6 +163,19 @@ void CNetworkVehicle::TakeOutNetworkPlayers(CVehicle* pVehicle)
     }
 }
 
+bool CNetworkVehicle::IsSeatHeldByPlayer(CVehicle* pVehicle, int seatid, CPed* pPed)
+{
+    if (seatid >= static_cast<int>(std::size(pVehicle->m_apPassengers)))
+    {
+        return false;
+    }
+
+    CPed* pOccupant = seatid < 0 ? pVehicle->m_pDriver : pVehicle->m_apPassengers[seatid];
+    // by our records, not by the ped type: a remote player's CPlayerPed is created for a game slot past 1
+    return pOccupant && pOccupant != pPed &&
+           (pOccupant == FindPlayerPed(0) || CNetworkPlayerManager::GetPlayer(pOccupant) != nullptr);
+}
+
 bool CNetworkVehicle::HasDriver()
 {
     if (m_pVehicle == nullptr)

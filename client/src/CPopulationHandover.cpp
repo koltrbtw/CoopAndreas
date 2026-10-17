@@ -314,7 +314,7 @@ static void MigrateMissionEntities()
         CPed* pPed = pNetworkPed->m_pPed;
         // one in a vehicle goes with the vehicle
         if (!pPed || !pNetworkPed->m_bSyncing || pNetworkPed->m_nCreatedBy != MISSION_CHAR ||
-            pPed->m_nPedFlags.bInVehicle || IsInPlayerGroup(pPed))
+            pPed->m_nPedFlags.bInVehicle || IsInPlayerGroup(pPed) || pNetworkPed->IsGettingIntoVehicle())
         {
             continue;
         }
@@ -381,7 +381,8 @@ void CPopulationHandover::Process()
 
     for (auto pNetworkPed : std::vector<CNetworkPed*>(CNetworkPedManager::m_pPeds))
     {
-        if (!pNetworkPed->m_pPed || !GetOwnedAmbientPed(pNetworkPed->m_pPed))
+        // on the way into a vehicle (a jacking too): the clones play our enter task, a new syncer would stop it
+        if (!pNetworkPed->m_pPed || !GetOwnedAmbientPed(pNetworkPed->m_pPed) || pNetworkPed->IsGettingIntoVehicle())
         {
             continue;
         }

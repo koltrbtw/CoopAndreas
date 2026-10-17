@@ -41,6 +41,16 @@ public:
 	// sender's, the late on foot / early vehicle updates of the sender must not pull the ped out or warp it in
 	vehicleid_t m_enterVehicleId;
 	unsigned int m_nEnterVehicleTime = 0;
+	// CTimer time of the last VEHICLE_EXIT that started our copy of the leave task, the sender is out before it
+	unsigned int m_nLeaveVehicleTime = 0;
+	// the vehicle of the last VEHICLE_EXIT (out) and CTimer time it came: a vehicle update the sender sent before it
+	// may come later (another channel), it must not put the ped back in
+	vehicleid_t m_exitVehicleId;
+	unsigned int m_nExitVehicleTime = 0;
+	// CTimer time until our copy of a jacker's enter task may drag this ped out (bDontDragMeOutCar off)
+	unsigned int m_nJackAllowedUntil = 0;
+	// VEHICLE_EXIT (out) that waits for our copy of its leave or of its jacker, CVehicleExitSync::ProcessClones
+	std::optional<Packets::Vehicles::VehicleExit> m_pendingExit;
 
 	~CNetworkPlayer();
 	CNetworkPlayer(playerid_t id, CVector position);
@@ -53,7 +63,16 @@ public:
 	char GetWeaponSkill(eWeaponType weaponType);
 	float GetMaxHealth();
 	void WarpIntoVehicleDriver(CVehicle* vehicle);
-	void RemoveFromVehicle(CVehicle* vehicle);
+	// bKnockedOff: thrown out (CTaskSimpleCarSetPedOut::m_bKnockedOffBike), it falls instead of standing up
+	void RemoveFromVehicle(CVehicle* vehicle, bool bKnockedOff = false);
+	// VEHICLE_EXIT_LEAVE: our copy of the sender's leave task
+	void LeaveVehicle(CVehicle* vehicle);
+	bool HasJustLeftVehicle(vehicleid_t vehicleid);
+	// a ped of this player gets into the vehicle it sits in: the player's game jacks it, our copy may too
+	void AllowJack(unsigned int nTime);
+	bool IsJackAllowed();
+	// still on the way out by our copy of the leave task
+	bool IsLeavingVehicle(CVehicle* vehicle);
 	void WarpIntoVehiclePassenger(CVehicle* vehicle, int seatid);
 	void EnterVehiclePassenger(CVehicle* vehicle, int seatid);
 	void OnEnterVehicle(vehicleid_t vehicleid);

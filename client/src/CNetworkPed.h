@@ -28,11 +28,27 @@ public:
 	CVector m_vecTargetPos{};  // the last on foot position from the syncer
 	unsigned int m_nTargetPosTime = 0;
 	bool m_bHasTargetPos = false;
+	// a clone: the vehicle of the last PED_VEHICLE_ENTER and CTimer time it came, our copy of the enter task runs
+	// out of step with the syncer's (later, its own path to the door)
+	vehicleid_t m_enterVehicleId{};
+	unsigned int m_nEnterVehicleTime = 0;
+	// ours: the vehicle PED_VEHICLE_ENTER went for, while the enter task lasts
+	CVehicle* m_pEnterSentVehicle = nullptr;
 
 	static CNetworkPed* CreateHosted(CPed* ped);
 	void WarpIntoVehicleDriver(CVehicle* vehicle);
 	void WarpIntoVehiclePassenger(CVehicle* vehicle, int seatid);
 	void RemoveFromVehicle(CVehicle* vehicle);
+	// PED_VEHICLE_ENTER: our copy of the syncer's enter task
+	void EnterVehicle(CVehicle* vehicle, bool bPassenger, int seat, playerid_t syncer);
+	// still on the way in by our copy of the enter task
+	bool IsEnteringVehicle(CVehicle* vehicle);
+	// sat in the vehicle of the last PED_VEHICLE_ENTER: the syncer's last on foot updates may still come
+	bool HasJustEnteredVehicle();
+	// ours: PED_VEHICLE_ENTER when its enter task starts
+	void CollectVehicleEnter();
+	// its enter task runs (a jacking too)
+	bool IsGettingIntoVehicle();
 	void ClaimOnRelease();
 	void CancelClaim();
 

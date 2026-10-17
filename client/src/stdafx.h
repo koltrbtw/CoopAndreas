@@ -24,6 +24,7 @@
 // utf8 ------------------------------------------------------------------------------------
 
 #include <cwctype>
+#include <optional>
 #include "utf8.h"
 
 // config
@@ -127,6 +128,7 @@ using namespace plugin;
 #include "CNetworkVehicleManager.h"
 #include "CDebugVehicleSpawner.h"
 #include "CPassengerEnter.h"
+#include "CVehicleExitSync.h"
 #include "CDriveBy.h"
 #include "CNetworkPedManager.h"
 #include "CDebugPedTasks.h"

@@ -110,5 +110,8 @@ public:
 
 	// before a clone is deleted: CVehicle::~CVehicle destroys the peds inside, a remote player's one too
 	static void TakeOutNetworkPlayers(CVehicle* pVehicle);
+	// seatid -1: the driver. A player (ours or a clone) is there, not pPed: the warp in (CTaskSimpleCarSetPedInAs*)
+	// would throw it out, only its own game takes a player out and says so with VEHICLE_EXIT
+	static bool IsSeatHeldByPlayer(CVehicle* pVehicle, int seatid, CPed* pPed);
 };
 

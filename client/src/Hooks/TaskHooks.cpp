@@ -31,8 +31,7 @@ static void __fastcall CTaskComplexLeaveCar__Ctor_Hook(CTaskComplexLeaveCar* Thi
 {
     if (CNetwork::m_bAuthenticated)
     {
-        Packets::Vehicles::VehicleExit packet{};
-        GetPacketFactory().Send(packet);
+        CVehicleExitSync::SendLeave(vehicle);
     }
 
     plugin::CallMethod<0x63B8C0, CTaskComplexLeaveCar*, CVehicle*, int, int, bool, bool>(

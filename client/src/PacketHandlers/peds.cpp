@@ -95,6 +95,22 @@ PACKET_HANDLER(ePacketType::PED_HANDOFF, Packets::Peds::PedHandoff* pHandoff)
     pNetworkPed->ApplyHandoff(*pHandoff);
 }
 
+// between the ped entering a vehicle here and the syncer's on foot position
+static constexpr float PED_ENTER_VEHICLE_GIVE_UP_DISTANCE = 8.0f;
+
+PACKET_HANDLER(ePacketType::PED_VEHICLE_ENTER, Packets::Peds::PedVehicleEnter* pPedVehicleEnter)
+{
+    CNetworkPed* pNetworkPed = CNetworkPedManager::GetPed(pPedVehicleEnter->pedid);
+    CNetworkVehicle* pNetworkVehicle = CNetworkVehicleManager::GetVehicle(pPedVehicleEnter->vehicleid);
+    if (!pNetworkPed || pNetworkPed->m_bSyncing || !pNetworkPed->m_pPed || !pNetworkVehicle || !pNetworkVehicle->m_pVehicle)
+    {
+        return;
+    }
+
+    pNetworkPed->EnterVehicle(pNetworkVehicle->m_pVehicle, pPedVehicleEnter->passenger, pPedVehicleEnter->seat,
+        pPedVehicleEnter->senderPlayerid.value);
+}
+
 PACKET_HANDLER(ePacketType::PED_ONFOOT, Packets::Peds::PedOnFoot* pPedOnFoot)
 {
     CNetworkPed* pNetworkPed = CNetworkPedManager::GetPed(pPedOnFoot->pedid);
@@ -113,11 +129,31 @@ PACKET_HANDLER(ePacketType::PED_ONFOOT, Packets::Peds::PedOnFoot* pPedOnFoot)
     CVehicle* pVehicle = pPed->m_pVehicle;
     if (pVehicle && pPed->m_nPedFlags.bInVehicle && pVehicle->IsVTableValid())
     {
-        // plugin::Command<Commands::TASK_LEAVE_CAR>(CPools::GetPedRef(ped->m_pPed),
-        // CPools::GetVehicleRef(ped->m_pPed->m_pVehicle));
-        // plugin::Command<Commands::WARP_CHAR_FROM_CAR_TO_COORD>(CPools::GetPedRef(ped->m_pPed), packet->pos.x,
-        // packet->pos.y, packet->pos.z);
+        // our enter task got it in before the syncer's did: its last on foot updates are still on the way
+        if (pNetworkPed->HasJustEnteredVehicle())
+        {
+            return;
+        }
+
         pNetworkPed->RemoveFromVehicle(pVehicle);
+    }
+
+    // on the way in our copy of the enter task walks it to the door and plays the get in (or the jacking), the
+    // position and the anims of the syncer would fight it; the syncer far away gave the enter up
+    CNetworkVehicle* pEnterVehicle = CNetworkVehicleManager::GetVehicle(pNetworkPed->m_enterVehicleId);
+    if (pEnterVehicle && pNetworkPed->IsEnteringVehicle(pEnterVehicle->m_pVehicle))
+    {
+        if ((pPed->GetPosition() - pPedOnFoot->pos).Magnitude() <= PED_ENTER_VEHICLE_GIVE_UP_DISTANCE)
+        {
+            pNetworkPed->ApplyWeaponSnapshot(pPedOnFoot->weaponSnapshot);
+            pNetworkPed->m_fHealth = pPed->m_fHealth = pPedOnFoot->healthSnapshot.iHealth;
+            pPed->m_fArmour = pPedOnFoot->healthSnapshot.iArmour;
+            return;
+        }
+        logger::info("ped %s gave its enter up: %.1f m from the syncer's one", to_string(pNetworkPed->m_pedId).c_str(),
+            (pPed->GetPosition() - pPedOnFoot->pos).Magnitude());
+        pPed->m_pIntelligence->FlushImmediately(false);
+        pNetworkPed->m_nEnterVehicleTime = 0;
     }
 
     pNetworkPed->ApplyWeaponSnapshot(pPedOnFoot->weaponSnapshot);
@@ -197,6 +233,12 @@ PACKET_HANDLER(ePacketType::PED_DRIVER_UPDATE, Packets::Peds::PedDriverUpdate* p
 
     if (pPed->m_pVehicle != pVehicle || !pPed->m_nPedFlags.bInVehicle)
     {
+        // our enter task lags behind the syncer's, a warp would cut its get in (or jacking) anim; the vehicle waits
+        // for it too, the syncer's ped may drive off already and our copy would walk after a moving door
+        if (pNetworkPed->IsEnteringVehicle(pVehicle))
+        {
+            return;
+        }
         pNetworkPed->WarpIntoVehicleDriver(pVehicle);
     }
     pNetworkVehicle->SetTargetTransform(pPedDriverUpdate->pos, pPedDriverUpdate->roll, pPedDriverUpdate->rot,
@@ -271,7 +313,8 @@ PACKET_HANDLER(ePacketType::PED_PASSENGER_UPDATE, Packets::Peds::PedPassengerSyn
     if (!pNetworkVehicle->m_pVehicle->IsVTableValid() || !pNetworkPed->m_pPed->IsVTableValid())
         return;
 
-    if (!pNetworkPed->m_pPed->m_nPedFlags.bInVehicle || pNetworkVehicle->m_pVehicle->m_pDriver == pNetworkPed->m_pPed)
+    if ((!pNetworkPed->m_pPed->m_nPedFlags.bInVehicle || pNetworkVehicle->m_pVehicle->m_pDriver == pNetworkPed->m_pPed) &&
+        !pNetworkPed->IsEnteringVehicle(pNetworkVehicle->m_pVehicle))
     {
         pNetworkPed->WarpIntoVehiclePassenger(pNetworkVehicle->m_pVehicle, pPedPassengerSync->seatid);
     }

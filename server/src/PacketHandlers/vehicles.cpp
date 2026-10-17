@@ -176,12 +176,10 @@ PACKET_HANDLER(ePacketType::VEHICLE_EXIT, Packets::Vehicles::VehicleExit* pVehic
     pVehicleExit->senderPlayerid = pNetworkPlayer->m_playerId;
     GetPacketFactory().SendToAll(*pVehicleExit, pNetworkPlayer);
 
-    if (auto pNetworkVehicle = CNetworkVehicleManager::GetVehicle(pNetworkPlayer->m_vehicleId))
+    // the leave task may still give up, the seat is free once the sender is out (any way, not only by the task)
+    if (pVehicleExit->reason != Packets::Vehicles::VEHICLE_EXIT_LEAVE)
     {
-        if (pNetworkPlayer->m_nSeatId >= 0)
-        {
-            pNetworkVehicle->SetOccupant(pNetworkPlayer->m_nSeatId, nullptr);
-        }
+        pNetworkPlayer->RemoveFromVehicle();
     }
 }
 

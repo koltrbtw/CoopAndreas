@@ -8,7 +8,7 @@
 #include <CCheatSync.h>
 #include <CProjectileInfo.h>
 
-// between the ped entering here and the sender's on foot position
+// between the ped entering or leaving a vehicle here and the sender's on foot position
 static constexpr float ENTER_VEHICLE_GIVE_UP_DISTANCE = 5.0f;
 
 PACKET_HANDLER(ePacketType::PLAYER_ONFOOT_UPDATE, Packets::Players::OnFootUpdate* pOnFootUpdate)
@@ -27,6 +27,7 @@ PACKET_HANDLER(ePacketType::PLAYER_ONFOOT_UPDATE, Packets::Players::OnFootUpdate
         pPlayerPed = pNetworkPlayer->m_pPed;
     }
 
+    bool bLeaving = false;
     if (pPlayerPed->m_pVehicle != nullptr && pPlayerPed->m_nPedFlags.bInVehicle)
     {
         // our enter task got the ped in before the sender's did: its last on foot updates are still on the way
@@ -35,7 +36,17 @@ PACKET_HANDLER(ePacketType::PLAYER_ONFOOT_UPDATE, Packets::Players::OnFootUpdate
             return;
         }
 
-        pNetworkPlayer->RemoveFromVehicle(pPlayerPed->m_pVehicle);
+        // our copy of the leave task started later than the sender's, it gets out on its own (the get out anim, the
+        // door); the sender far away gave it up
+        bLeaving = pNetworkPlayer->IsLeavingVehicle(pPlayerPed->m_pVehicle) &&
+                   (pPlayerPed->GetPosition() - pOnFootUpdate->vecPos).Magnitude() <= ENTER_VEHICLE_GIVE_UP_DISTANCE;
+        // the sender's exit that waited for it has the way it got out (a fall), else a plain warp out
+        if (!bLeaving && !CVehicleExitSync::ApplyPendingExit(pNetworkPlayer))
+        {
+            logger::info("%s out of its vehicle by an on foot update", pNetworkPlayer->GetName().c_str());
+            pNetworkPlayer->m_nLeaveVehicleTime = 0;
+            pNetworkPlayer->RemoveFromVehicle(pPlayerPed->m_pVehicle);
+        }
     }
 
     // on the way in the enter task moves the ped (the walk to the door, the get in anim), a position would fight it;
@@ -49,7 +60,7 @@ PACKET_HANDLER(ePacketType::PLAYER_ONFOOT_UPDATE, Packets::Players::OnFootUpdate
         bEntering = false;
     }
 
-    if (!bEntering)
+    if (!bEntering && !bLeaving)
     {
         pNetworkPlayer->m_pPed->SetPosn(pOnFootUpdate->vecPos);
         pNetworkPlayer->m_pPed->m_vecMoveSpeed = pOnFootUpdate->vecMoveSpeed;

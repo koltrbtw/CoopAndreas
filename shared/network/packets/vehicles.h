@@ -345,21 +345,68 @@ private:
     }
 };
 
+// how the sender got out, it decides what its clone plays
+enum eVehicleExitReason : uint8_t
+{
+    VEHICLE_EXIT_LEAVE,        // started CTaskComplexLeaveCar, still in: the clone plays its own leave task
+    VEHICLE_EXIT_NORMAL,       // out by the leave task
+    VEHICLE_EXIT_JUMP_OUT,     // CTaskSimpleCarJumpOut, rolled out of a moving vehicle
+    VEHICLE_EXIT_KNOCKED_OFF,  // CEventKnockOffBike: crash, hit, explosion, water, jacked off a bike
+    VEHICLE_EXIT_DRAGGED,      // dragged out by a jacker
+    VEHICLE_EXIT_DIED,         // fell out dead, or taken out after dying in the seat
+    VEHICLE_EXIT_WARP,         // a script, a teleport, a task flush: out at once
+    VEHICLE_EXIT_REASON_COUNT
+};
+
+// what the sender plays after the vehicle let it go
+enum eVehicleExitFall : uint8_t
+{
+    VEHICLE_EXIT_FALL_NONE,
+    VEHICLE_EXIT_FALL_ANIM,    // CTaskComplexFallAndGetUp with this anim
+    VEHICLE_EXIT_FALL_IN_AIR,  // CTaskComplexInAirAndLand
+    VEHICLE_EXIT_FALL_COUNT
+};
+
 class VehicleExit : public Packet
 {
     DEFINE_PACKET_TYPE(VehicleExit, ePacketType::VEHICLE_EXIT, ePacketChannel::EVENT);
 
 public:
     SenderPlayerId senderPlayerid{};
-    bool bForce = false;
+    vehicleid_t vehicleid{};
+    uint8_t reason = VEHICLE_EXIT_LEAVE;
+
+    // out: where the sender is the frame the vehicle let it go
+    WorldPositionCompressed pos{};
+    MoveSpeedCompressed moveSpeed{};
+    RadianAngleCompressed heading{};
+    uint8_t fall = VEHICLE_EXIT_FALL_NONE;
+    uint8_t animGroup = 0;
+    uint16_t animId = 0;
+    uint16_t downTime = 0;  // ms on the ground before getting up
 
 private:
     template <typename Stream>
     bool Serialize(Stream& stream)
     {
         serialize_object(stream, senderPlayerid);
-        serialize_bool(stream, bForce);
+        serialize_vehicleid(stream, vehicleid);
+        serialize_int(stream, reason, 0, VEHICLE_EXIT_REASON_COUNT - 1);
+        if (reason == VEHICLE_EXIT_LEAVE)
+        {
+            return true;
+        }
 
+        serialize_object(stream, pos);
+        serialize_object(stream, moveSpeed);
+        serialize_object(stream, heading);
+        serialize_int(stream, fall, 0, VEHICLE_EXIT_FALL_COUNT - 1);
+        if (fall == VEHICLE_EXIT_FALL_ANIM)
+        {
+            serialize_uint8(stream, animGroup);
+            serialize_uint16(stream, animId);
+            serialize_uint16(stream, downTime);
+        }
         return true;
     }
 };

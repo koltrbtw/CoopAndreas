@@ -46,7 +46,7 @@ static CAnimBlendAssociation* FindAnim(RpClump* pClump, int nGroup, int nAnimId)
 }
 
 // the block of the group may not be loaded here (gangs, attractors...): request it, play the anim from a later packet
-static bool IsGroupLoaded(int nGroup)
+bool CPedAnimSync::IsGroupLoaded(int nGroup)
 {
     // 0xB4EA34 holds a pointer to the groups, plugin-sdk's CAnimManager::ms_aAnimAssocGroups takes it for the array
     CAnimBlendAssocGroup* pGroups = *reinterpret_cast<CAnimBlendAssocGroup**>(0xB4EA34);

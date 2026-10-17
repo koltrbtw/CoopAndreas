@@ -150,6 +150,8 @@ public:
                 CPlayerPed* localPlayer = FindPlayerPed(0);
 
                 CDriveBy::Process(localPlayer);
+                CVehicleExitSync::Process();
+                CVehicleExitSync::ProcessClones();
 
                 int syncRate = 50;
                 CVector velocity{};
