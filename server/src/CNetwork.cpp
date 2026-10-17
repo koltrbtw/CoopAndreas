@@ -12,6 +12,7 @@
 #include <network/packets/peds.h>
 #include <network/packets/scripts.h>
 #include <network/packets/world.h>
+#include "CGangZones.h"
 
 bool CNetwork::Init(unsigned short port)
 {
@@ -122,6 +123,7 @@ void CNetwork::HandlePlayerDisconnected(ENetEvent& event)
     CNetworkVehicleManager::RemoveAllHostedAndNotify(pNetworkPlayer);
     CRelevanceManager::OnPlayerDisconnected(pNetworkPlayer);
     CSectorManager::OnPlayerDisconnected(pNetworkPlayer);
+    CGangZones::OnPlayerDisconnected(pNetworkPlayer);
 
     CNetworkPlayerManager::Remove(pNetworkPlayer);
 
@@ -189,6 +191,8 @@ void CNetwork::HandlePlayerConnected(ENetPeer* pENetPeer, Packets::System::Playe
     Packets::World::SetMoney setMoney{};
     setMoney.money = ms_nSharedMoney;
     GetPacketFactory().Send(setMoney, pNewNetworkPlayer);
+
+    CGangZones::SendState(pNewNetworkPlayer);
 
     // Send OLD players TO the NEW one
     Packets::System::PlayerConnected oldPlayerConnected{};

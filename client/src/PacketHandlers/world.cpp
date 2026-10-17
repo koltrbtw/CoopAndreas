@@ -5,6 +5,7 @@
 #include <CMoonSync.h>
 #include <CMoneySync.h>
 #include <CWorldGridSync.h>
+#include <CGangZonesSync.h>
 #include <game_sa/CTagManager.h>
 
 PACKET_HANDLER(ePacketType::GAME_WEATHER_TIME, Packets::World::GameWeatherTime* pGameWeatherTime)
@@ -78,4 +79,14 @@ PACKET_HANDLER(ePacketType::SET_MONEY, Packets::World::SetMoney* pSetMoney)
 PACKET_HANDLER(ePacketType::WORLD_GRID, Packets::World::WorldGridSectors* pWorldGridSectors)
 {
 	CWorldGridSync::HandlePacket(pWorldGridSectors);
+}
+
+PACKET_HANDLER(ePacketType::GANG_ZONES_UPDATE, Packets::World::GangZonesUpdate* pGangZonesUpdate)
+{
+	CGangZonesSync::HandlePacket(pGangZonesUpdate);
+}
+
+PACKET_HANDLER(ePacketType::GANG_WARS_SETTINGS, Packets::World::GangWarsSettings* pGangWarsSettings)
+{
+	CGangZonesSync::HandlePacket(pGangWarsSettings);
 }

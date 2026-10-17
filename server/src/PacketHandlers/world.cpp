@@ -2,6 +2,7 @@
 #include "stdafx.h"
 #include "network/packet_handler.h"
 #include "network/packets/world.h"
+#include "CGangZones.h"
 
 PACKET_HANDLER(
     ePacketType::GAME_WEATHER_TIME, Packets::World::GameWeatherTime* pGameWeatherTime, CNetworkPlayer* pNetworkPlayer)
@@ -47,4 +48,13 @@ PACKET_HANDLER(ePacketType::ADD_MONEY, Packets::World::AddMoney* pAddMoney, CNet
 	Packets::World::SetMoney setMoney{};
 	setMoney.money = CNetwork::ms_nSharedMoney;
 	GetPacketFactory().SendToAll(setMoney);
+}
+PACKET_HANDLER(ePacketType::GANG_ZONES_UPDATE, Packets::World::GangZonesUpdate* pGangZonesUpdate, CNetworkPlayer* pNetworkPlayer)
+{
+	CGangZones::HandleUpdate(pGangZonesUpdate, pNetworkPlayer);
+}
+
+PACKET_HANDLER(ePacketType::GANG_WARS_SETTINGS, Packets::World::GangWarsSettings* pGangWarsSettings, CNetworkPlayer* pNetworkPlayer)
+{
+	CGangZones::HandleSettings(pGangWarsSettings, pNetworkPlayer);
 }
