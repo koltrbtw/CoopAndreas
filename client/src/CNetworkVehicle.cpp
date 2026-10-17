@@ -2,6 +2,7 @@
 #include <CServerTime.h>
 #include "CNetworkVehicle.h"
 #include "CTrainSync.h"
+#include <CTaskComplexEnterCar.h>
 
 CNetworkVehicle::CNetworkVehicle(vehicleid_t vehicleid, int modelid, CVector pos, float rotation, unsigned char color1, unsigned char color2, unsigned char createdBy, const int8_t extras[2])
 {
@@ -770,6 +771,49 @@ void CNetworkVehicle::ProcessLandingGear()
 }
 
 static constexpr int DOOR_NODES[6] = {CAR_BONNET, CAR_BOOT, CAR_DOOR_LF, CAR_DOOR_RF, CAR_DOOR_LR, CAR_DOOR_RR};
+// the bit of a door (eDoors) in CVehicle::m_nGettingInFlags / m_nGettingOutFlags, see CCarEnterExit::ComputeDoorFlag
+static constexpr uint8_t DOOR_ENTER_EXIT_FLAGS[6] = {0, 0, 1, 4, 2, 8};
+// the flags drop before the door is shut behind the ped (CTaskSimpleCarCloseDoorFromInside / Outside), the syncer's
+// copy of the task finishes up to the ping later
+static constexpr unsigned int DOOR_FREE_AFTER_ENTER_EXIT = 1500;
+static constexpr unsigned int DOOR_BLEND_BACK = 400;
+static constexpr uint8_t SIDE_DOORS = (1 << DOOR_FRONT_LEFT) | (1 << DOOR_FRONT_RIGHT) | (1 << DOOR_REAR_LEFT) | (1 << DOOR_REAR_RIGHT);
+
+// the eDoors bits of a CCarEnterExit door id (10 driver, 8 front passenger, 11 / 9 rear left / right), 0 not yet chosen
+static uint8_t GetDoorBit(int doorId)
+{
+    switch (doorId)
+    {
+    case 10: return 1 << DOOR_FRONT_LEFT;
+    case 8: return 1 << DOOR_FRONT_RIGHT;
+    case 11: return 1 << DOOR_REAR_LEFT;
+    case 9: return 1 << DOOR_REAR_RIGHT;
+    }
+    return 0;
+}
+
+// the doors a player's enter task is going to open: the flags come only at the door, the walk there takes a while and
+// the syncer's ratio (its copy of the task may be ahead) must not open the door before the get in anim does
+static uint8_t GetDoorsOfEnterTask(CPed* pPed, CVehicle* pVehicle)
+{
+    if (pPed == nullptr)
+    {
+        return 0;
+    }
+
+    auto& taskManager = pPed->m_pIntelligence->m_TaskMgr;
+    for (int taskType : {TASK_COMPLEX_ENTER_CAR_AS_PASSENGER, TASK_COMPLEX_ENTER_CAR_AS_DRIVER})
+    {
+        auto pTask = static_cast<CTaskComplexEnterCar*>(taskManager.FindActiveTaskByType(taskType));
+        if (pTask && pTask->m_pTargetVehicle == pVehicle)
+        {
+            // a passenger's door is given from the start (CPassengerEnter), a driver's chosen at the car
+            uint8_t nDoor = GetDoorBit(pTask->m_nTargetDoor) | GetDoorBit(pTask->m_nTargetSeat);
+            return nDoor ? nDoor : SIDE_DOORS;
+        }
+    }
+    return 0;
+}
 static constexpr uintptr_t OFFSET_TURRET = 0x94C;       // two floats, MTA's CVehicleSA::Get/SetTurretRotation
 static constexpr uintptr_t OFFSET_SMOKE_TRAIL = 0xA00;  // CPlane, MTA's SetSmokeTrailEnabled
 static constexpr uintptr_t OFFSET_SEARCH_LIGHT = 0xA11; // CHeli, see CHeli::PreRender
@@ -854,8 +898,12 @@ void CNetworkVehicle::ApplyExtras(const SVehicleExtras& extras)
         m_afDoorStart[i] = pAutomobile->m_doors[i].GetAngleOpenRatio();
         m_afDoorTarget[i] = extras.doors[i] / 255.0f;
     }
-    m_nDoorStartTime = CTimer::m_snTimeInMilliseconds;
-    m_nDoorDuration = std::clamp(CTimer::m_snTimeInMilliseconds - m_nLastTargetTime, 50u, 400u);
+    unsigned int nDuration = std::clamp(CTimer::m_snTimeInMilliseconds - m_nLastTargetTime, 50u, 400u);
+    for (int i = 0; i < 6; i++)
+    {
+        m_anDoorStartTime[i] = CTimer::m_snTimeInMilliseconds;
+        m_anDoorDuration[i] = nDuration;
+    }
     m_bHasDoors = true;
 }
 
@@ -877,10 +925,20 @@ void CNetworkVehicle::ProcessExtras()
         return;
     }
 
-    float fStep = std::min(static_cast<float>(CTimer::m_snTimeInMilliseconds - m_nDoorStartTime) /
-                               static_cast<float>(std::max(m_nDoorDuration, 1u)),
-        1.0f);
     CAutomobile* pAutomobile = static_cast<CAutomobile*>(m_pVehicle);
+    uint8_t nFlags = m_pVehicle->m_nGettingInFlags | m_pVehicle->m_nGettingOutFlags;
+    uint8_t nInUse = GetDoorsOfEnterTask(FindPlayerPed(0), m_pVehicle);
+    for (auto pNetworkPlayer : CNetworkPlayerManager::m_pPlayers)
+    {
+        nInUse |= GetDoorsOfEnterTask(pNetworkPlayer->m_pPed, m_pVehicle);
+    }
+    for (int i = 0; i < 6; i++)
+    {
+        if (nFlags & DOOR_ENTER_EXIT_FLAGS[i])
+        {
+            nInUse |= 1 << i;
+        }
+    }
     for (int i = 0; i < 6; i++)
     {
         uint8_t nStatus = pAutomobile->m_damageManager.m_anDoorsStatus[i];
@@ -888,6 +946,23 @@ void CNetworkVehicle::ProcessExtras()
         {
             continue;
         }
+
+        if (nInUse & (1 << i))
+        {
+            m_anDoorFreeUntil[i] = CTimer::m_snTimeInMilliseconds + DOOR_FREE_AFTER_ENTER_EXIT;
+        }
+        if (CTimer::m_snTimeInMilliseconds < m_anDoorFreeUntil[i])
+        {
+            // afterwards from where the task left it to the syncer's
+            m_afDoorStart[i] = pAutomobile->m_doors[i].GetAngleOpenRatio();
+            m_anDoorStartTime[i] = CTimer::m_snTimeInMilliseconds;
+            m_anDoorDuration[i] = DOOR_BLEND_BACK;
+            continue;
+        }
+
+        float fStep = std::min(static_cast<float>(CTimer::m_snTimeInMilliseconds - m_anDoorStartTime[i]) /
+                                   static_cast<float>(std::max(m_anDoorDuration[i], 1u)),
+            1.0f);
         float fRatio = m_afDoorStart[i] + (m_afDoorTarget[i] - m_afDoorStart[i]) * fStep;
         if (std::fabs(pAutomobile->m_doors[i].GetAngleOpenRatio() - fRatio) > 0.001f)
         {

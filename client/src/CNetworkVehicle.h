@@ -44,8 +44,11 @@ public:
 	bool m_bHasDoors = false;
 	float m_afDoorStart[6]{};
 	float m_afDoorTarget[6]{};
-	unsigned int m_nDoorStartTime = 0;
-	unsigned int m_nDoorDuration = 0;
+	unsigned int m_anDoorStartTime[6]{};
+	unsigned int m_anDoorDuration[6]{};
+	// a ped gets in or out through the door here (our own or a copy of another player's task): until this CTimer time
+	// the door is left to the task, the syncer's ratio lags behind it by the ping
+	unsigned int m_anDoorFreeUntil[6]{};
 	bool m_bHasTurret = false;
 	float m_fTurretHorizontal = 0.0f;
 	float m_fTurretVertical = 0.0f;
