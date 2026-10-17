@@ -23,6 +23,9 @@ public:
 	int m_nBlipHandle = -1;
 	bool m_bClaimOnRelease = false;
 	unsigned int m_nOwnershipChangeTime = 0;  // when it became ours or someone else's, CTimer time
+	CVector m_vecTargetPos{};  // the last on foot position from the syncer
+	unsigned int m_nTargetPosTime = 0;
+	bool m_bHasTargetPos = false;
 
 	static CNetworkPed* CreateHosted(CPed* ped);
 	void WarpIntoVehicleDriver(CVehicle* vehicle);
@@ -39,6 +42,9 @@ public:
 	void ApplyHandoff(const Packets::Peds::PedHandoff& handoff);
 
 	void ApplyWeaponSnapshot(Packets::Players::SWeaponSnapshot& weaponSnapshot);
+	// on foot clone: the position from a packet, ProcessTargetPosition pulls the ped to it every frame
+	void SetTargetPosition(const CVector& pos, const CVector& velocity);
+	void ProcessTargetPosition();
 
 	CNetworkPed(pedid_t pedid, int modelId, ePedType pedType, CVector pos, unsigned char createdBy, char specialModelName[]);
 	~CNetworkPed();
