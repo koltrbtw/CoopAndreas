@@ -770,6 +770,8 @@ void CNetworkVehicle::ProcessLandingGear()
 }
 
 static constexpr int DOOR_NODES[6] = {CAR_BONNET, CAR_BOOT, CAR_DOOR_LF, CAR_DOOR_RF, CAR_DOOR_LR, CAR_DOOR_RR};
+static constexpr unsigned int DOORS_FREE_AFTER_ENTER_EXIT = 1500;
+static constexpr unsigned int DOORS_BLEND_BACK = 400;
 static constexpr uintptr_t OFFSET_TURRET = 0x94C;       // two floats, MTA's CVehicleSA::Get/SetTurretRotation
 static constexpr uintptr_t OFFSET_SMOKE_TRAIL = 0xA00;  // CPlane, MTA's SetSmokeTrailEnabled
 static constexpr uintptr_t OFFSET_SEARCH_LIGHT = 0xA11; // CHeli, see CHeli::PreRender
@@ -874,6 +876,24 @@ void CNetworkVehicle::ProcessExtras()
 
     if (!m_bHasDoors || m_pVehicle->m_nVehicleType != VEHICLE_AUTOMOBILE)
     {
+        return;
+    }
+
+    // the flags drop before the door is closed behind the ped (CTaskSimpleCarCloseDoorFromInside/Outside), so the
+    // doors stay free a while longer; then they go from where the task left them to the syncer's
+    if (m_pVehicle->m_nGettingInFlags || m_pVehicle->m_nGettingOutFlags)
+    {
+        m_nDoorsFreeUntil = CTimer::m_snTimeInMilliseconds + DOORS_FREE_AFTER_ENTER_EXIT;
+    }
+    if (CTimer::m_snTimeInMilliseconds < m_nDoorsFreeUntil)
+    {
+        CAutomobile* pAutomobile = static_cast<CAutomobile*>(m_pVehicle);
+        for (int i = 0; i < 6; i++)
+        {
+            m_afDoorStart[i] = pAutomobile->m_doors[i].GetAngleOpenRatio();
+        }
+        m_nDoorStartTime = CTimer::m_snTimeInMilliseconds;
+        m_nDoorDuration = DOORS_BLEND_BACK;
         return;
     }
 
