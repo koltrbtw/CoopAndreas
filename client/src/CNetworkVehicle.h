@@ -50,6 +50,9 @@ public:
 	float m_afDoorTarget[6]{};
 	unsigned int m_nDoorStartTime = 0;
 	unsigned int m_nDoorDuration = 0;
+	// someone gets in or out: the enter / exit tasks swing the doors themselves, the syncer's lagging ratio would hold
+	// them back; CTimer time until which the doors are left to the game
+	unsigned int m_nDoorsFreeUntil = 0;
 	bool m_bHasTurret = false;
 	float m_fTurretHorizontal = 0.0f;
 	float m_fTurretVertical = 0.0f;
