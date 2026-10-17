@@ -35,6 +35,8 @@ public:
 	void BecomeSyncer(bool bResumeAmbientLife);
 	// bStopAmbientLife: our ambient ped goes to someone else, stop its own ai
 	void BecomeClone(bool bStopAmbientLife);
+	// PED_HANDOFF: the ped is ours from now on
+	void ApplyHandoff(const Packets::Peds::PedHandoff& handoff);
 
 	void ApplyWeaponSnapshot(Packets::Players::SWeaponSnapshot& weaponSnapshot);
 

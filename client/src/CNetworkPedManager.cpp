@@ -195,6 +195,8 @@ void CNetworkPedManager::Update()
 
 void CNetworkPedManager::Process()
 {
+    ProcessPendingSpawns();
+
     for (auto networkPed : m_pPeds)
     {
         if (networkPed->m_bSyncing)
@@ -256,5 +258,78 @@ void CNetworkPedManager::RemoveHostedUnused()
             }
         }
         ++it;
+    }
+}
+
+void CNetworkPedManager::CreateClone(const Packets::Peds::PedSpawn& spawn)
+{
+    Packets::Peds::PedSpawn copy = spawn;  // the constructor takes a mutable name
+    CNetworkPed* pNetworkPed =
+        new CNetworkPed(copy.pedid, copy.modelId, copy.pedType, copy.pos, copy.createdBy, copy.specialModelName);
+    Add(pNetworkPed);
+}
+
+void CNetworkPedManager::HandleSpawn(const Packets::Peds::PedSpawn& spawn)
+{
+    bool bSpecialModel = spawn.modelId >= MODEL_SPECIAL01 && spawn.modelId <= MODEL_SPECIAL10;
+    if (bSpecialModel || CStreaming::ms_aInfoForModel[spawn.modelId].m_nLoadState == LOADSTATE_LOADED)
+    {
+        CreateClone(spawn);
+        return;
+    }
+
+    CStreaming::RequestModel(spawn.modelId, 0);
+    ms_pendingSpawns.push_back({spawn, false, {}, CTimer::m_snTimeInMilliseconds});
+}
+
+void CNetworkPedManager::CancelPendingSpawn(pedid_t pedid)
+{
+    ms_pendingSpawns.erase(std::remove_if(ms_pendingSpawns.begin(), ms_pendingSpawns.end(),
+                               [&](const SPendingSpawn& pending) { return pending.spawn.pedid == pedid; }),
+        ms_pendingSpawns.end());
+}
+
+bool CNetworkPedManager::DeferHandoff(const Packets::Peds::PedHandoff& handoff)
+{
+    for (auto& pending : ms_pendingSpawns)
+    {
+        if (pending.spawn.pedid == handoff.pedid)
+        {
+            pending.bHasHandoff = true;
+            pending.handoff = handoff;
+            return true;
+        }
+    }
+    return false;
+}
+
+void CNetworkPedManager::ProcessPendingSpawns()
+{
+    constexpr unsigned int MAX_WAIT = 10000;  // then a synchronous load after all
+
+    for (size_t i = 0; i < ms_pendingSpawns.size();)
+    {
+        SPendingSpawn& pending = ms_pendingSpawns[i];
+        bool bLoaded = CStreaming::ms_aInfoForModel[pending.spawn.modelId].m_nLoadState == LOADSTATE_LOADED;
+
+        if (!bLoaded && CTimer::m_snTimeInMilliseconds - pending.nSince < MAX_WAIT)
+        {
+            // requests without flags are purged every frame until loaded
+            CStreaming::RequestModel(pending.spawn.modelId, 0);
+            i++;
+            continue;
+        }
+
+        SPendingSpawn ready = pending;
+        ms_pendingSpawns.erase(ms_pendingSpawns.begin() + i);
+
+        CreateClone(ready.spawn);
+        if (ready.bHasHandoff)
+        {
+            if (CNetworkPed* pNetworkPed = GetPed(ready.spawn.pedid))
+            {
+                pNetworkPed->ApplyHandoff(ready.handoff);
+            }
+        }
     }
 }

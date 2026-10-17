@@ -17,10 +17,7 @@ PACKET_HANDLER(ePacketType::PED_SPAWN, Packets::Peds::PedSpawn* pPedSpawn)
         return;
     }
 
-    CNetworkPed* pNetworkPed = new CNetworkPed(pPedSpawn->pedid, pPedSpawn->modelId, pPedSpawn->pedType, pPedSpawn->pos,
-        pPedSpawn->createdBy, pPedSpawn->specialModelName);
-
-    CNetworkPedManager::Add(pNetworkPed);
+    CNetworkPedManager::HandleSpawn(*pPedSpawn);
 }
 
 PACKET_HANDLER(ePacketType::PED_REMOVE, Packets::Peds::PedRemove* pPedRemove)
@@ -28,6 +25,8 @@ PACKET_HANDLER(ePacketType::PED_REMOVE, Packets::Peds::PedRemove* pPedRemove)
 #ifdef PACKET_DEBUG_MESSAGES
     CChat::AddMessage("PED REMOVE %s", to_string(pPedRemove->pedid).c_str());
 #endif
+
+    CNetworkPedManager::CancelPendingSpawn(pPedRemove->pedid);
 
     CNetworkPed* pNetworkPed = CNetworkPedManager::GetPed(pPedRemove->pedid);
     if (pNetworkPed)
@@ -87,18 +86,12 @@ PACKET_HANDLER(ePacketType::PED_HANDOFF, Packets::Peds::PedHandoff* pHandoff)
     CNetworkPed* pNetworkPed = CNetworkPedManager::GetPed(pHandoff->pedid);
     if (!pNetworkPed)
     {
+        // its clone may still wait for the model, it becomes ours once created
+        CNetworkPedManager::DeferHandoff(*pHandoff);
         return;
     }
 
-    if (CPed* pPed = pNetworkPed->m_pPed; pPed && pHandoff->hasTransform)
-    {
-        pPed->SetPosn(pHandoff->pos);
-        pPed->m_fCurrentRotation = pPed->m_fAimingRotation = pHandoff->heading;
-        pPed->SetHeading(pHandoff->heading);
-    }
-
-    pNetworkPed->BecomeSyncer(true);
-    logger::info("ped %s taken over", to_string(pHandoff->pedid).c_str());
+    pNetworkPed->ApplyHandoff(*pHandoff);
 }
 
 PACKET_HANDLER(ePacketType::PED_ONFOOT, Packets::Peds::PedOnFoot* pPedOnFoot)

@@ -338,3 +338,16 @@ void CNetworkPed::BecomeClone(bool bStopAmbientLife)
 
     m_pPed->m_pIntelligence->FlushImmediately(false);
 }
+
+void CNetworkPed::ApplyHandoff(const Packets::Peds::PedHandoff& handoff)
+{
+    if (m_pPed && handoff.hasTransform)
+    {
+        m_pPed->SetPosn(handoff.pos);
+        m_pPed->m_fCurrentRotation = m_pPed->m_fAimingRotation = handoff.heading;
+        m_pPed->SetHeading(handoff.heading);
+    }
+
+    BecomeSyncer(true);
+    logger::info("ped %s taken over", to_string(handoff.pedid).c_str());
+}
