@@ -65,6 +65,17 @@ void CRelevanceManager::SendPedSpawn(CNetworkPed* pNetworkPed, CNetworkPlayer* p
 
 void CRelevanceManager::SendVehicleSpawn(CNetworkVehicle* pNetworkVehicle, CNetworkPlayer* pNetworkPlayer)
 {
+    if (pNetworkVehicle->m_bTrain)
+    {
+        Packets::Vehicles::TrainSpawn trainSpawnPacket{};
+        trainSpawnPacket.vehicleid = pNetworkVehicle->m_vehicleId;
+        trainSpawnPacket.pos = pNetworkVehicle->m_vecPosition;
+        trainSpawnPacket.isMission = pNetworkVehicle->m_nCreatedBy == MISSION_VEHICLE;
+        trainSpawnPacket.state = pNetworkVehicle->m_trainState;
+        GetPacketFactory().Send(trainSpawnPacket, pNetworkPlayer);
+        return;
+    }
+
     Packets::Vehicles::VehicleSpawn vehicleSpawnPacket{};
     vehicleSpawnPacket.vehicleid = pNetworkVehicle->m_vehicleId;
     vehicleSpawnPacket.modelid = pNetworkVehicle->m_nModelId;

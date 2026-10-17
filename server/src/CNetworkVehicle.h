@@ -7,6 +7,7 @@
 #include "CVector.h"
 #include "CNetworkPlayerManager.h"
 #include <CDamageManager.h>
+#include "network/train_state.h"
 
 class CNetworkVehicle
 {
@@ -30,6 +31,8 @@ public:
     bool m_bUsedByPed = false;
     CVector m_vecRight{1.0f, 0.0f, 0.0f};        // matrix right vector, the updates carry no forward
     std::vector<CNetworkPlayer*> m_vRelevantTo;  // have a clone of it, see CRelevanceManager
+    bool m_bTrain = false;     // the front carriage of a train, clones get TRAIN_SPAWN
+    TrainState m_trainState{};  // from the last TRAIN_UPDATE
 
     float GetHeading() const;
 

@@ -54,8 +54,8 @@ static CNetworkVehicle* GetOwnedAmbientVehicle(CVehicle* pVehicle)
         return nullptr;
     }
 
-    // a towed vehicle goes together with its tractor, see HandOverVehicle
-    if (pVehicle->m_pTractor)
+    // a towed vehicle goes together with its tractor, see HandOverVehicle; a train only when the generator removes it
+    if (pVehicle->m_pTractor || pNetworkVehicle->m_bTrain)
     {
         return nullptr;
     }
@@ -172,6 +172,21 @@ bool CPopulationHandover::TryHandOverVehicle(CVehicle* pVehicle)
 
     HandOverVehicle(pNetworkVehicle, pTarget);
     logger::info("vehicle %s handed over to %s instead of removing", to_string(pNetworkVehicle->m_vehicleId).c_str(),
+        to_string(pTarget->m_playerId).c_str());
+    return true;
+}
+
+bool CPopulationHandover::TryHandOverTrain(CNetworkVehicle* pNetworkVehicle)
+{
+    CNetworkPlayer* pTarget = FindRemovalTarget(
+        pNetworkVehicle->m_pVehicle->GetPosition(), TRAIN_HANDOVER_DISTANCE, pNetworkVehicle->m_nOwnershipChangeTime);
+    if (!pTarget)
+    {
+        return false;
+    }
+
+    HandOverVehicle(pNetworkVehicle, pTarget);
+    logger::info("train %s handed over to %s instead of removing", to_string(pNetworkVehicle->m_vehicleId).c_str(),
         to_string(pTarget->m_playerId).c_str());
     return true;
 }

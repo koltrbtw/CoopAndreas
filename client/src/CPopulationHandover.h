@@ -11,10 +11,13 @@ public:
     static constexpr float VEHICLE_HANDOVER_DISTANCE = 120.0f;
     // received that recently and removed again: nobody needs it, remove instead of a ping-pong
     static constexpr unsigned int REMOVAL_HANDOVER_HOLD_TIME = 10000;
+    // the generator removes a train once all of it is 220 m from the camera, see CTrainSync
+    static constexpr float TRAIN_HANDOVER_DISTANCE = 200.0f;
 
     static CNetworkPlayer* FindNearestRemotePlayer(const CVector& position, float fMaxDistance);
     static bool TryHandOverPed(CPed* pPed);
     static bool TryHandOverVehicle(CVehicle* pVehicle);
+    static bool TryHandOverTrain(CNetworkVehicle* pNetworkVehicle);
     static void HandOverPed(CNetworkPed* pNetworkPed, CNetworkPlayer* pTarget);
     static void HandOverVehicle(CNetworkVehicle* pNetworkVehicle, CNetworkPlayer* pTarget);
 

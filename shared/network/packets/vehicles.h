@@ -1,5 +1,6 @@
 #pragma once
 #include <CVehicle.h>
+#include "network/train_state.h"
 
 namespace Packets::Vehicles
 {
@@ -520,6 +521,60 @@ private:
         serialize_vehicleid(stream, vehicleid);
         serialize_int(stream, (int&)createdBy, RANDOM_VEHICLE, PERMANENT_VEHICLE);
 
+        return true;
+    }
+};
+// instead of VEHICLE_SPAWN for a train: the receiver builds all its carriages, the id is the front carriage's
+class TrainSpawn : public Packet
+{
+    DEFINE_PACKET_TYPE(TrainSpawn, ePacketType::TRAIN_SPAWN, ePacketChannel::EVENT);
+
+public:
+    vehicleid_t vehicleid{};
+    WorldPositionCompressed pos{};
+    bool isMission = false;
+    TrainState state{};
+
+private:
+    template <typename Stream>
+    bool Serialize(Stream& stream)
+    {
+        serialize_vehicleid(stream, vehicleid);
+        serialize_object(stream, pos);
+        serialize_bool(stream, isMission);
+        serialize_object(stream, state);
+        return true;
+    }
+};
+
+// instead of VEHICLE_IDLE_UPDATE for a train, from its syncer
+class TrainUpdate : public Packet
+{
+    DEFINE_PACKET_TYPE(TrainUpdate, ePacketType::TRAIN_UPDATE, ePacketChannel::SYNC);
+
+public:
+    vehicleid_t vehicleid{};
+    WorldPositionCompressed pos{};
+    TrainState state{};
+
+    // off the rails the front carriage moves by physics, not by the track position
+    NormalizedVector rot{};
+    NormalizedVector roll{};
+    MoveSpeedCompressed velocity{};
+
+private:
+    template <typename Stream>
+    bool Serialize(Stream& stream)
+    {
+        serialize_vehicleid(stream, vehicleid);
+        serialize_object(stream, pos);
+        serialize_object(stream, state);
+        if (state.derailed)
+        {
+            serialize_object(stream, rot);
+            serialize_object(stream, roll);
+            serialize_object(stream, velocity);
+        }
         return true;
     }
 };

@@ -1,6 +1,8 @@
 #pragma once
 class CNetworkVehicle
 {
+	friend class CTrainSync;
+
 private:
 	CNetworkVehicle() {}
 public:
@@ -16,6 +18,9 @@ public:
 	unsigned int m_nOwnershipChangeTime = 0;  // when it became ours or someone else's, CTimer time
 	Packets::Vehicles::VehicleDriverUpdate m_playerDriverSnapshot{};
 	CDamageManager m_oldDamageState{};
+	// the front carriage of a train, see CTrainSync; the other carriages have no network id
+	bool m_bTrain = false;
+	TrainState m_trainState{};  // ours: what we last sent, a clone: what the syncer last sent
 
 	~CNetworkVehicle();
 	CNetworkVehicle(vehicleid_t vehicleid, int modelid, CVector pos, float rotation, unsigned char color1, unsigned char color2, unsigned char createdBy);

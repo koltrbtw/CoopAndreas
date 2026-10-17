@@ -16,6 +16,7 @@
 #include <CWantedSync.h>
 #include <Debug/CDebugOwnership.h>
 #include <CPopulationHandover.h>
+#include <CTrainSync.h>
 #include <CEntryExitTransitionSync.h>
 #include <CFireManager.h>
 #include <CGeneral.h>
@@ -202,6 +203,7 @@ public:
                 if (tickCount > lastIdleVehicleSyncTickRate + 150)
                 {
                     CNetworkVehicleManager::UpdateIdle();
+                    CTrainSync::Process();
                     lastIdleVehicleSyncTickRate = tickCount;
                 }
 
