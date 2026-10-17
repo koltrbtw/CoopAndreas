@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "Debug/CHangWatchdog.h"
 #include "CCrashLog.h"
 #include "Commands/CCustomCommandRegistrar.h"
 #include "CDiscordRPC.h"
@@ -65,6 +66,7 @@ void CCore::Init()
     if (ms_bDebug)
     {
         CWindowedMode::Init();
+        CHangWatchdog::Start();
     }
 
     gvm.Detect();
