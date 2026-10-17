@@ -85,14 +85,15 @@ void CNetworkPlayerManager::AssignHostToFirstPlayer()
     GetPacketFactory().SendToAll(playerAssignHost);
 }
 
-CNetworkPlayer* CNetworkPlayerManager::GetNearestPlayer(const CVector& position, float maxDistance, CNetworkPlayer* except)
+CNetworkPlayer* CNetworkPlayerManager::GetNearestPlayer(const CVector& position, float maxDistance, CNetworkPlayer* except,
+    const std::vector<CNetworkPlayer*>& candidates)
 {
     CNetworkPlayer* pNearest = nullptr;
     float fNearestDistanceSq = maxDistance * maxDistance;
 
-    for (auto pNetworkPlayer : m_pPlayers)
+    for (auto pNetworkPlayer : candidates)
     {
-        if (pNetworkPlayer == except)
+        if (pNetworkPlayer == except || !pNetworkPlayer->m_bHasPosition)
         {
             continue;
         }

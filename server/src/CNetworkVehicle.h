@@ -28,6 +28,10 @@ public:
     std::vector<int> m_pComponents;
     uint8_t m_nCreatedBy;
     bool m_bUsedByPed = false;
+    CVector m_vecRight{1.0f, 0.0f, 0.0f};        // matrix right vector, the updates carry no forward
+    std::vector<CNetworkPlayer*> m_vRelevantTo;  // have a clone of it, see CRelevanceManager
+
+    float GetHeading() const;
 
     void ReassignSyncer(CNetworkPlayer* newSyncer);
     void SetOccupant(int8_t seatid, CNetworkPlayer* player);

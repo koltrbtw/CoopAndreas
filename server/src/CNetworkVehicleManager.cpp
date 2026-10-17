@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "CRelevanceManager.h"
 #include <network/packets/vehicles.h>
 
 std::vector<CNetworkVehicle*> CNetworkVehicleManager::m_pVehicles;
@@ -45,7 +46,8 @@ void CNetworkVehicleManager::RemoveAllHostedAndNotify(CNetworkPlayer* player)
         CNetworkPlayer* pNewSyncer = nullptr;
         if ((*it)->m_pSyncer == player && (*it)->m_nCreatedBy != MISSION_VEHICLE)
         {
-            pNewSyncer = CNetworkPlayerManager::GetNearestPlayer((*it)->m_vecPosition, CNetworkPlayerManager::HANDOVER_ON_LEAVE_DISTANCE, player);
+            pNewSyncer = CNetworkPlayerManager::GetNearestPlayer(
+                (*it)->m_vecPosition, CNetworkPlayerManager::HANDOVER_ON_LEAVE_DISTANCE, player, (*it)->m_vRelevantTo);
         }
 
         if (pNewSyncer)
@@ -65,7 +67,7 @@ void CNetworkVehicleManager::RemoveAllHostedAndNotify(CNetworkPlayer* player)
         {
             Packets::Vehicles::VehicleRemove packet{};
             packet.vehicleid = (*it)->m_vehicleId;
-            GetPacketFactory().SendToAll(packet, player);
+            CRelevanceManager::SendToRelevant(packet, (*it)->m_vRelevantTo, player);
 
             delete *it;
             it = CNetworkVehicleManager::m_pVehicles.erase(it);

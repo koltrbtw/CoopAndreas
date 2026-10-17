@@ -1,5 +1,6 @@
 #include "network/packet_types.h"
 #include "stdafx.h"
+#include "CRelevanceManager.h"
 #include "network/packet_handler.h"
 #include "network/packets/vehicles.h"
 #include "network/packets/peds.h"
@@ -22,8 +23,6 @@ PACKET_HANDLER(
         return;
     }
 
-    GetPacketFactory().SendToAll(*pVehicleSpawn, pNetworkPlayer);
-
     CNetworkVehicle* vehicle = new CNetworkVehicle(
         pVehicleSpawn->vehicleid, pVehicleSpawn->modelid, pVehicleSpawn->pos, pVehicleSpawn->rot.m_angle);
 
@@ -33,6 +32,7 @@ PACKET_HANDLER(
     vehicle->m_nCreatedBy = pVehicleSpawn->createdBy;
 
     CNetworkVehicleManager::Add(vehicle);
+    CRelevanceManager::OnVehicleCreated(vehicle);
 }
 
 PACKET_HANDLER(
@@ -42,7 +42,7 @@ PACKET_HANDLER(
     {
         if (vehicle->m_pSyncer == pNetworkPlayer)
         {
-            GetPacketFactory().SendToAll(*pVehicleRemove, pNetworkPlayer);
+            CRelevanceManager::SendToRelevant(*pVehicleRemove, vehicle->m_vRelevantTo, pNetworkPlayer);
 
             CNetworkVehicleManager::Remove(vehicle);
         }
@@ -63,7 +63,8 @@ PACKET_HANDLER(ePacketType::VEHICLE_IDLE_UPDATE, Packets::Vehicles::VehicleIdleU
             vehicle->m_bUsedByPed = false;
             vehicle->m_vecPosition = pVehicleIdleUpdate->pos;
             vehicle->m_vecRotation = pVehicleIdleUpdate->rot;
-            GetPacketFactory().SendToAll(*pVehicleIdleUpdate, pNetworkPlayer);
+            vehicle->m_vecRight = pVehicleIdleUpdate->roll;
+            CRelevanceManager::SendToRelevant(*pVehicleIdleUpdate, vehicle->m_vRelevantTo, pNetworkPlayer);
         }
         else
         {
@@ -84,8 +85,10 @@ PACKET_HANDLER(ePacketType::VEHICLE_DRIVER_UPDATE, Packets::Vehicles::VehicleDri
         pNetworkVehicle->SetOccupant(0, pNetworkPlayer);
         pNetworkVehicle->m_vecPosition = pVehicleDriverUpdate->pos;
         pNetworkVehicle->m_vecRotation = pVehicleDriverUpdate->rot;
+        pNetworkVehicle->m_vecRight = pVehicleDriverUpdate->roll;
         pNetworkVehicle->m_bUsedByPed = false;
         pNetworkPlayer->m_vecPosition = pVehicleDriverUpdate->pos;
+        pNetworkPlayer->m_bHasPosition = true;
         pNetworkVehicle->ReassignSyncer(pNetworkPlayer);
 
         pVehicleDriverUpdate->senderPlayerid = pNetworkPlayer->m_playerId;
@@ -190,6 +193,7 @@ PACKET_HANDLER(ePacketType::VEHICLE_PASSENGER_UPDATE,
 
         pNetworkVehicle->SetOccupant(pVehiclePassengerUpdate->seatid + 1, pNetworkPlayer);
         pNetworkPlayer->m_vecPosition = pNetworkVehicle->m_vecPosition;
+        pNetworkPlayer->m_bHasPosition = true;
 
         if (pNetworkVehicle->m_nCreatedBy == MISSION_VEHICLE)
         {
@@ -277,6 +281,7 @@ PACKET_HANDLER(ePacketType::VEHICLE_HANDOFF, Packets::Vehicles::VehicleHandoff* 
         pNewSyncer = pNetworkPlayer;
     }
 
+    CRelevanceManager::EnsureRelevant(pNetworkVehicle, pNewSyncer);
     pNetworkVehicle->m_pSyncer = pNewSyncer;
 
     // npc peds inside go together with the vehicle
@@ -285,6 +290,7 @@ PACKET_HANDLER(ePacketType::VEHICLE_HANDOFF, Packets::Vehicles::VehicleHandoff* 
         CNetworkPed* pNetworkPed = CNetworkPedManager::GetPed(pHandoff->occupants[i].pedid);
         if (pNetworkPed && pNetworkPed->m_pSyncer == pNetworkPlayer)
         {
+            CRelevanceManager::EnsureRelevant(pNetworkPed, pNewSyncer);
             pNetworkPed->m_pSyncer = pNewSyncer;
             pNetworkPed->m_pPendingSyncer = nullptr;
         }

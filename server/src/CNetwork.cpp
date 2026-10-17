@@ -1,5 +1,6 @@
 #include "CNetworkPlayerManager.h"
 #include "CRTTBroadcastManager.h"
+#include "CRelevanceManager.h"
 #include "CPacketFactory.h"
 #include "logger.h"
 #include "network/packet.h"
@@ -40,6 +41,7 @@ bool CNetwork::Init(unsigned short port)
     {
         CServerTime::Update();
         CRTTBroadcastManager::Update();
+        CRelevanceManager::Update();
 
         while (enet_host_service(pENetHost, &eNetEvent, 1) > 0)
         {
@@ -116,6 +118,7 @@ void CNetwork::HandlePlayerDisconnected(ENetEvent& event)
 
     CNetworkPedManager::RemoveAllHostedAndNotify(pNetworkPlayer);
     CNetworkVehicleManager::RemoveAllHostedAndNotify(pNetworkPlayer);
+    CRelevanceManager::OnPlayerDisconnected(pNetworkPlayer);
 
     CNetworkPlayerManager::Remove(pNetworkPlayer);
 
@@ -238,43 +241,8 @@ void CNetwork::HandlePlayerConnected(ENetPeer* pENetPeer, Packets::System::Playe
         }
     }
 
-    for (auto i : CNetworkVehicleManager::m_pVehicles)
-    {
-        Packets::Vehicles::VehicleSpawn vehicleSpawnPacket{};
-        vehicleSpawnPacket.vehicleid = i->m_vehicleId;
-        vehicleSpawnPacket.modelid = i->m_nModelId;
-        vehicleSpawnPacket.pos = i->m_vecPosition;
-        vehicleSpawnPacket.rot = static_cast<float>(
-            i->m_vecRotation.z * (3.141592f / 180.0f));  // convert to radians TODO(v0.3.1-alpha): is this wrong?
-        vehicleSpawnPacket.color1 = i->m_nPrimaryColor;
-        vehicleSpawnPacket.color2 = i->m_nSecondaryColor;
-        GetPacketFactory().Send(vehicleSpawnPacket, pNewNetworkPlayer);
-
-        Packets::Vehicles::VehicleDamage vehicleDamagePacket{};
-        vehicleDamagePacket.vehicleid = i->m_vehicleId;
-        vehicleDamagePacket.damageManager = i->m_damageManager;
-        GetPacketFactory().Send(vehicleDamagePacket, pNewNetworkPlayer);
-
-        for (int component : i->m_pComponents)
-        {
-            Packets::Vehicles::VehicleComponentAdd vehicleComponentAdd{};
-            vehicleComponentAdd.vehicleid = i->m_vehicleId;
-            vehicleComponentAdd.componentid = component;
-            GetPacketFactory().Send(vehicleComponentAdd, pNewNetworkPlayer);
-        }
-    }
-
-    for (auto i : CNetworkPedManager::m_pPeds)
-    {
-        Packets::Peds::PedSpawn packet{};
-        packet.pedid = i->m_pedId;
-        packet.modelId = i->m_nModelId;
-        packet.pos = i->m_vecPos;
-        packet.pedType = i->m_nPedType;
-        packet.createdBy = i->m_nCreatedBy;
-        snprintf(packet.specialModelName, sizeof(packet.specialModelName), "%s", i->m_szSpecialModelName);
-        GetPacketFactory().Send(packet, pNewNetworkPlayer);
-    }
+    // peds and vehicles come from CRelevanceManager::Update: the mission ones right away, the ambient ones once
+    // the new player's position is known and they are in its scope
 
      if (Packets::Scripts::g_pLastEnExPlayerOwner)
      {
