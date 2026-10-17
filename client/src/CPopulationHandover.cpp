@@ -37,11 +37,18 @@ static bool IsInPlayerGroup(CPed* pPed)
     return pLeader && pLeader != pPed && pLeader->IsPlayer();
 }
 
+// dying (a stealth kill too) or dead: a new syncer would flush its die task (BecomeClone here) and give the body
+// an ambient life (BecomeSyncer there)
+static bool IsDyingOrDead(CPed* pPed)
+{
+    return pPed->m_fHealth <= 0.0f || !pPed->IsAlive() || pPed->m_ePedState == PEDSTATE_DIE_BY_STEALTH;
+}
+
 static CNetworkPed* GetOwnedAmbientPed(CPed* pPed)
 {
     CNetworkPed* pNetworkPed = CNetworkPedManager::GetPed(pPed);
     if (!pNetworkPed || !pNetworkPed->m_bSyncing || pNetworkPed->m_nCreatedBy != RANDOM_CHAR ||
-        pPed->m_nPedFlags.bInVehicle || pPed->m_fHealth <= 0.0f || IsInPlayerGroup(pPed))
+        pPed->m_nPedFlags.bInVehicle || IsDyingOrDead(pPed) || IsInPlayerGroup(pPed))
     {
         return nullptr;
     }
@@ -314,7 +321,8 @@ static void MigrateMissionEntities()
         CPed* pPed = pNetworkPed->m_pPed;
         // one in a vehicle goes with the vehicle
         if (!pPed || !pNetworkPed->m_bSyncing || pNetworkPed->m_nCreatedBy != MISSION_CHAR ||
-            pPed->m_nPedFlags.bInVehicle || IsInPlayerGroup(pPed) || pNetworkPed->IsGettingIntoVehicle())
+            pPed->m_nPedFlags.bInVehicle || IsInPlayerGroup(pPed) || pNetworkPed->IsGettingIntoVehicle() ||
+            IsDyingOrDead(pPed))
         {
             continue;
         }

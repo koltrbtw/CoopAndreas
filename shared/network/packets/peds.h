@@ -482,6 +482,73 @@ private:
     }
 };
 
+// a ped (an npc or a player) of the sender died: its clones play the same CTaskComplexDie, the death anim the
+// owner's damage response chose (CPedDeathSync); they take no damage of their own (DamageHooks)
+class PedDied : public Packet
+{
+    DEFINE_PACKET_TYPE(PedDied, ePacketType::PED_DIED, ePacketChannel::EVENT);
+
+public:
+    static constexpr uint8_t FLAG_STEALTH = 1;             // killed by a stealth kill (CTaskSimpleStealthKill)
+    static constexpr uint8_t FLAG_FALLING_TO_DEATH = 2;    // CTaskComplexDie::m_bFallingToDeath
+    static constexpr uint8_t FLAG_OVER_RAILING = 4;        // CTaskComplexDie::m_bFallToDeathOverRailing
+    static constexpr uint8_t FLAG_DROWNED = 8;
+
+    CNetworkEntitySerializer entity{};
+    uint8_t weapon = 0;
+    uint8_t animGroup = 0;
+    uint16_t animId = 0;
+    float blendDelta = 4.0f;
+    float animSpeed = 0.0f;
+    uint8_t flags = 0;
+    uint8_t fallDirection = 0;
+
+private:
+    template <typename Stream>
+    bool Serialize(Stream& stream)
+    {
+        serialize_object(stream, entity);
+        if (entity.entityType != NETWORK_ENTITY_TYPE_PLAYER && entity.entityType != NETWORK_ENTITY_TYPE_PED)
+        {
+            return false;
+        }
+        serialize_uint8(stream, weapon);
+        serialize_uint8(stream, animGroup);
+        serialize_uint16(stream, animId);
+        serialize_float(stream, blendDelta);
+        serialize_float(stream, animSpeed);
+        serialize_uint8(stream, flags);
+        serialize_uint8(stream, fallDirection);
+        return true;
+    }
+};
+
+// the sender's player started a stealth kill: the victim's owner plays the victim's part (the engine kills it by
+// it), the others play both parts; the killer's own damage event can't reach a victim it doesn't own
+class PedStealthKill : public Packet
+{
+    DEFINE_PACKET_TYPE(PedStealthKill, ePacketType::PED_STEALTH_KILL, ePacketChannel::EVENT);
+
+public:
+    SenderPlayerId senderPlayerid{};  // the killer
+    CNetworkEntitySerializer victim{};
+    uint8_t animGroup = 0;  // the knife's anim group
+
+private:
+    template <typename Stream>
+    bool Serialize(Stream& stream)
+    {
+        serialize_object(stream, senderPlayerid);
+        serialize_object(stream, victim);
+        if (victim.entityType != NETWORK_ENTITY_TYPE_PLAYER && victim.entityType != NETWORK_ENTITY_TYPE_PED)
+        {
+            return false;
+        }
+        serialize_uint8(stream, animGroup);
+        return true;
+    }
+};
+
 class PedClaimOnRelease : public Packet
 {
     DEFINE_PACKET_TYPE(PedClaimOnRelease, ePacketType::PED_CLAIM_ON_RELEASE, ePacketChannel::EVENT);

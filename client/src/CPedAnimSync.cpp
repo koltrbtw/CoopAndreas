@@ -126,8 +126,9 @@ static void EnsureBaseAnim(CPed* pPed)
 
 void CPedAnimSync::Apply(CPed* pPed, const SPedAnim* pAnims, int nCount, int nOnlyGroup)
 {
+    // stabbed: our copy of the stealth kill plays the victim's anims (PED_STEALTH_KILL), the syncer's run a ping apart
     RpClump* pClump = pPed->m_pRwClump;
-    if (!pClump || !pPed->IsAlive())
+    if (!pClump || !pPed->IsAlive() || pPed->m_ePedState == PEDSTATE_DIE_BY_STEALTH)
     {
         return;
     }
