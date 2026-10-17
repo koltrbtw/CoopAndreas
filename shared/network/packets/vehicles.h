@@ -69,6 +69,7 @@ public:
     float planeGearState{};
     eDoorLock locked{};
 
+    server_time_t sendTime = 0;  // g_serverTime of the sender: the receiver moves the target on by the delay
     bool hasRotorSpeed = false;  // helis, planes, boats: the clone's own ai doesn't spin them
     float rotorSpeed = 0.0f;
 
@@ -138,6 +139,7 @@ public:
 
         serialize_int(stream, (int&)locked, DOORLOCK_NOT_USED, DOORLOCK_SKIP_SHUT_DOORS);
 
+        serialize_uint32(stream, sendTime);
         serialize_bool(stream, hasRotorSpeed);
         if (hasRotorSpeed)
         {
@@ -181,6 +183,7 @@ public:
     vehicleid_t trailerid{};  // the vehicle it tows, a trailer or a car behind a tow truck
     int8_t radioStation = -1;  // eRadioID the driver listens to, for the passengers
 
+    server_time_t sendTime = 0;  // g_serverTime of the sender: the receiver moves the target on by the delay
     bool hasRotorSpeed = false;  // helis, planes, boats: the clone's own ai doesn't spin them
     float rotorSpeed = 0.0f;
 
@@ -282,6 +285,7 @@ private:
 
         serialize_int(stream, radioStation, -1, 13);
 
+        serialize_uint32(stream, sendTime);
         serialize_bool(stream, hasRotorSpeed);
         if (hasRotorSpeed)
         {

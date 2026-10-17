@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include <CServerTime.h>
 #include "CNetworkVehicle.h"
 #include "CTrainSync.h"
 
@@ -198,6 +199,7 @@ void CNetworkVehicle::BecomeSyncer(const Packets::Vehicles::VehicleHandoff* pHan
     m_bHasTarget = false;
     m_bHasRotorSpeed = false;
     m_bKeepSpeed = false;
+    m_bHasGear = false;
 
     if (!m_pVehicle)
     {
@@ -523,6 +525,7 @@ static constexpr float WARP_DISTANCE = 15.0f;          // a teleport, per 100 ms
 static constexpr float WARP_DISTANCE_FOR_SPEED = 10.0f;
 static constexpr unsigned int MIN_TARGET_DELAY = 50;
 static constexpr unsigned int MAX_TARGET_DELAY = 400;
+static constexpr int MAX_EXTRAPOLATION = 150;  // ms, MTA's vehext_ping_limit
 
 static float GetErrorFactor(float fMin, unsigned int nDelay)
 {
@@ -559,7 +562,7 @@ static void SetVehicleAxes(CVehicle* pVehicle, CVector right, CVector forward)
 }
 
 void CNetworkVehicle::SetTargetTransform(const CVector& pos, const CVector& right, const CVector& forward,
-    const CVector& moveSpeed, const CVector& turnSpeed)
+    const CVector& moveSpeed, const CVector& turnSpeed, server_time_t sendTime)
 {
     if (!m_pVehicle || !m_pVehicle->m_matrix)
     {
@@ -612,7 +615,16 @@ void CNetworkVehicle::SetTargetTransform(const CVector& pos, const CVector& righ
         return;
     }
 
-    m_vecTargetPosError = (pos - current) * GetErrorFactor(TARGET_POS_FACTOR_MIN, nDelay);
+    // where the syncer's vehicle is by now (MTA's vehext extrapolation, by the measured delay instead of the ping):
+    // the clone stayed behind it by its speed times the delay
+    int nLatency = static_cast<int>(g_serverTime - sendTime);
+    CVector target = pos;
+    if (sendTime && nLatency > 0)
+    {
+        target += moveSpeed * (50.0f * std::min(nLatency, MAX_EXTRAPOLATION) / 1000.0f);  // the speed is per 1/50 s
+    }
+
+    m_vecTargetPosError = (target - current) * GetErrorFactor(TARGET_POS_FACTOR_MIN, nDelay);
     m_vecTargetRight = right;
     m_vecTargetForward = forward;
     m_fTargetRotFactor = GetErrorFactor(TARGET_ROT_FACTOR_MIN, nDelay);
@@ -692,4 +704,51 @@ void CNetworkVehicle::SetRotorSpeed(CVehicle* pVehicle, float fSpeed)
         static_cast<CBoat*>(pVehicle)->m_fPropSpeed = fSpeed;
         break;
     }
+}
+
+// CPlane::m_fLandingGearStatus: 0 down, 1 up, going up from 0 to 1, going down from -1 to 0. The clone got the
+// syncer's 0 or 1 and snapped; now it starts the move like the player's key does in CPlane::ProcessControl
+// (0x6CB39A, MTA's SetLandingGearDown) and moves it like 0x6CB422 when the game doesn't (no driver to process it)
+void CNetworkVehicle::ProcessLandingGear()
+{
+    if (!m_bHasGear || !m_pVehicle || m_pVehicle->m_nVehicleSubType != VEHICLE_PLANE)
+    {
+        return;
+    }
+
+    CPlane* pPlane = static_cast<CPlane*>(m_pVehicle);
+    float& fGear = pPlane->m_fLandingGearStatus;
+    float fStep = CTimer::ms_fTimeStep * *reinterpret_cast<float*>(0x871904);
+    auto SetWheelsAway = [pPlane](uint8_t nState) {
+        memset(reinterpret_cast<uint8_t*>(pPlane) + 0x5A5, nState, 4);  // the wheel collision of the four wheels
+    };
+
+    bool bGoingUp = fGear > 0.0f && fGear < 1.0f;
+    bool bGoingDown = fGear < 0.0f;
+    if (m_bGearUp && fGear == 0.0f)
+    {
+        SetWheelsAway(2);
+        fGear = fStep;
+    }
+    else if (!m_bGearUp && fGear == 1.0f)
+    {
+        fGear = fStep - 1.0f;
+    }
+    else if ((m_bGearUp && bGoingDown) || (!m_bGearUp && bGoingUp))
+    {
+        fGear = -fGear;
+    }
+    else if ((bGoingUp || bGoingDown) && fGear == m_fGearAfterLastFrame)
+    {
+        fGear += fStep;
+        if (bGoingDown && fGear >= 0.0f)
+        {
+            plugin::CallMethod<0x6CAC70, CPlane*>(pPlane);  // CPlane::SetGearDown
+        }
+        else if (bGoingUp && fGear >= 1.0f)
+        {
+            plugin::CallMethod<0x6CAC20, CPlane*>(pPlane);  // CPlane::SetGearUp
+        }
+    }
+    m_fGearAfterLastFrame = fGear;
 }
