@@ -395,6 +395,41 @@ void CDebugCommands::RunCommand(const std::string& line)
         stream >> count;
         ShootGangMembers(pPlayer, count);
     }
+    else if (command == "turn")
+    {
+        // a sharp camera turn: the population must not depend on where the camera looks
+        float fDegrees = 180.0f;
+        stream >> fDegrees;
+        CCam& cam = TheCamera.m_aCams[TheCamera.m_nActiveCam];
+        cam.m_fHorizontalAngle += fDegrees * 3.14159265f / 180.0f;
+        logger::info("stand debug: camera turned by %.0f", fDegrees);
+    }
+    else if (command == "pitch")
+    {
+        float fRadians = -1.4f;
+        stream >> fRadians;
+        TheCamera.m_aCams[TheCamera.m_nActiveCam].m_fVerticalAngle = fRadians;
+        logger::info("stand debug: camera pitch %.2f", fRadians);
+    }
+    else if (command == "vehicles")
+    {
+        // vehicles by the 2D distance from the player, total / on screen
+        int counts[5]{}, onScreen[5]{};
+        const float limits[5] = {22.0f, 45.0f, 100.0f, 170.0f, 100000.0f};
+        for (auto pVehicle : CPools::ms_pVehiclePool)
+        {
+            float fDist = (pVehicle->GetPosition() - pPlayer->GetPosition()).Magnitude2D();
+            int i = 0;
+            while (fDist > limits[i])
+            {
+                i++;
+            }
+            counts[i]++;
+            onScreen[i] += pVehicle->GetIsOnScreen() ? 1 : 0;
+        }
+        logger::info("stand debug: vehicles <22 %d/%d <45 %d/%d <100 %d/%d <170 %d/%d far %d/%d", counts[0],
+            onScreen[0], counts[1], onScreen[1], counts[2], onScreen[2], counts[3], onScreen[3], counts[4], onScreen[4]);
+    }
     else if (command == "objects")
     {
         LogMapObjects(pPlayer->GetPosition());
