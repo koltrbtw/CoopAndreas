@@ -127,11 +127,24 @@ SHORT WINAPI GetKeyState_OnlyWhenFocused(int nVirtKey)
     return GetKeyState(nVirtKey);
 }
 
+// centred on the player instead of the camera (a sniper scope or a far camera moved the circle away from him)
+static void __cdecl CStreaming__AddModelsToRequestList_Hook(const CVector& posn, int flags)
+{
+    CPlayerPed* pPlayer = FindPlayerPed(0);
+    plugin::Call<0x40D3F0, const CVector&, int>(pPlayer ? pPlayer->GetPosition() : posn, flags);
+}
+
 void PatchStreaming()
 {
     // increase available streaming memory (memory512.cs full analog)
     patch::SetUInt(0x8A5A80, 536870912);  // 512 megabytes
     patch::SetUInt(0x5B8E6A, 536870912);  // hardcoded value
+
+    // world models by the radius around the player, not by where the camera looks: beyond the radius of
+    // CStreaming::AddModelsToRequestList only what is in the camera frustum got requested (CRenderer::ScanWorld),
+    // so things popped in after turning around. The 512 MB budget above has room for it (~30 MB used in town)
+    patch::SetFloat(0x40D404, 150.0f);  // mov [esp+0x10], 80.0 -> 150.0 (outside, interiors keep 40)
+    patch::RedirectCall(0x40E6FB, CStreaming__AddModelsToRequestList_Hook);  // CStreaming::Update
 
     // the world must live while the pause menu is open: other players see our traffic and npcs, we simulate them.
     // The menu calls CTimer::StartUserPause, and CTimer::Update keeps the time step at 0 while m_UserPause is set
