@@ -151,6 +151,8 @@ static CVehicle* FindNearestVehicle(const CVector& position, float fMaxDistance)
     return pNearest;
 }
 
+static std::string ms_watchedPed;  // to_string of a ped id watch-anims logs too (watch-ped, ram-ped)
+
 // what a player ped plays and does, a line on every change: the active task, in a vehicle, the car anims
 static void LogPlayerAnims()
 {
@@ -217,9 +219,17 @@ static void LogPlayerAnims()
         log(pNetworkPlayer->m_pPed, pNetworkPlayer->GetName().c_str());
     }
 
-    // a ped clone playing the enter task of its syncer (PED_VEHICLE_ENTER), a jacker
+    // a ped clone playing the enter task of its syncer (PED_VEHICLE_ENTER), a jacker; the watched ped
     for (auto pNetworkPed : CNetworkPedManager::m_pPeds)
     {
+        if (!ms_watchedPed.empty() && to_string(pNetworkPed->m_pedId) == ms_watchedPed)
+        {
+            char szName[64];
+            sprintf_s(szName, "watched %s (ours %d)", ms_watchedPed.c_str(), pNetworkPed->m_bSyncing);
+            log(pNetworkPed->m_pPed, szName);
+            continue;
+        }
+
         if (!pNetworkPed->m_bSyncing && pNetworkPed->m_nEnterVehicleTime != 0 &&
             CTimer::m_snTimeInMilliseconds - pNetworkPed->m_nEnterVehicleTime < 15000)
         {
@@ -591,6 +601,65 @@ void CDebugCommands::RunCommand(const std::string& line)
             plugin::Command<Commands::TASK_ENTER_CAR_AS_DRIVER>(ped, CPools::GetVehicleRef(pVehicle), 20000);
             logger::info("stand debug: jacker %d", ped);
         }
+    }
+    else if (command == "ram-me")
+    {
+        // an empty car 12 m ahead rolls into the player
+        float speed = 0.6f;
+        stream >> speed;
+        CVector forward = pPlayer->GetForward();
+        CVector pos = pPlayer->GetPosition() + forward * 12.0f;
+        plugin::Command<Commands::REQUEST_MODEL>(400);
+        plugin::Command<Commands::LOAD_ALL_MODELS_NOW>();
+        int car = 0;
+        plugin::Command<Commands::CREATE_CAR>(400, pos.x, pos.y, pos.z, &car);
+        if (CVehicle* pVehicle = CPools::GetVehicle(car))
+        {
+            pVehicle->SetHeading(atan2f(forward.x, -forward.y) + PI);
+            pVehicle->m_vecMoveSpeed = forward * -speed;
+            logger::info("stand debug: ram car %d", car);
+        }
+    }
+    else if (command == "ram-ped")
+    {
+        // an empty car rolls into the nearest ped clone: only its owner may knock it down
+        float speed = 0.6f;
+        stream >> speed;
+        CNetworkPed* pTarget = nullptr;
+        float fNearest = 40.0f;
+        for (auto pNetworkPed : CNetworkPedManager::m_pPeds)
+        {
+            CPed* pPed = pNetworkPed->m_pPed;
+            if (!pNetworkPed->m_bSyncing && pPed && !pPed->m_nPedFlags.bInVehicle &&
+                (pPed->GetPosition() - pPlayer->GetPosition()).Magnitude() < fNearest)
+            {
+                fNearest = (pPed->GetPosition() - pPlayer->GetPosition()).Magnitude();
+                pTarget = pNetworkPed;
+            }
+        }
+        if (pTarget)
+        {
+            CVector target = pTarget->m_pPed->GetPosition();
+            CVector dir = target - pPlayer->GetPosition();
+            dir.z = 0.0f;
+            dir.Normalise();
+            CVector pos = target - dir * 7.0f;
+            plugin::Command<Commands::REQUEST_MODEL>(400);
+            plugin::Command<Commands::LOAD_ALL_MODELS_NOW>();
+            int car = 0;
+            plugin::Command<Commands::CREATE_CAR>(400, pos.x, pos.y, target.z, &car);
+            if (CVehicle* pVehicle = CPools::GetVehicle(car))
+            {
+                pVehicle->SetHeading(atan2f(-dir.x, dir.y));
+                pVehicle->m_vecMoveSpeed = dir * speed;
+            }
+            ms_watchedPed = to_string(pTarget->m_pedId);
+            logger::info("stand debug: ram ped %s", ms_watchedPed.c_str());
+        }
+    }
+    else if (command == "watch-ped")
+    {
+        stream >> ms_watchedPed;
     }
     else if (command == "g")
     {
