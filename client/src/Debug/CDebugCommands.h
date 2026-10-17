@@ -20,6 +20,7 @@
 //   objects                     log the map objects within 40 m (CWorldObjectSync): model, flags, static, displaced
 //   object-damage <n>           CObject::ObjectDamage on the n nearest breakable map objects, hit by the player
 //   object-push                 the nearest movable map object flies off, pushed by the player
+//   status                      log the player's position, health, armour and wanted level
 class CDebugCommands
 {
 public:
