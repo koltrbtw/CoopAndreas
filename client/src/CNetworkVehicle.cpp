@@ -50,13 +50,22 @@ bool CNetworkVehicle::CreateVehicle(vehicleid_t vehicleid, int modelid, CVector 
     case VEHICLE_PLANE:
         m_pVehicle = new CPlane(modelid, MISSION_VEHICLE); break;
 
+    // the pool operator new gives nullptr when the vehicle pool is full
     case VEHICLE_BIKE:
-        m_pVehicle = new CBike(modelid, MISSION_VEHICLE);
-        ((CBike*)m_pVehicle)->m_nDamageFlags |= 0x10; break;
+        if (auto pBike = new CBike(modelid, MISSION_VEHICLE))
+        {
+            pBike->m_nDamageFlags |= 0x10;
+            m_pVehicle = pBike;
+        }
+        break;
 
     case VEHICLE_BMX:
-        m_pVehicle = new CBmx(modelid, MISSION_VEHICLE);
-        ((CBmx*)m_pVehicle)->m_nDamageFlags |= 0x10; break;
+        if (auto pBmx = new CBmx(modelid, MISSION_VEHICLE))
+        {
+            pBmx->m_nDamageFlags |= 0x10;
+            m_pVehicle = pBmx;
+        }
+        break;
 
     case VEHICLE_TRAILER:
         m_pVehicle = new CTrailer(modelid, MISSION_VEHICLE); break;
@@ -72,7 +81,11 @@ bool CNetworkVehicle::CreateVehicle(vehicleid_t vehicleid, int modelid, CVector 
     }
 
     if (!m_pVehicle)
+    {
+        logger::warn("vehicle %s of model %d: no room in the vehicle pool (%d used)", to_string(vehicleid).c_str(),
+            modelid, CPools::ms_pVehiclePool->GetNoOfUsedSpaces());
         return false;
+    }
 
     m_pVehicle->RegisterReference((CEntity**)&m_pVehicle);
 
@@ -115,12 +128,27 @@ CNetworkVehicle::~CNetworkVehicle()
             {
                 CRadar::ClearBlipForEntity(eBlipType::BLIP_CAR, CPools::GetVehicleRef(m_pVehicle));
             }
+            TakeOutNetworkPlayers(m_pVehicle);
             CWorld::Remove(m_pVehicle);
             //CWorld::RemoveReferencesToDeletedObject(m_pVehicle); // ?
             delete m_pVehicle;
         }
     }
     m_pVehicle = nullptr;
+}
+
+void CNetworkVehicle::TakeOutNetworkPlayers(CVehicle* pVehicle)
+{
+    CPed* apOccupants[1 + 8] = {pVehicle->m_pDriver};
+    std::copy(std::begin(pVehicle->m_apPassengers), std::end(pVehicle->m_apPassengers), apOccupants + 1);
+
+    for (CPed* pPed : apOccupants)
+    {
+        if (CNetworkPlayer* pNetworkPlayer = pPed ? CNetworkPlayerManager::GetPlayer(pPed) : nullptr)
+        {
+            pNetworkPlayer->RemoveFromVehicle(pVehicle);
+        }
+    }
 }
 
 bool CNetworkVehicle::HasDriver()

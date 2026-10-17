@@ -330,6 +330,11 @@ void CTrainSync::RemoveCloneTrain(CTrain* pFrontCarriage)
         }
     }
 
+    for (CTrain* pCarriage = pFrontCarriage; pCarriage; pCarriage = pCarriage->m_pNextCarriage)
+    {
+        CNetworkVehicle::TakeOutNetworkPlayers(pCarriage);
+    }
+
     CTrain::RemoveOneMissionTrain(pFrontCarriage);
 }
 
@@ -434,9 +439,44 @@ static void __cdecl CTrain__DoTrainGenerationAndRemoval_Hook()
     CTrain::bDisableRandomTrains = bDisabled;
 }
 
+// the script commands for all the trains (DELETE_MISSION_TRAINS, MARK_MISSION_TRAINS_AS_NO_LONGER_NEEDED,
+// DELETE_ALL_TRAINS, the mission cleanup) would remove or release the clones too, mission trains for the local game:
+// they look for CVehicle::m_nVehicleType == VEHICLE_TRAIN, so meanwhile the clones aren't trains
+template <uintptr_t address>
+static void __cdecl CTrain__AllTrains_Hook()
+{
+    std::vector<CTrain*> hidden;
+    for (auto pNetworkVehicle : CNetworkVehicleManager::m_pVehicles)
+    {
+        if (!pNetworkVehicle->m_bTrain || pNetworkVehicle->m_bSyncing || !pNetworkVehicle->m_pVehicle)
+        {
+            continue;
+        }
+
+        for (auto pCarriage = static_cast<CTrain*>(pNetworkVehicle->m_pVehicle); pCarriage;
+             pCarriage = pCarriage->m_pNextCarriage)
+        {
+            pCarriage->m_nVehicleType = VEHICLE_AUTOMOBILE;
+            hidden.push_back(pCarriage);
+        }
+    }
+
+    plugin::Call<address>();
+
+    for (auto pCarriage : hidden)
+    {
+        pCarriage->m_nVehicleType = VEHICLE_TRAIN;
+    }
+}
+
 void CTrainSync::InjectHooks()
 {
     patch::RedirectCall(0x6F7C2C, CTrain__CreateMissionTrain_Hook);  // DoTrainGenerationAndRemoval
     patch::RedirectCall(0x497FE4, CTrain__CreateMissionTrain_Hook);  // the CREATE_MISSION_TRAIN script command
     patch::RedirectCall(0x43426D, CTrain__DoTrainGenerationAndRemoval_Hook);  // CGame::Process
+
+    patch::RedirectCall(0x498001, CTrain__AllTrains_Hook<0x6F6A20>);  // DELETE_MISSION_TRAINS: RemoveMissionTrains
+    patch::RedirectCall(0x49800D, CTrain__AllTrains_Hook<0x6F6B60>);  // MARK_..._NO_LONGER_NEEDED: ReleaseMissionTrains
+    patch::RedirectCall(0x4685AD, CTrain__AllTrains_Hook<0x6F6B60>);  // the mission cleanup: ReleaseMissionTrains
+    patch::RedirectCall(0x498019, CTrain__AllTrains_Hook<0x6F6AA0>);  // DELETE_ALL_TRAINS: RemoveAllTrains
 }

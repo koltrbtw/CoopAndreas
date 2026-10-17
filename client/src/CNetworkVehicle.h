@@ -39,5 +39,8 @@ public:
 	void BecomeClone(Packets::Vehicles::VehicleHandoff* pHandoff);
 	
 	static CNetworkVehicle* CreateHosted(CVehicle* vehicle);
+
+	// before a clone is deleted: CVehicle::~CVehicle destroys the peds inside, a remote player's one too
+	static void TakeOutNetworkPlayers(CVehicle* pVehicle);
 };
 
