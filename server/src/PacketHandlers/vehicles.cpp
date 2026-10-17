@@ -352,5 +352,8 @@ PACKET_HANDLER(ePacketType::VEHICLE_HANDOFF, Packets::Vehicles::VehicleHandoff* 
         }
     }
 
+    // the client plays packets in serverTime order (CPacketBuffer): forwarded with the old syncer's time it would come
+    // before the spawn EnsureRelevant has just sent, the new syncer would find nothing to take over and keep a clone
+    pHandoff->serverTime = g_serverTime;
     GetPacketFactory().Send(*pHandoff, pNewSyncer);
 }
