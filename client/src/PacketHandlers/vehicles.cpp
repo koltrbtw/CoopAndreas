@@ -138,6 +138,7 @@ PACKET_HANDLER(ePacketType::VEHICLE_DRIVER_UPDATE, Packets::Vehicles::VehicleDri
     }
 
     pNetworkVehicle->m_pVehicle->m_eDoorLock = pVehicleDriverUpdate->locked;
+    pNetworkVehicle->ApplyTrailer(pVehicleDriverUpdate->trailerid);
     pNetworkVehicle->m_playerDriverSnapshot = *pVehicleDriverUpdate;
 }
 

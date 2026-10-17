@@ -238,6 +238,7 @@ PACKET_HANDLER(ePacketType::PED_DRIVER_UPDATE, Packets::Peds::PedDriverUpdate* p
         ((CAutomobile*)pVehicle)->m_wMiscComponentAngle = pPedDriverUpdate->miscComponentAngle;
     }
     pVehicle->m_eDoorLock = pPedDriverUpdate->locked;
+    pNetworkVehicle->ApplyTrailer(pPedDriverUpdate->trailerid);
 
     pVehicle->m_fGasPedal = pNetworkPed->m_fGasPedal = pPedDriverUpdate->gasPedal;
     pVehicle->m_fBreakPedal = pNetworkPed->m_fBreakPedal = pPedDriverUpdate->breakPedal;

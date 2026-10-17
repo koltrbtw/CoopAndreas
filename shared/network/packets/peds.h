@@ -189,6 +189,7 @@ public:
     float health{};
 
     eDoorLock locked = DOORLOCK_UNLOCKED;
+    vehicleid_t trailerid{};  // the vehicle it tows, a trailer or a car behind a tow truck
     float gasPedal = 0.0f;
     float breakPedal = 0.0f;
     float steerAngle = 0.0f;
@@ -272,6 +273,13 @@ private:
         serialize_compressed_float(stream, health, 0.0f, 1000.0f, 1.0f);
 
         serialize_int(stream, (int&)locked, DOORLOCK_NOT_USED, DOORLOCK_SKIP_SHUT_DOORS);
+
+        bool hasTrailer = Stream::IsWriting && trailerid.valid();
+        serialize_bool(stream, hasTrailer);
+        if (hasTrailer)
+        {
+            serialize_vehicleid(stream, trailerid);
+        }
 #pragma endregion
 #pragma region pedals
         {
