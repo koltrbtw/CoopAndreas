@@ -49,6 +49,29 @@ PACKET_HANDLER(ePacketType::VEHICLE_REMOVE, Packets::Vehicles::VehicleRemove* pV
     }
 }
 
+// a parked clone gets a zero speed every update and soon skips its physics (m_nFakePhysics, see WakeFloatingVehicle in
+// CNetworkVehicleManager.cpp), then nothing moves its RW frame to the matrix anymore: it was drawn where it was
+// created, above the spot the syncer's car had dropped to, until someone got in
+static void SetStandingTransform(CNetworkVehicle* pNetworkVehicle, const Packets::Vehicles::VehicleIdleUpdate& update)
+{
+    CVehicle* pVehicle = pNetworkVehicle->m_pVehicle;
+    pNetworkVehicle->m_bHasTarget = false;
+
+    CVector previousPos = pVehicle->m_matrix->pos;
+    pVehicle->m_matrix->pos = update.pos;
+    pVehicle->m_matrix->right = update.roll;
+    pVehicle->m_matrix->up = update.rot;
+    pVehicle->UpdateRwMatrix();
+    pVehicle->UpdateRwFrame();
+    if (DistanceBetweenPoints(previousPos, pVehicle->m_matrix->pos) > 0.05f)
+    {
+        pVehicle->RemoveAndAdd();  // the world sectors, for the collision
+    }
+
+    pVehicle->m_vecMoveSpeed = update.velocity;
+    pVehicle->m_vecTurnSpeed = update.turnSpeed;
+}
+
 PACKET_HANDLER(ePacketType::VEHICLE_IDLE_UPDATE, Packets::Vehicles::VehicleIdleUpdate* pVehicleIdleUpdate)
 {
     CNetworkVehicle* pNetworkVehicle = CNetworkVehicleManager::GetVehicle(pVehicleIdleUpdate->vehicleid);
@@ -63,27 +86,19 @@ PACKET_HANDLER(ePacketType::VEHICLE_IDLE_UPDATE, Packets::Vehicles::VehicleIdleU
         return;
 
     CVehicle* pVehicle = pNetworkVehicle->m_pVehicle;
-    CVector previousPos = pVehicle->m_matrix->pos;
-    pVehicle->m_matrix->pos = pVehicleIdleUpdate->pos;
+    pNetworkVehicle->m_bHasRotorSpeed = pVehicleIdleUpdate->hasRotorSpeed;
+    pNetworkVehicle->m_fRotorSpeed = pVehicleIdleUpdate->rotorSpeed;
 
-    // if (CUtil::IsPositionUpdateNeeded(pNetworkVehicle->m_pVehicle->m_matrix->right, pVehicleIdleUpdate->roll, 1))
-    pVehicle->m_matrix->right = pVehicleIdleUpdate->roll;
-
-    // if (CUtil::IsPositionUpdateNeeded(pNetworkVehicle->m_pVehicle->m_matrix->up, pVehicleIdleUpdate->rot, 1))
-    pVehicle->m_matrix->up = pVehicleIdleUpdate->rot;
-
-    // a parked clone gets a zero speed every update and soon skips its physics (m_nFakePhysics, see
-    // WakeFloatingVehicle in CNetworkVehicleManager.cpp), then nothing moves its RW frame to the matrix anymore: it
-    // was drawn where it was created, above the spot the syncer's car had dropped to, until someone got in
-    pVehicle->UpdateRwMatrix();
-    pVehicle->UpdateRwFrame();
-    if (DistanceBetweenPoints(previousPos, pVehicle->m_matrix->pos) > 0.05f)
+    // rolling, pushed, falling: like a driven one; a standing one is set as it is, it may skip its physics
+    if (pVehicleIdleUpdate->velocity.Magnitude() > 0.001f || pVehicle->m_vecMoveSpeed.Magnitude() > 0.001f)
     {
-        pVehicle->RemoveAndAdd();  // the world sectors, for the collision
+        pNetworkVehicle->SetTargetTransform(pVehicleIdleUpdate->pos, pVehicleIdleUpdate->roll, pVehicleIdleUpdate->rot,
+            pVehicleIdleUpdate->velocity, pVehicleIdleUpdate->turnSpeed);
     }
-
-    pNetworkVehicle->m_pVehicle->m_vecMoveSpeed = pVehicleIdleUpdate->velocity;
-    pNetworkVehicle->m_pVehicle->m_vecTurnSpeed = pVehicleIdleUpdate->turnSpeed;
+    else
+    {
+        SetStandingTransform(pNetworkVehicle, *pVehicleIdleUpdate);
+    }
 
     pNetworkVehicle->m_pVehicle->m_nPrimaryColor = pVehicleIdleUpdate->color1;
     pNetworkVehicle->m_pVehicle->m_nSecondaryColor = pVehicleIdleUpdate->color2;
@@ -122,12 +137,11 @@ PACKET_HANDLER(ePacketType::VEHICLE_DRIVER_UPDATE, Packets::Vehicles::VehicleDri
     // a train is put on its track by TRAIN_UPDATE, a matrix would only fight CTrain::ProcessControl
     if (!pNetworkVehicle->m_bTrain)
     {
-        pVehicle->m_matrix->pos = pVehicleDriverUpdate->pos;
-        pVehicle->m_matrix->right = pVehicleDriverUpdate->roll;
-        pVehicle->m_matrix->up = pVehicleDriverUpdate->rot;
-        pVehicle->m_vecMoveSpeed = pVehicleDriverUpdate->velocity;
-        pVehicle->m_vecTurnSpeed = pVehicleDriverUpdate->turnSpeed;
+        pNetworkVehicle->SetTargetTransform(pVehicleDriverUpdate->pos, pVehicleDriverUpdate->roll,
+            pVehicleDriverUpdate->rot, pVehicleDriverUpdate->velocity, pVehicleDriverUpdate->turnSpeed);
     }
+    pNetworkVehicle->m_bHasRotorSpeed = pVehicleDriverUpdate->hasRotorSpeed;
+    pNetworkVehicle->m_fRotorSpeed = pVehicleDriverUpdate->rotorSpeed;
 
     pNetworkPlayer->ApplyWeaponSnapshot(pVehicleDriverUpdate->playerWeapon);
     pNetworkPlayer->m_onFootSnapshotInterpolated.healthSnapshot = pVehicleDriverUpdate->playerHealth;

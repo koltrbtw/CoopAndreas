@@ -93,6 +93,7 @@ void CNetworkVehicleManager::UpdateDriver(CVehicle* pVehicle)
 		}
 
 		vehicleDriverUpdate.locked = pVehicle->m_eDoorLock;
+		vehicleDriverUpdate.hasRotorSpeed = CNetworkVehicle::GetRotorSpeed(pVehicle, &vehicleDriverUpdate.rotorSpeed);
 		vehicleDriverUpdate.trailerid = CNetworkVehicle::GetTrailerId(pVehicle);
 		vehicleDriverUpdate.radioStation = AudioEngine.GetCurrentRadioStationID();
 
@@ -113,6 +114,38 @@ static constexpr unsigned int WAKE_DURATION = 3000;   // ms, it sinks slowly eno
 
 // the woken vehicles and until when, KeepAwake runs every frame (a pointer is only compared, never read)
 static std::vector<std::pair<CVehicle*, unsigned int>> ms_awakeVehicles;
+
+static constexpr unsigned int KEEP_SPEED_TIME = 500;  // ms after the last update, no runaway car when they stop
+
+void CNetworkVehicleManager::AfterProcessControl(CVehicle* pVehicle)
+{
+	CNetworkVehicle* pNetworkVehicle = GetVehicle(pVehicle);
+	if (!pNetworkVehicle || pNetworkVehicle->m_bSyncing || pNetworkVehicle->m_bTrain)
+	{
+		return;
+	}
+
+	pNetworkVehicle->ProcessTargetTransform();
+
+	if (pNetworkVehicle->m_bKeepSpeed)
+	{
+		if (CTimer::m_snTimeInMilliseconds - pNetworkVehicle->m_nLastTargetTime < KEEP_SPEED_TIME)
+		{
+			pVehicle->m_vecMoveSpeed = pNetworkVehicle->m_vecKeptMoveSpeed;
+			pVehicle->m_vecTurnSpeed = pNetworkVehicle->m_vecKeptTurnSpeed;
+		}
+		else
+		{
+			pNetworkVehicle->m_bKeepSpeed = false;
+		}
+	}
+
+	// the clone's ProcessControl winds it down without the driver's ai or pad
+	if (pNetworkVehicle->m_bHasRotorSpeed)
+	{
+		CNetworkVehicle::SetRotorSpeed(pVehicle, pNetworkVehicle->m_fRotorSpeed);
+	}
+}
 
 void CNetworkVehicleManager::KeepAwake(CVehicle* pVehicle)
 {
@@ -218,6 +251,7 @@ void CNetworkVehicleManager::UpdateIdle()
 			}
 
 			packet.locked = pVehicle->m_eDoorLock;
+			packet.hasRotorSpeed = CNetworkVehicle::GetRotorSpeed(pVehicle, &packet.rotorSpeed);
 			GetPacketFactory().Send(packet);
 		}
 	}

@@ -69,6 +69,9 @@ public:
     float planeGearState{};
     eDoorLock locked{};
 
+    bool hasRotorSpeed = false;  // helis, planes, boats: the clone's own ai doesn't spin them
+    float rotorSpeed = 0.0f;
+
     template <typename Stream>
     bool Serialize(Stream& stream)
     {
@@ -135,6 +138,12 @@ public:
 
         serialize_int(stream, (int&)locked, DOORLOCK_NOT_USED, DOORLOCK_SKIP_SHUT_DOORS);
 
+        serialize_bool(stream, hasRotorSpeed);
+        if (hasRotorSpeed)
+        {
+            serialize_float(stream, rotorSpeed);
+        }
+
         return true;
     }
 };
@@ -171,6 +180,9 @@ public:
     eDoorLock locked{};
     vehicleid_t trailerid{};  // the vehicle it tows, a trailer or a car behind a tow truck
     int8_t radioStation = -1;  // eRadioID the driver listens to, for the passengers
+
+    bool hasRotorSpeed = false;  // helis, planes, boats: the clone's own ai doesn't spin them
+    float rotorSpeed = 0.0f;
 
 private:
     template <typename Stream>
@@ -269,6 +281,12 @@ private:
         }
 
         serialize_int(stream, radioStation, -1, 13);
+
+        serialize_bool(stream, hasRotorSpeed);
+        if (hasRotorSpeed)
+        {
+            serialize_float(stream, rotorSpeed);
+        }
 
         return true;
     }

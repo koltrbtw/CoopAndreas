@@ -198,12 +198,14 @@ PACKET_HANDLER(ePacketType::PED_DRIVER_UPDATE, Packets::Peds::PedDriverUpdate* p
     {
         pNetworkPed->WarpIntoVehicleDriver(pVehicle);
     }
-    pVehicle->m_matrix->pos = pPedDriverUpdate->pos;
-    pVehicle->m_matrix->right = pPedDriverUpdate->roll;
-    pVehicle->m_matrix->up = pPedDriverUpdate->rot;
+    pNetworkVehicle->SetTargetTransform(pPedDriverUpdate->pos, pPedDriverUpdate->roll, pPedDriverUpdate->rot,
+        pPedDriverUpdate->velocity, pPedDriverUpdate->turnSpeed);
     pNetworkPed->m_vecVelocity = pPedDriverUpdate->velocity;
-    pVehicle->m_vecMoveSpeed = pPedDriverUpdate->velocity;
-    pVehicle->m_vecTurnSpeed = pPedDriverUpdate->turnSpeed;
+    pNetworkVehicle->m_bKeepSpeed = pPedDriverUpdate->onRails;
+    pNetworkVehicle->m_vecKeptMoveSpeed = pPedDriverUpdate->velocity;
+    pNetworkVehicle->m_vecKeptTurnSpeed = pPedDriverUpdate->turnSpeed;
+    pNetworkVehicle->m_bHasRotorSpeed = pPedDriverUpdate->hasRotorSpeed;
+    pNetworkVehicle->m_fRotorSpeed = pPedDriverUpdate->rotorSpeed;
 
     pNetworkPed->ApplyWeaponSnapshot(pPedDriverUpdate->pedWeapon);
 

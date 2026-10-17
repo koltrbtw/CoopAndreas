@@ -9,18 +9,10 @@
 #include <CServerTime.h>
 #include <CCarAI.h>
 
-void __fastcall CVehicle__ProcessControl_Hook()
+static void ProcessControlInContext(CVehicle* vehicle)
 {
-    CVehicle* vehicle = nullptr;
-    DWORD vtbl = 0;
+    DWORD vtbl = *reinterpret_cast<DWORD*>(vehicle);
     DWORD call_addr = 0;
-
-    __asm
-    {
-        mov vehicle, ecx
-        mov eax, [ecx]
-        mov vtbl, eax
-    }
 
     if (vtbl == 0x871120)       // CAutomobile
         call_addr = 0x6B1880;
@@ -40,8 +32,6 @@ void __fastcall CVehicle__ProcessControl_Hook()
         call_addr = 0x6CDCC0;
     else if (vtbl == 0x872370)  // CTrain
         call_addr = 0x6F86A0;
-
-    CNetworkVehicleManager::KeepAwake(vehicle);
 
     if (vehicle->m_pDriver == FindPlayerPed(0))
     {
@@ -107,6 +97,13 @@ void __fastcall CVehicle__ProcessControl_Hook()
 
     *(bool*)0xB6F1A4 = savedLookingLeft;
     *(bool*)0xB6F1A5 = savedLookingRight;
+}
+
+void __fastcall CVehicle__ProcessControl_Hook(CVehicle* vehicle)
+{
+    CNetworkVehicleManager::KeepAwake(vehicle);
+    ProcessControlInContext(vehicle);
+    CNetworkVehicleManager::AfterProcessControl(vehicle);
 }
 
 static void __fastcall CCarCtrl__RemoveDistantCars_Hook()
