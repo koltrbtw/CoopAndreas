@@ -16,6 +16,10 @@ public:
 	uint8_t m_autoPilotCruiseSpeed = 0;  // from the last handoff, 0: default
 	int m_nBlipHandle = -1;
 	unsigned int m_nOwnershipChangeTime = 0;  // when it became ours or someone else's, CTimer time
+	// a clone: the last packet from its syncer, CTimer time (an idle one comes at least once a second), see
+	// CNetworkVehicleManager::DropStaleClones
+	unsigned int m_nLastSyncerPacketTime = 0;
+	void OnSyncerPacket() { m_nLastSyncerPacketTime = CTimer::m_snTimeInMilliseconds; }
 	Packets::Vehicles::VehicleDriverUpdate m_playerDriverSnapshot{};
 	CDamageManager m_oldDamageState{};
 	uint8_t m_aOldBikeWheelStatus[2]{};

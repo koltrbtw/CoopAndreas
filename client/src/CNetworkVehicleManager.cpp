@@ -259,6 +259,7 @@ static bool IsIdleUpdateNeeded(CNetworkVehicle* pNetworkVehicle, const Packets::
 void CNetworkVehicleManager::UpdateIdle()
 {
 	CNetworkVehicleManager::RemoveHostedUnused();
+	CNetworkVehicleManager::DropStaleClones();
 
 	for (auto pNetworkVehicle : m_pVehicles)
 	{
@@ -364,6 +365,60 @@ void CNetworkVehicleManager::RemoveHostedUnused()
 		}
 		++it;
 	}
+}
+
+void CNetworkVehicleManager::DropClone(CNetworkVehicle* pNetworkVehicle, const char* szReason)
+{
+    CVehicle* pVehicle = pNetworkVehicle->m_pVehicle;
+    CPlayerPed* pPlayer = FindPlayerPed(0);
+    logger::warn("vehicle %s dropped: %s (model %d, created by %d, driver %d, %.0f m away)",
+        to_string(pNetworkVehicle->m_vehicleId).c_str(), szReason, pNetworkVehicle->m_nModelId,
+        pNetworkVehicle->m_nCreatedBy, pVehicle && pVehicle->m_pDriver ? 1 : 0,
+        pVehicle && pPlayer ? (pVehicle->GetPosition() - pPlayer->GetPosition()).Magnitude() : -1.0f);
+
+    // from a non-syncer the server takes it as "not in my scope any more"
+    Packets::Vehicles::VehicleRemove packet{};
+    packet.vehicleid = pNetworkVehicle->m_vehicleId;
+    GetPacketFactory().Send(packet);
+
+    CNetworkVehicleManager::Remove(pNetworkVehicle);
+    delete pNetworkVehicle;
+}
+
+void CNetworkVehicleManager::DropStaleClones()
+{
+    constexpr unsigned int STALE_TIME = 10000;
+
+    for (auto pNetworkVehicle : std::vector<CNetworkVehicle*>(m_pVehicles))
+    {
+        // a standing train sends nothing, its carriages are rebuilt on a respawn
+        if (pNetworkVehicle->m_bSyncing || pNetworkVehicle->m_bTrain ||
+            CTimer::m_snTimeInMilliseconds - pNetworkVehicle->m_nLastSyncerPacketTime < STALE_TIME)
+        {
+            continue;
+        }
+
+        DropClone(pNetworkVehicle, "nothing from its syncer for 10 s");
+    }
+}
+
+CNetworkVehicle* CNetworkVehicleManager::FindSameClone(vehicleid_t creatorOf, int modelId, const CVector& position)
+{
+    // two of them may stand at one generator; a forgotten one is silent, a live one gets an idle update every second
+    constexpr unsigned int SILENT_TIME = 2000;
+
+    for (auto pNetworkVehicle : m_pVehicles)
+    {
+        if (!pNetworkVehicle->m_bSyncing && !pNetworkVehicle->m_bTrain && pNetworkVehicle->m_pVehicle &&
+            CTimer::m_snTimeInMilliseconds - pNetworkVehicle->m_nLastSyncerPacketTime > SILENT_TIME &&
+            pNetworkVehicle->m_nModelId == modelId &&
+            pNetworkVehicle->m_vehicleId.creator() == creatorOf.creator() &&
+            (pNetworkVehicle->m_pVehicle->GetPosition() - position).Magnitude() < 1.0f)
+        {
+            return pNetworkVehicle;
+        }
+    }
+    return nullptr;
 }
 
 void CNetworkVehicleManager::UpdateDamageSync()

@@ -9,6 +9,7 @@ CNetworkVehicle::CNetworkVehicle(vehicleid_t vehicleid, unsigned short model, CV
     m_vecPosition = pos;
     m_vecRotation = CVector(0, 0, 0);
     m_vecRight = CVector(std::cos(rot), std::sin(rot), 0.0f);
+    m_nLastSyncerPacketTime = g_serverTime;
 }
 
 float CNetworkVehicle::GetHeading() const
@@ -19,6 +20,7 @@ float CNetworkVehicle::GetHeading() const
 
 void CNetworkVehicle::ReassignSyncer(CNetworkPlayer* newSyncer)
 {
+    m_nLastSyncerPacketTime = g_serverTime;
     if (m_pSyncer != newSyncer)
     {
         Packets::Vehicles::AssignVehicleSyncer packet{};

@@ -20,6 +20,13 @@ PACKET_HANDLER(ePacketType::VEHICLE_SPAWN, Packets::Vehicles::VehicleSpawn* pVeh
         return;
     }
 
+    // its creator can't have two at one spot (CCarGenerator::CheckForBlockage): a silent old one is a clone it forgot
+    if (CNetworkVehicle* pSame = CNetworkVehicleManager::FindSameClone(pVehicleSpawn->vehicleid, pVehicleSpawn->modelid,
+            pVehicleSpawn->pos))
+    {
+        CNetworkVehicleManager::DropClone(pSame, "a new one of its creator at the same spot");
+    }
+
     CNetworkVehicle* pNetworkVehicle =
         new CNetworkVehicle(pVehicleSpawn->vehicleid, pVehicleSpawn->modelid, pVehicleSpawn->pos,
             pVehicleSpawn->rot.m_angle, pVehicleSpawn->color1, pVehicleSpawn->color2, pVehicleSpawn->createdBy,
@@ -80,6 +87,8 @@ PACKET_HANDLER(ePacketType::VEHICLE_IDLE_UPDATE, Packets::Vehicles::VehicleIdleU
     if (pNetworkVehicle == nullptr)
         return;
 
+    pNetworkVehicle->OnSyncerPacket();
+
     if (!pNetworkVehicle->m_pVehicle || pNetworkVehicle->m_bTrain)
         return;
 
@@ -126,6 +135,7 @@ PACKET_HANDLER(ePacketType::VEHICLE_DRIVER_UPDATE, Packets::Vehicles::VehicleDri
     if (pNetworkVehicle == nullptr || pNetworkPlayer == nullptr)
         return;
 
+    pNetworkVehicle->OnSyncerPacket();
     CVehicle* pVehicle = pNetworkVehicle->m_pVehicle;
     if (!pVehicle->IsVTableValid())
         return;
@@ -307,6 +317,7 @@ PACKET_HANDLER(ePacketType::VEHICLE_DAMAGE, Packets::Vehicles::VehicleDamage* pV
 
     if (auto pNetworkVehicle = CNetworkVehicleManager::GetVehicle(pVehicleDamage->vehicleid))
     {
+        pNetworkVehicle->OnSyncerPacket();
         if (auto pVehicle = pNetworkVehicle->m_pVehicle)
         {
             if (pVehicle->IsVTableValid())
@@ -446,6 +457,7 @@ PACKET_HANDLER(ePacketType::ASSIGN_VEHICLE, Packets::Vehicles::AssignVehicleSync
     else
     {
         pNetworkVehicle->m_bSyncing = false;
+        pNetworkVehicle->OnSyncerPacket();
         if (pNetworkVehicle->m_bTrain)
         {
             CTrainSync::OnBecomeClone(pNetworkVehicle);
@@ -484,6 +496,8 @@ PACKET_HANDLER(ePacketType::VEHICLE_HANDOFF, Packets::Vehicles::VehicleHandoff* 
     CNetworkVehicle* pNetworkVehicle = CNetworkVehicleManager::GetVehicle(pHandoff->vehicleid);
     if (!pNetworkVehicle)
     {
+        // the server takes us for its syncer now, nobody syncs it; DropStaleClones/the server clean it up
+        logger::warn("handoff of %s that we don't have", to_string(pHandoff->vehicleid).c_str());
         return;
     }
 
