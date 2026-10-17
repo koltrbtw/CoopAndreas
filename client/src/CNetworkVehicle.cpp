@@ -213,6 +213,8 @@ void CNetworkVehicle::BecomeSyncer(const Packets::Vehicles::VehicleHandoff* pHan
 {
     m_bSyncing = true;
     m_nOwnershipChangeTime = CTimer::m_snTimeInMilliseconds;
+    // mission vehicles are handed over only by the collision rule of CPopulationHandover::Process
+    m_bBorrowed = pHandoff && m_nCreatedBy == MISSION_VEHICLE && !CLocalPlayer::m_bIsHost;
     m_bHasTarget = false;
     m_bHasRotorSpeed = false;
     m_bKeepSpeed = false;
@@ -318,12 +320,17 @@ void CNetworkVehicle::BecomeClone(Packets::Vehicles::VehicleHandoff* pHandoff)
             pNetworkPed->BecomeClone(true);
         }
 
-        // otherwise after the vehicle comes back to us it would follow a stale route
-        m_pVehicle->m_autoPilot.m_nCarMission = MISSION_NONE;
-        m_pVehicle->m_autoPilot.m_nTempAction = 0;
+        // otherwise after the vehicle comes back to us it would follow a stale route; the route of a mission
+        // vehicle is the script's, it goes on with it when the vehicle comes back
+        if (m_nCreatedBy != MISSION_VEHICLE)
+        {
+            m_pVehicle->m_autoPilot.m_nCarMission = MISSION_NONE;
+            m_pVehicle->m_autoPilot.m_nTempAction = 0;
+        }
     }
 
     m_bSyncing = false;
+    m_bBorrowed = false;
     m_nOwnershipChangeTime = CTimer::m_snTimeInMilliseconds;
     OnSyncerPacket();
 

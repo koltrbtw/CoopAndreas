@@ -23,6 +23,8 @@ public:
 	int m_nBlipHandle = -1;
 	bool m_bClaimOnRelease = false;
 	unsigned int m_nOwnershipChangeTime = 0;  // when it became ours or someone else's, CTimer time
+	// a mission ped we sync for the host while it has no collision there, see CPopulationHandover::Process
+	bool m_bBorrowed = false;
 	CVector m_vecTargetPos{};  // the last on foot position from the syncer
 	unsigned int m_nTargetPosTime = 0;
 	bool m_bHasTargetPos = false;
