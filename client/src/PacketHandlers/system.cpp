@@ -114,7 +114,7 @@ PACKET_HANDLER(ePacketType::PLAYER_ASSIGN_HOST, Packets::System::PlayerAssignHos
         // every player in its own sectors, see CWorldGridSync
         CLocalPlayer::m_bIsHost = true;
 
-        CWeatherSync::SyncCurrentState();
+        CWeatherSync::OnBecameHost();
         CTagSync::SyncCurrentState();
         CChat::AddMessage("{c7a6ff}[Player] {d6dce8}You are the host now");
         return;
