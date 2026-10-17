@@ -4,6 +4,7 @@
 #include "CServerTime.h"
 #include "stdafx.h"
 #include "CPedAnimSync.h"
+#include "CSniperDot.h"
 #include "CCutsceneMgr.h"
 #include "UI/CDXFont.h"
 
@@ -225,6 +226,7 @@ public:
 
                 CNetworkPedManager::Process();
                 CNetworkVehicleManager::Process();
+                CSniperDot::Process();
 
                 CNetworkEntityBlip::Update();
 
