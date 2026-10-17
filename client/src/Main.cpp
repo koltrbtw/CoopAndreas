@@ -3,6 +3,7 @@
 #include "CPacketBuffer.h"
 #include "CServerTime.h"
 #include "stdafx.h"
+#include "CPedAnimSync.h"
 #include "CCutsceneMgr.h"
 #include "UI/CDXFont.h"
 
@@ -191,6 +192,8 @@ public:
                         onFootUpdate.iBreath = static_cast<uint8_t>(
                             std::clamp(localPlayer->m_pPlayerData->m_fBreath / fMaxBreath * 100.0f, 0.0f, 100.0f));
 
+                        onFootUpdate.idleAnimCount = CPedAnimSync::Collect(localPlayer, onFootUpdate.idleAnims,
+                            Packets::Players::OnFootUpdate::MAX_IDLE_ANIMS, ANIM_GROUP_PLAYIDLES);
                         GetPacketFactory().Send(onFootUpdate);
 
                         lastOnFootSyncTickRate = tickCount;
