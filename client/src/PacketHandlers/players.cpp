@@ -1,6 +1,7 @@
 #include "network/packets/players.h"
 #include "network/packet_types.h"
 #include "stdafx.h"
+#include "CPedAnimSync.h"
 #include <CAimSync.h>
 #include <CEntryExitTransitionSync.h>
 #include <CWantedSync.h>
@@ -56,6 +57,9 @@ PACKET_HANDLER(ePacketType::PLAYER_ONFOOT_UPDATE, Packets::Players::OnFootUpdate
 
     pNetworkPlayer->m_oldControllerState = pOnFootUpdate->keySnapshot.oldControllerState;
     pNetworkPlayer->m_newControllerState = pOnFootUpdate->keySnapshot.newControllerState;
+
+    CPedAnimSync::Apply(pNetworkPlayer->m_pPed, pOnFootUpdate->idleAnims, pOnFootUpdate->idleAnimCount,
+        ANIM_GROUP_PLAYIDLES);
 
     pNetworkPlayer->m_onFootSnapshotInterpolated = *pOnFootUpdate;
 }

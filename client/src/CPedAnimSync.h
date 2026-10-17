@@ -6,8 +6,9 @@ class CPedAnimSync
 {
 public:
     // returns the number written to pAnims
-    static int Collect(CPed* pPed, Packets::Peds::SPedAnim* pAnims, int nMaxAnims);
-    static void Apply(CPed* pPed, const Packets::Peds::SPedAnim* pAnims, int nCount);
+    // nOnlyGroup: just the anims of that group (a player's idle anims), the rest is the clone's own
+    static int Collect(CPed* pPed, SPedAnim* pAnims, int nMaxAnims, int nOnlyGroup = -1);
+    static void Apply(CPed* pPed, const SPedAnim* pAnims, int nCount, int nOnlyGroup = -1);
     // the ped became ours: fade out what the packets kept on it, its own tasks play their anims now
     static void Release(CPed* pPed);
 };

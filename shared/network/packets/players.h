@@ -119,6 +119,9 @@ public:
     int8_t iFightingStyle{};
     SKeySnapshot keySnapshot{};
     uint8_t iBreath = 100;  // percent of air left in the lungs, below 100 only under water
+    static constexpr int MAX_IDLE_ANIMS = 2;
+    int idleAnimCount = 0;  // ANIM_GROUP_PLAYIDLES: the clone's own CPlayerPed picks others at random
+    SPedAnim idleAnims[MAX_IDLE_ANIMS]{};
 
 private:
     template <typename Stream>
@@ -151,6 +154,12 @@ private:
         else
         {
             iBreath = 100;
+        }
+
+        serialize_int(stream, idleAnimCount, 0, MAX_IDLE_ANIMS);
+        for (int i = 0; i < idleAnimCount; i++)
+        {
+            serialize_object(stream, idleAnims[i]);
         }
 
         return true;

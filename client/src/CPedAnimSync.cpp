@@ -66,7 +66,7 @@ static bool IsGroupLoaded(int nGroup)
     return true;
 }
 
-int CPedAnimSync::Collect(CPed* pPed, Packets::Peds::SPedAnim* pAnims, int nMaxAnims)
+int CPedAnimSync::Collect(CPed* pPed, SPedAnim* pAnims, int nMaxAnims, int nOnlyGroup)
 {
     if (!pPed->m_pRwClump)
     {
@@ -77,7 +77,8 @@ int CPedAnimSync::Collect(CPed* pPed, Packets::Peds::SPedAnim* pAnims, int nMaxA
     for (auto pAssoc = RpAnimBlendClumpGetFirstAssociation(pPed->m_pRwClump); pAssoc;
          pAssoc = RpAnimBlendGetNextAssociation(pAssoc))
     {
-        if (pAssoc->m_fBlendAmount >= MIN_BLEND_AMOUNT && IsSyncedAnim(pAssoc))
+        if (pAssoc->m_fBlendAmount >= MIN_BLEND_AMOUNT && IsSyncedAnim(pAssoc) &&
+            (nOnlyGroup < 0 || pAssoc->m_nAnimGroup == nOnlyGroup))
         {
             anims.push_back(pAssoc);
         }
@@ -91,7 +92,7 @@ int CPedAnimSync::Collect(CPed* pPed, Packets::Peds::SPedAnim* pAnims, int nMaxA
     for (int i = 0; i < nCount; i++)
     {
         CAnimBlendAssociation* pAssoc = anims[i];
-        Packets::Peds::SPedAnim& anim = pAnims[i];
+        SPedAnim& anim = pAnims[i];
         anim.group = static_cast<uint8_t>(pAssoc->m_nAnimGroup);
         anim.id = static_cast<uint16_t>(pAssoc->m_nAnimId);
         anim.time = pAssoc->m_fCurrentTime;
@@ -123,7 +124,7 @@ static void EnsureBaseAnim(CPed* pPed)
     CAnimManager::BlendAnimation(pPed->m_pRwClump, pPed->m_nAnimGroup, ANIM_DEFAULT_IDLE_STANCE, 8.0f);
 }
 
-void CPedAnimSync::Apply(CPed* pPed, const Packets::Peds::SPedAnim* pAnims, int nCount)
+void CPedAnimSync::Apply(CPed* pPed, const SPedAnim* pAnims, int nCount, int nOnlyGroup)
 {
     RpClump* pClump = pPed->m_pRwClump;
     if (!pClump || !pPed->IsAlive())
@@ -134,7 +135,7 @@ void CPedAnimSync::Apply(CPed* pPed, const Packets::Peds::SPedAnim* pAnims, int 
     CAnimBlendAssociation* applied[Packets::Peds::PedOnFoot::MAX_ANIMS]{};
     for (int i = 0; i < nCount; i++)
     {
-        const Packets::Peds::SPedAnim& anim = pAnims[i];
+        const SPedAnim& anim = pAnims[i];
         if (anim.group >= CAnimManager::ms_numAnimAssocDefinitions)
         {
             continue;
@@ -185,7 +186,8 @@ void CPedAnimSync::Apply(CPed* pPed, const Packets::Peds::SPedAnim* pAnims, int 
     // what the syncer doesn't play anymore (or never did, like the idle gestures the clone picks itself)
     for (auto pAssoc = RpAnimBlendClumpGetFirstAssociation(pClump); pAssoc; pAssoc = RpAnimBlendGetNextAssociation(pAssoc))
     {
-        if (!IsSyncedAnim(pAssoc) || std::find(std::begin(applied), std::end(applied), pAssoc) != std::end(applied))
+        if (!IsSyncedAnim(pAssoc) || (nOnlyGroup >= 0 && pAssoc->m_nAnimGroup != nOnlyGroup) ||
+            std::find(std::begin(applied), std::end(applied), pAssoc) != std::end(applied))
         {
             continue;
         }

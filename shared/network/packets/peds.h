@@ -121,28 +121,7 @@ private:
     }
 };
 
-// one animation playing on the ped, the clone plays the same set (gestures, chats, fights, idles)
-struct SPedAnim
-{
-    uint8_t group = 0;
-    uint16_t id = 0;
-    float time = 0.0f;
-    float blendAmount = 0.0f;
-    float blendDelta = 0.0f;
-    float speed = 1.0f;
-
-    template <typename Stream>
-    bool Serialize(Stream& stream)
-    {
-        serialize_uint8(stream, group);
-        serialize_uint16(stream, id);
-        serialize_float(stream, time);
-        serialize_float(stream, blendAmount);
-        serialize_float(stream, blendDelta);
-        serialize_float(stream, speed);
-        return true;
-    }
-};
+using ::SPedAnim;  // serializable_types.h, the player's idle anims use it too
 
 class PedOnFoot : public Packet
 {
