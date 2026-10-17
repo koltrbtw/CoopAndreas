@@ -222,10 +222,14 @@ static void LogPlayerAnims()
     // a ped clone playing the enter task of its syncer (PED_VEHICLE_ENTER), a jacker; the watched ped
     for (auto pNetworkPed : CNetworkPedManager::m_pPeds)
     {
-        if (!ms_watchedPed.empty() && to_string(pNetworkPed->m_pedId) == ms_watchedPed)
+        // the watched ped; a ped in a stealth kill or dying
+        CPed* pWatched = pNetworkPed->m_pPed;
+        bool bInteresting = pWatched && (pWatched->m_ePedState == PEDSTATE_DIE_BY_STEALTH ||
+                                         pWatched->m_ePedState == PEDSTATE_DIE || pWatched->m_ePedState == PEDSTATE_DEAD);
+        if (bInteresting || (!ms_watchedPed.empty() && to_string(pNetworkPed->m_pedId) == ms_watchedPed))
         {
             char szName[64];
-            sprintf_s(szName, "watched %s (ours %d)", ms_watchedPed.c_str(), pNetworkPed->m_bSyncing);
+            sprintf_s(szName, "watched %s (ours %d)", to_string(pNetworkPed->m_pedId).c_str(), pNetworkPed->m_bSyncing);
             log(pNetworkPed->m_pPed, szName);
             continue;
         }
@@ -655,6 +659,49 @@ void CDebugCommands::RunCommand(const std::string& line)
             }
             ms_watchedPed = to_string(pTarget->m_pedId);
             logger::info("stand debug: ram ped %s", ms_watchedPed.c_str());
+        }
+    }
+    else if (command == "kill-me")
+    {
+        // CWeapon::GenerateDamageEvent, as a shot that kills: the damage response, the die task, PED_DIED
+        plugin::Call<0x73A530, CPed*, CEntity*, int, int, int, unsigned char>(pPlayer, nullptr, WEAPON_PISTOL, 1000, 3, 0);
+    }
+    else if (command == "knife")
+    {
+        pPlayer->GiveWeapon(WEAPON_KNIFE, 1, true);
+        pPlayer->SetCurrentWeapon(WEAPON_KNIFE);
+    }
+    else if (command == "stab")
+    {
+        // behind the nearest ped (a clone with "clone"), the stealth kill CTaskSimplePlayerOnFoot starts (0x6880F0)
+        std::string which;
+        stream >> which;
+        CPed* pTarget = nullptr;
+        float fNearest = 80.0f;
+        for (auto pNetworkPed : CNetworkPedManager::m_pPeds)
+        {
+            CPed* pPed = pNetworkPed->m_pPed;
+            if (pPed && pPed->IsAlive() && !pPed->m_nPedFlags.bInVehicle && (which != "clone" || !pNetworkPed->m_bSyncing) &&
+                (pPed->GetPosition() - pPlayer->GetPosition()).Magnitude() < fNearest)
+            {
+                fNearest = (pPed->GetPosition() - pPlayer->GetPosition()).Magnitude();
+                pTarget = pPed;
+            }
+        }
+        if (pTarget)
+        {
+            CVector forward = pTarget->GetForward();
+            pPlayer->SetPosn(pTarget->GetPosition() - forward * 0.9f);
+            pPlayer->m_fCurrentRotation = pPlayer->m_fAimingRotation = pTarget->m_fCurrentRotation;
+            pPlayer->SetHeading(pTarget->m_fCurrentRotation);
+            int nGroup = static_cast<int>(CWeaponInfo::GetWeaponInfo(WEAPON_KNIFE, 1)->m_nAnimToPlay);
+            CTask* pTask = static_cast<CTask*>(CTask::operator new(0x20));
+            plugin::CallMethod<0x6225F0, CTask*, bool, CPed*, int>(pTask, true, pTarget, nGroup);  // CTaskSimpleStealthKill ctor
+            pPlayer->m_pIntelligence->m_TaskMgr.SetTask(pTask, TASK_PRIMARY_PRIMARY, false);
+            plugin::Call<0x73A530, CPed*, CEntity*, int, int, int, unsigned char>(pTarget, pPlayer, WEAPON_KNIFE, 0, 3, 0);
+            logger::info("stand debug: stab %s", CNetworkPedManager::GetPed(pTarget)
+                                                     ? to_string(CNetworkPedManager::GetPed(pTarget)->m_pedId).c_str()
+                                                     : "?");
         }
     }
     else if (command == "watch-ped")
