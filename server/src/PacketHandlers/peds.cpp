@@ -117,6 +117,9 @@ PACKET_HANDLER(ePacketType::PED_REMOVE, Packets::Peds::PedRemove* pPedRemove, CN
         }
     }
 
+    // the server time: with the syncer's one it may come before the spawn the server sent (CPacketBuffer plays by
+    // serverTime), the others would keep the clone
+    pPedRemove->serverTime = g_serverTime;
     CRelevanceManager::SendToRelevant(*pPedRemove, pNetworkPed->m_vRelevantTo, pNetworkPlayer);
     CNetworkPedManager::Remove(pNetworkPed);
 }
@@ -269,6 +272,9 @@ PACKET_HANDLER(ePacketType::PED_RESET_ALL_CLAIMS, Packets::Peds::PedResetAllClai
             {
                 // here was a bug that i have not understood yet
 
+                // the spawn first: one without the ped ignores the assignment
+                CRelevanceManager::EnsureRelevant(pNetworkPed, pNetworkPlayer);
+
                 Packets::Peds::AssignPedSyncer assignPedPacket{};
                 assignPedPacket.pedid = pPedResetAllClaims->pedid;
                 assignPedPacket.isSyncer = true;
@@ -276,7 +282,6 @@ PACKET_HANDLER(ePacketType::PED_RESET_ALL_CLAIMS, Packets::Peds::PedResetAllClai
                 assignPedPacket.isSyncer = false;
                 GetPacketFactory().Send(assignPedPacket, pNetworkPed->m_pSyncer);  // unassign old
 
-                CRelevanceManager::EnsureRelevant(pNetworkPed, pNetworkPlayer);
                 pNetworkPed->m_pSyncer = pNetworkPlayer;
                 pNetworkPed->m_pPendingSyncer = nullptr;
             }
@@ -302,6 +307,9 @@ PACKET_HANDLER(ePacketType::PED_TAKE_HOST, Packets::Peds::PedTakeHost* pPedTakeH
     {
         if (pNetworkPed->m_pSyncer != pNetworkPlayer && pNetworkPlayer->m_bIsHost)
         {
+            // the spawn first: one without the ped ignores the assignment
+            CRelevanceManager::EnsureRelevant(pNetworkPed, pNetworkPlayer);
+
             Packets::Peds::AssignPedSyncer assignPedPacket{};
             assignPedPacket.pedid = pPedTakeHost->pedid;
             assignPedPacket.isSyncer = true;
@@ -325,7 +333,6 @@ PACKET_HANDLER(ePacketType::PED_TAKE_HOST, Packets::Peds::PedTakeHost* pPedTakeH
                 }
             }
 
-            CRelevanceManager::EnsureRelevant(pNetworkPed, pNetworkPlayer);
             pNetworkPed->m_pSyncer = pNetworkPlayer;
             pNetworkPed->m_pPendingSyncer = nullptr;
         }
@@ -381,5 +388,9 @@ PACKET_HANDLER(ePacketType::PED_HANDOFF, Packets::Peds::PedHandoff* pHandoff, CN
 
     CRelevanceManager::EnsureRelevant(pNetworkPed, pNewSyncer);
     pNetworkPed->m_pSyncer = pNewSyncer;
+
+    // the client plays packets in serverTime order (CPacketBuffer): forwarded with the old syncer's time it would come
+    // before the spawn EnsureRelevant has just sent, the new syncer would find nothing to take over and keep a clone
+    pHandoff->serverTime = g_serverTime;
     GetPacketFactory().Send(*pHandoff, pNewSyncer);
 }

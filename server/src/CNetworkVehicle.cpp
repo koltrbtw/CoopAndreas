@@ -33,11 +33,11 @@ void CNetworkVehicle::ReassignSyncer(CNetworkPlayer* newSyncer)
             GetPacketFactory().Send(packet, m_pSyncer);
         }
 
-        // send to the new
+        // send to the new, after the spawn: one without the vehicle ignores the assignment
+        CRelevanceManager::EnsureRelevant(this, newSyncer);
         packet.isSyncer = true;
         GetPacketFactory().Send(packet, newSyncer);
 
-        CRelevanceManager::EnsureRelevant(this, newSyncer);
         m_pSyncer = newSyncer;
         m_pPendingSyncer = nullptr;  // a handoff from the old syncer would be ignored anyway
     }

@@ -85,6 +85,9 @@ PACKET_HANDLER(
     {
         if (vehicle->m_pSyncer == pNetworkPlayer)
         {
+            // the server time: with the syncer's one a vehicle removed right after its creation (a car generator)
+            // came before the spawn the server sent, the others kept the clone (CPacketBuffer plays by serverTime)
+            pVehicleRemove->serverTime = g_serverTime;
             CRelevanceManager::SendToRelevant(*pVehicleRemove, vehicle->m_vRelevantTo, pNetworkPlayer);
 
             CNetworkVehicleManager::Remove(vehicle);
@@ -352,5 +355,8 @@ PACKET_HANDLER(ePacketType::VEHICLE_HANDOFF, Packets::Vehicles::VehicleHandoff* 
         }
     }
 
+    // the client plays packets in serverTime order (CPacketBuffer): forwarded with the old syncer's time it would come
+    // before the spawn EnsureRelevant has just sent, the new syncer would find nothing to take over and keep a clone
+    pHandoff->serverTime = g_serverTime;
     GetPacketFactory().Send(*pHandoff, pNewSyncer);
 }
