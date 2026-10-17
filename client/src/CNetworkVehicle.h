@@ -48,11 +48,11 @@ public:
 	bool m_bHasDoors = false;
 	float m_afDoorStart[6]{};
 	float m_afDoorTarget[6]{};
-	unsigned int m_nDoorStartTime = 0;
-	unsigned int m_nDoorDuration = 0;
-	// someone gets in or out: the enter / exit tasks swing the doors themselves, the syncer's lagging ratio would hold
-	// them back; CTimer time until which the doors are left to the game
-	unsigned int m_nDoorsFreeUntil = 0;
+	unsigned int m_anDoorStartTime[6]{};
+	unsigned int m_anDoorDuration[6]{};
+	// a ped gets in or out through the door here (our own or a copy of another player's task): until this CTimer time
+	// the door is left to the task, the syncer's ratio lags behind it by the ping
+	unsigned int m_anDoorFreeUntil[6]{};
 	bool m_bHasTurret = false;
 	float m_fTurretHorizontal = 0.0f;
 	float m_fTurretVertical = 0.0f;

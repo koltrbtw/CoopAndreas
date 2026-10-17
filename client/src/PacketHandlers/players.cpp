@@ -8,6 +8,9 @@
 #include <CCheatSync.h>
 #include <CProjectileInfo.h>
 
+// between the ped entering here and the sender's on foot position
+static constexpr float ENTER_VEHICLE_GIVE_UP_DISTANCE = 5.0f;
+
 PACKET_HANDLER(ePacketType::PLAYER_ONFOOT_UPDATE, Packets::Players::OnFootUpdate* pOnFootUpdate)
 {
     CNetworkPlayer* pNetworkPlayer = CNetworkPlayerManager::GetPlayer(pOnFootUpdate->senderPlayerid);
@@ -26,11 +29,31 @@ PACKET_HANDLER(ePacketType::PLAYER_ONFOOT_UPDATE, Packets::Players::OnFootUpdate
 
     if (pPlayerPed->m_pVehicle != nullptr && pPlayerPed->m_nPedFlags.bInVehicle)
     {
+        // our enter task got the ped in before the sender's did: its last on foot updates are still on the way
+        if (pNetworkPlayer->HasJustEnteredVehicle())
+        {
+            return;
+        }
+
         pNetworkPlayer->RemoveFromVehicle(pPlayerPed->m_pVehicle);
     }
 
-    pNetworkPlayer->m_pPed->SetPosn(pOnFootUpdate->vecPos);
-    pNetworkPlayer->m_pPed->m_vecMoveSpeed = pOnFootUpdate->vecMoveSpeed;
+    // on the way in the enter task moves the ped (the walk to the door, the get in anim), a position would fight it;
+    // the sender far away gave the enter up
+    CNetworkVehicle* pEnterVehicle = CNetworkVehicleManager::GetVehicle(pNetworkPlayer->m_enterVehicleId);
+    bool bEntering = pEnterVehicle && pNetworkPlayer->IsEnteringVehicle(pEnterVehicle->m_pVehicle);
+    if (bEntering && (pPlayerPed->GetPosition() - pOnFootUpdate->vecPos).Magnitude() > ENTER_VEHICLE_GIVE_UP_DISTANCE)
+    {
+        pPlayerPed->m_pIntelligence->FlushImmediately(false);
+        pNetworkPlayer->m_nEnterVehicleTime = 0;
+        bEntering = false;
+    }
+
+    if (!bEntering)
+    {
+        pNetworkPlayer->m_pPed->SetPosn(pOnFootUpdate->vecPos);
+        pNetworkPlayer->m_pPed->m_vecMoveSpeed = pOnFootUpdate->vecMoveSpeed;
+    }
 
     pNetworkPlayer->ApplyWeaponSnapshot(pOnFootUpdate->weaponSnapshot);
 
