@@ -102,6 +102,27 @@ int CPedAnimSync::Collect(CPed* pPed, Packets::Peds::SPedAnim* pAnims, int nMaxA
     return nCount;
 }
 
+// a full body anim that keeps playing: the clump needs at least one, RpAnimBlendClumpUpdateAnimations takes the
+// blend nodes of the anims that still have weight and the frame update (0x4D1750) reads the first one without a check
+static bool IsBaseAnim(const CAnimBlendAssociation* pAssoc)
+{
+    return !(pAssoc->m_nFlags & ANIM_FLAG_PARTIAL) && pAssoc->m_fBlendAmount > 0.0f && pAssoc->m_fBlendDelta >= 0.0f;
+}
+
+// the syncer's base anim may be one we don't sync (a gun, a vehicle) or still too light to be sent
+static void EnsureBaseAnim(CPed* pPed)
+{
+    for (auto pAssoc = RpAnimBlendClumpGetFirstAssociation(pPed->m_pRwClump); pAssoc;
+         pAssoc = RpAnimBlendGetNextAssociation(pAssoc))
+    {
+        if (IsBaseAnim(pAssoc))
+        {
+            return;
+        }
+    }
+    CAnimManager::BlendAnimation(pPed->m_pRwClump, pPed->m_nAnimGroup, ANIM_DEFAULT_IDLE_STANCE, 8.0f);
+}
+
 void CPedAnimSync::Apply(CPed* pPed, const Packets::Peds::SPedAnim* pAnims, int nCount)
 {
     RpClump* pClump = pPed->m_pRwClump;
@@ -159,10 +180,18 @@ void CPedAnimSync::Apply(CPed* pPed, const Packets::Peds::SPedAnim* pAnims, int 
         applied[i] = pAssoc;
     }
 
+    bool bSyncerHasBase = std::any_of(std::begin(applied), std::end(applied), [](auto a) { return a && IsBaseAnim(a); });
+
     // what the syncer doesn't play anymore (or never did, like the idle gestures the clone picks itself)
     for (auto pAssoc = RpAnimBlendClumpGetFirstAssociation(pClump); pAssoc; pAssoc = RpAnimBlendGetNextAssociation(pAssoc))
     {
         if (!IsSyncedAnim(pAssoc) || std::find(std::begin(applied), std::end(applied), pAssoc) != std::end(applied))
+        {
+            continue;
+        }
+
+        // the clone's own base anim stays until the syncer sends one
+        if (!bSyncerHasBase && !(pAssoc->m_nFlags & ANIM_FLAG_PARTIAL))
         {
             continue;
         }
@@ -173,6 +202,8 @@ void CPedAnimSync::Apply(CPed* pPed, const Packets::Peds::SPedAnim* pAnims, int 
         }
         pAssoc->m_nFlags |= ANIM_FLAG_BLEND_AUTO_REMOVE;
     }
+
+    EnsureBaseAnim(pPed);
 }
 
 void CPedAnimSync::Release(CPed* pPed)
