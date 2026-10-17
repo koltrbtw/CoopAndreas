@@ -3,6 +3,7 @@
 #include <CCarEnterExit.h>
 #include <CTaskSimpleCarSetPedInAsPassenger.h>
 #include <CTaskComplexEnterCarAsPassenger.h>
+#include <CTaskComplexEnterCar.h>
 
 CNetworkPlayer::~CNetworkPlayer()
 {
@@ -195,6 +196,48 @@ void CNetworkPlayer::EnterVehiclePassenger(CVehicle* vehicle, int seatid)
     int doorId = CCarEnterExit::ComputeTargetDoorToEnterAsPassenger(vehicle, seatid);
     auto task = new CTaskComplexEnterCarAsPassenger(vehicle, doorId, false);
     m_pPed->m_pIntelligence->m_TaskMgr.SetTask(task, 3, false);
+}
+
+// an enter (from the door walk to the door closed) takes a few seconds; past that the updates of the sender win
+static constexpr unsigned int ENTER_VEHICLE_TIMEOUT = 6000;
+
+void CNetworkPlayer::OnEnterVehicle(vehicleid_t vehicleid)
+{
+    m_enterVehicleId = vehicleid;
+    m_nEnterVehicleTime = CTimer::m_snTimeInMilliseconds;
+}
+
+bool CNetworkPlayer::IsEnteringVehicle(CVehicle* vehicle)
+{
+    if (m_pPed == nullptr || m_nEnterVehicleTime == 0 ||
+        CTimer::m_snTimeInMilliseconds - m_nEnterVehicleTime > ENTER_VEHICLE_TIMEOUT)
+    {
+        return false;
+    }
+
+    auto& taskManager = m_pPed->m_pIntelligence->m_TaskMgr;
+    for (int taskType : {TASK_COMPLEX_ENTER_CAR_AS_PASSENGER, TASK_COMPLEX_ENTER_CAR_AS_DRIVER})
+    {
+        auto pTask = static_cast<CTaskComplexEnterCar*>(taskManager.FindActiveTaskByType(taskType));
+        if (pTask && pTask->m_pTargetVehicle == vehicle)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool CNetworkPlayer::HasJustEnteredVehicle()
+{
+    if (m_pPed == nullptr || m_nEnterVehicleTime == 0 ||
+        CTimer::m_snTimeInMilliseconds - m_nEnterVehicleTime > ENTER_VEHICLE_TIMEOUT)
+    {
+        return false;
+    }
+
+    CNetworkVehicle* pNetworkVehicle = CNetworkVehicleManager::GetVehicle(m_enterVehicleId);
+    return pNetworkVehicle && m_pPed->m_nPedFlags.bInVehicle && m_pPed->m_pVehicle == pNetworkVehicle->m_pVehicle;
 }
 
 void CNetworkPlayer::RemoveFromVehicle(CVehicle* vehicle)

@@ -130,9 +130,17 @@ PACKET_HANDLER(ePacketType::VEHICLE_DRIVER_UPDATE, Packets::Vehicles::VehicleDri
     if (!pVehicle->IsVTableValid())
         return;
 
-    if (pNetworkPlayer->m_pPed->m_pVehicle != pVehicle || !pNetworkPlayer->m_pPed->m_nPedFlags.bInVehicle)
+    // our enter task may lag behind the sender's, a warp would cut its get in anim
+    if ((pNetworkPlayer->m_pPed->m_pVehicle != pVehicle || !pNetworkPlayer->m_pPed->m_nPedFlags.bInVehicle) &&
+        !pNetworkPlayer->IsEnteringVehicle(pVehicle))
     {
         pNetworkPlayer->WarpIntoVehicleDriver(pVehicle);
+    }
+
+    // the sender sits: an on foot update from now on is a real exit (a jacking sends no VEHICLE_EXIT)
+    if (!pNetworkPlayer->IsEnteringVehicle(pVehicle))
+    {
+        pNetworkPlayer->m_nEnterVehicleTime = 0;
     }
 
     // a train is put on its track by TRAIN_UPDATE, a matrix would only fight CTrain::ProcessControl
@@ -228,6 +236,8 @@ PACKET_HANDLER(ePacketType::VEHICLE_ENTER, Packets::Vehicles::VehicleEnter* pVeh
         pTask->m_fThrustStrafe = 0.0f;
     }
 
+    pNetworkPlayer->OnEnterVehicle(pVehicleEnter->vehicleid);
+
     if (pVehicleEnter->bPassenger)
     {
         pNetworkPlayer->EnterVehiclePassenger(pVehicle, pVehicleEnter->seatid);
@@ -255,6 +265,8 @@ PACKET_HANDLER(ePacketType::VEHICLE_EXIT, Packets::Vehicles::VehicleExit* pVehic
     {
         return;
     }
+
+    pNetworkPlayer->m_nEnterVehicleTime = 0;
 
     CPlayerPed* pPlayerPed = pNetworkPlayer->m_pPed;
     if (pPlayerPed->m_pVehicle == nullptr || !pPlayerPed->m_nPedFlags.bInVehicle)
@@ -378,12 +390,21 @@ PACKET_HANDLER(
     if (!pPlayerPed->m_nPedFlags.bInVehicle || pPlayerPed->m_pVehicle != pVehicle ||
         pNetworkVehicle->m_pVehicle->m_apPassengers[pVehiclePassengerUpdate->seatid] != pNetworkPlayer->m_pPed)
     {
+        // our enter task may lag behind the sender's, a warp would cut its get in anim; the next update comes soon
+        if (pNetworkPlayer->IsEnteringVehicle(pVehicle))
+        {
+            return;
+        }
+
 #ifdef PACKET_DEBUG_MESSAGES
         CChat::AddMessage("forcing enter passenger %s", to_string(pNetworkPlayer->m_playerId).c_str());
 #endif
 
         pNetworkPlayer->WarpIntoVehiclePassenger(pNetworkVehicle->m_pVehicle, pVehiclePassengerUpdate->seatid);
     }
+
+    // the sender sits: an on foot update from now on is a real exit (a jacking sends no VEHICLE_EXIT)
+    pNetworkPlayer->m_nEnterVehicleTime = 0;
 
     pNetworkPlayer->ApplyWeaponSnapshot(pVehiclePassengerUpdate->playerWeapon);
     pNetworkPlayer->m_onFootSnapshotInterpolated.healthSnapshot = pVehiclePassengerUpdate->playerHealth;

@@ -37,6 +37,11 @@ public:
 
 	bool m_bIsHost = false;
 
+	// the vehicle of the last VEHICLE_ENTER and CTimer time it came: this game's enter task runs out of step with the
+	// sender's, the late on foot / early vehicle updates of the sender must not pull the ped out or warp it in
+	vehicleid_t m_enterVehicleId;
+	unsigned int m_nEnterVehicleTime = 0;
+
 	~CNetworkPlayer();
 	CNetworkPlayer(playerid_t id, CVector position);
 
@@ -51,6 +56,11 @@ public:
 	void RemoveFromVehicle(CVehicle* vehicle);
 	void WarpIntoVehiclePassenger(CVehicle* vehicle, int seatid);
 	void EnterVehiclePassenger(CVehicle* vehicle, int seatid);
+	void OnEnterVehicle(vehicleid_t vehicleid);
+	// still on the way in by the enter task of the last VEHICLE_ENTER
+	bool IsEnteringVehicle(CVehicle* vehicle);
+	// sat in the vehicle of the last VEHICLE_ENTER, no vehicle update of the sender yet: it may still be on the way in
+	bool HasJustEnteredVehicle();
 	void HandleTask(Packets::Players::SetPlayerTask& packet);
 	void ApplyWeaponSnapshot(Packets::Players::SWeaponSnapshot& weaponSnapshot);
 };
