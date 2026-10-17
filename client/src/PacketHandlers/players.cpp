@@ -310,6 +310,11 @@ PACKET_HANDLER(ePacketType::PLAYER_WANTED_LEVEL, Packets::Players::PlayerWantedL
     CWantedSync::HandlePacket(pPlayerWantedLevel);
 }
 
+PACKET_HANDLER(ePacketType::PLAYER_FALL, Packets::Players::PlayerFall* pPlayerFall)
+{
+    CPlayerFallSync::HandlePacket(*pPlayerFall);
+}
+
 PACKET_HANDLER(ePacketType::PLAYER_CHEAT, Packets::Players::PlayerCheat* pPlayerCheat)
 {
     CCheatSync::HandlePacket(pPlayerCheat);
