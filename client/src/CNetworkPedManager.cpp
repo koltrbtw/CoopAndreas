@@ -67,6 +67,14 @@ void CNetworkPedManager::Update()
         CVehicle* pVehicle = pPed->m_pVehicle;
         CNetworkVehicle* pNetworkVehicle = pVehicle ? CNetworkVehicleManager::GetVehicle(pVehicle) : nullptr;
 
+        // in a vehicle without a network id (a train carriage behind the front one: CTrain::RemoveRandomPassenger
+        // puts a leaving passenger there with CPopulation::AddPedInCar) an on foot update would stand it where the
+        // carriage is; it goes again once it got out
+        if (pPed->m_nPedFlags.bInVehicle && pVehicle && !pNetworkVehicle)
+        {
+            continue;
+        }
+
         if (pNetworkVehicle && pPed->m_nPedFlags.bInVehicle)
         {
             bool isDriver = (pVehicle->m_pDriver == pPed);
