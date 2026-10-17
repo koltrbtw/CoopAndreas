@@ -6,6 +6,9 @@
 #include <CGangWars.h>
 #include "Hooks/PlayerHooks.h"
 #include <CDummyObject.h>
+#include <CTaskComplexEnterCarAsDriver.h>
+#include <CCarEnterExit.h>
+#include "CPassengerEnter.h"
 
 static CTrain* FindNearestFrontCarriage(const CVector& position, bool bMissionOnly = false)
 {
@@ -130,6 +133,60 @@ static void ShootGangMembers(CPlayerPed* pPlayer, int count)
         shot++;
     }
     logger::info("stand debug: shot %d members of gang %d", shot, CGangWars::Gang1);
+}
+
+static CVehicle* FindNearestVehicle(const CVector& position, float fMaxDistance)
+{
+    CVehicle* pNearest = nullptr;
+    for (auto pVehicle : CPools::ms_pVehiclePool)
+    {
+        float fDistance = (pVehicle->GetPosition() - position).Magnitude();
+        if (fDistance < fMaxDistance)
+        {
+            pNearest = pVehicle;
+            fMaxDistance = fDistance;
+        }
+    }
+    return pNearest;
+}
+
+// what a player ped plays and does, a line on every change: the active task, in a vehicle, the car anims
+static void LogPlayerAnims()
+{
+    static std::unordered_map<CPed*, std::string> lastState;
+
+    auto log = [](CPlayerPed* pPed, const char* name)
+    {
+        if (pPed == nullptr || pPed->m_pRwClump == nullptr)
+        {
+            return;
+        }
+
+        CTask* pTask = pPed->m_pIntelligence->m_TaskMgr.GetSimplestActiveTask();
+        char szState[256];
+        int n = sprintf_s(szState, "task %d in %d seat %d anims", pTask ? pTask->GetTaskType() : -1,
+            pPed->m_nPedFlags.bInVehicle, pPed->m_pVehicle && pPed->m_pVehicle->m_pDriver == pPed ? 0 : 1);
+        for (auto pAssoc = RpAnimBlendClumpGetFirstAssociation(pPed->m_pRwClump); pAssoc && n < 240;
+             pAssoc = RpAnimBlendGetNextAssociation(pAssoc))
+        {
+            if (pAssoc->m_fBlendAmount > 0.1f)
+            {
+                n += sprintf_s(szState + n, sizeof(szState) - n, " %d", pAssoc->m_nAnimId);
+            }
+        }
+
+        if (lastState[pPed] != szState)
+        {
+            lastState[pPed] = szState;
+            logger::info("stand debug: anims %s %s", name, szState);
+        }
+    };
+
+    log(FindPlayerPed(0), "local");
+    for (auto pNetworkPlayer : CNetworkPlayerManager::m_pPlayers)
+    {
+        log(pNetworkPlayer->m_pPed, pNetworkPlayer->GetName().c_str());
+    }
 }
 
 void CDebugCommands::RunCommand(const std::string& line)
@@ -300,6 +357,96 @@ void CDebugCommands::RunCommand(const std::string& line)
             }
         }
     }
+    else if (command == "car")
+    {
+        int model = 400;
+        std::string driverless;
+        stream >> model >> driverless;
+        CVector pos = pPlayer->GetPosition() + pPlayer->GetForward() * 6.0f;
+        plugin::Command<Commands::REQUEST_MODEL>(model);
+        plugin::Command<Commands::LOAD_ALL_MODELS_NOW>();
+        int car = 0;
+        plugin::Command<Commands::CREATE_CAR>(model, pos.x, pos.y, pos.z, &car);
+        // a parked car with a driver, as a jacking needs
+        int driver = 0;
+        if (driverless != "empty")
+        {
+            plugin::Command<Commands::CREATE_RANDOM_CHAR_AS_DRIVER>(car, &driver);
+            plugin::Command<Commands::CAR_SET_IDLE>(car);
+        }
+        logger::info("stand debug: car %d with driver %d at %.2f %.2f %.2f", car, driver, pos.x, pos.y, pos.z);
+    }
+    else if (command == "enter-driver")
+    {
+        // as the F key (TaskHooks sends the enter for a key press)
+        if (CVehicle* pVehicle = FindNearestVehicle(pPlayer->GetPosition(), 30.0f))
+        {
+            if (CNetworkVehicle* pNetworkVehicle = CNetworkVehicleManager::GetVehicle(pVehicle))
+            {
+                Packets::Vehicles::VehicleEnter packet{};
+                packet.vehicleid = pNetworkVehicle->m_vehicleId;
+                GetPacketFactory().Send(packet);
+            }
+            pPlayer->m_pIntelligence->m_TaskMgr.SetTask(new CTaskComplexEnterCarAsDriver(pVehicle), TASK_PRIMARY_PRIMARY, false);
+        }
+    }
+    else if (command == "enter-passenger")
+    {
+        if (!CPassengerEnter::EnterNearestVehicle(pPlayer))
+        {
+            logger::info("stand debug: no free passenger door");
+            if (CVehicle* pVehicle = FindNearestVehicle(pPlayer->GetPosition(), 30.0f))
+            {
+                // which of the checks of GetNearestCarPassengerDoor fails: occupied, door in use, no room
+                CVector temp;
+                int doorId = 0;
+                bool bNone = CCarEnterExit::GetNearestCarPassengerDoor(pPlayer, pVehicle, &temp, &doorId, false, false, false);
+                bool bOccupied = CCarEnterExit::GetNearestCarPassengerDoor(pPlayer, pVehicle, &temp, &doorId, true, false, false);
+                bool bInUse = CCarEnterExit::GetNearestCarPassengerDoor(pPlayer, pVehicle, &temp, &doorId, false, true, false);
+                bool bRoom = CCarEnterExit::GetNearestCarPassengerDoor(pPlayer, pVehicle, &temp, &doorId, false, false, true);
+                logger::info("stand debug: nearest vehicle model %d network %d distance %.2f driver %p passenger0 %p "
+                             "getting in %d in flags %x out flags %x; door found: none %d occupied %d in use %d room %d",
+                    pVehicle->m_nModelIndex, CNetworkVehicleManager::GetVehicle(pVehicle) != nullptr,
+                    (pVehicle->GetPosition() - pPlayer->GetPosition()).Magnitude(), pVehicle->m_pDriver,
+                    pVehicle->m_apPassengers[0], pVehicle->m_nNumGettingIn, pVehicle->m_nGettingInFlags,
+                    pVehicle->m_nGettingOutFlags, bNone, bOccupied, bInUse, bRoom);
+            }
+        }
+    }
+    else if (command == "warp-remote-passenger")
+    {
+        // as VEHICLE_PASSENGER_UPDATE does when it outruns the enter task here (a laggy connection)
+        for (auto pNetworkPlayer : CNetworkPlayerManager::m_pPlayers)
+        {
+            if (pNetworkPlayer->m_pPed == nullptr)
+            {
+                continue;
+            }
+            CVehicle* pVehicle = FindNearestVehicle(pNetworkPlayer->m_pPed->GetPosition(), 10.0f);
+            if (pVehicle == nullptr)
+            {
+                continue;
+            }
+
+            // the same check as the handler
+            bool bEntering = pNetworkPlayer->IsEnteringVehicle(pVehicle);
+            logger::info("stand debug: %s entering %d", pNetworkPlayer->GetName().c_str(), bEntering);
+            if (!bEntering)
+            {
+                pNetworkPlayer->WarpIntoVehiclePassenger(pVehicle, 0);
+            }
+        }
+    }
+    else if (command == "g")
+    {
+        ms_bPressG = true;
+    }
+    else if (command == "watch-anims")
+    {
+        int ms = 10000;
+        stream >> ms;
+        ms_nWatchAnimsUntil = CTimer::m_snTimeInMilliseconds + ms;
+    }
     else
     {
         logger::warn("stand debug: unknown command '%s'", line.c_str());
@@ -325,6 +472,20 @@ void CDebugCommands::Process()
         {
             pWanted->ClearWantedLevelAndGoOnParole();
         }
+    }
+
+    if (CTimer::m_snTimeInMilliseconds < ms_nWatchAnimsUntil)
+    {
+        LogPlayerAnims();
+    }
+
+    // after CGame::Process (its CPad::UpdatePads would overwrite it), before CPassengerEnter::Process reads it
+    if (ms_bPressG)
+    {
+        ms_bPressG = false;
+        CPad* pPad = CPad::GetPad(0);
+        pPad->OldState.DPadUp = 0;
+        pPad->NewState.DPadUp = 255;
     }
 
     static unsigned int nLastCheck = 0;

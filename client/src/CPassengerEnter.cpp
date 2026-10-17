@@ -104,40 +104,50 @@ void CPassengerEnter::Process()
     if (!pPad->OldState.DPadUp && pPad->NewState.DPadUp && !pPad->bDisablePlayerEnterCar &&
         pPad->DisablePlayerControls == 0)  // G key
     {
-        CNetworkVehicle* pMinNetworkVehicle = nullptr;
-        float fMinDistance = 99999999.0f;
+        EnterNearestVehicle(pPlayerPed);
+    }
+}
 
-        for (auto pNetworkVehicle : CNetworkVehicleManager::m_pVehicles)
+bool CPassengerEnter::EnterNearestVehicle(CPlayerPed* pPlayerPed)
+{
+    CNetworkVehicle* pMinNetworkVehicle = nullptr;
+    float fMinDistance = 99999999.0f;
+
+    for (auto pNetworkVehicle : CNetworkVehicleManager::m_pVehicles)
+    {
+        if (auto pVehicle = pNetworkVehicle->m_pVehicle)
         {
-            if (auto pVehicle = pNetworkVehicle->m_pVehicle)
+            float fLength = (pVehicle->m_matrix->pos - pPlayerPed->m_matrix->pos).Magnitude();
+
+            if (fLength < fMinDistance)
             {
-                float fLength = (pVehicle->m_matrix->pos - pPlayerPed->m_matrix->pos).Magnitude();
-
-                if (fLength < fMinDistance)
-                {
-                    pMinNetworkVehicle = pNetworkVehicle;
-                    fMinDistance = fLength;
-                }
-            }
-        }
-
-        if (fMinDistance <= 8.0f)
-        {
-            int doorId = 0;
-            CVector temp;  // not checked by nullptr in the game, so we should use temporary var
-            CVehicle* pMinVehicle = pMinNetworkVehicle->m_pVehicle;
-            if (CCarEnterExit::GetNearestCarPassengerDoor(pPlayerPed, pMinVehicle, &temp, &doorId, true, true, true))
-            {
-                CTaskComplexEnterCarAsPassenger* pEnterCarTask = new CTaskComplexEnterCarAsPassenger(pMinVehicle, doorId, false);
-                pPlayerPed->m_pIntelligence->m_TaskMgr.SetTask(pEnterCarTask, 3, false);
-
-                Packets::Vehicles::VehicleEnter packet{};
-                packet.vehicleid = pMinNetworkVehicle->m_vehicleId;
-                packet.seatid = CCarEnterExit::ComputePassengerIndexFromCarDoor(pMinVehicle, doorId);
-                packet.bForce = false;
-                packet.bPassenger = true;
-                GetPacketFactory().Send(packet);
+                pMinNetworkVehicle = pNetworkVehicle;
+                fMinDistance = fLength;
             }
         }
     }
+
+    if (fMinDistance > 8.0f)
+    {
+        return false;
+    }
+
+    int doorId = 0;
+    CVector temp;  // not checked by nullptr in the game, so we should use temporary var
+    CVehicle* pMinVehicle = pMinNetworkVehicle->m_pVehicle;
+    if (!CCarEnterExit::GetNearestCarPassengerDoor(pPlayerPed, pMinVehicle, &temp, &doorId, true, true, true))
+    {
+        return false;
+    }
+
+    CTaskComplexEnterCarAsPassenger* pEnterCarTask = new CTaskComplexEnterCarAsPassenger(pMinVehicle, doorId, false);
+    pPlayerPed->m_pIntelligence->m_TaskMgr.SetTask(pEnterCarTask, 3, false);
+
+    Packets::Vehicles::VehicleEnter packet{};
+    packet.vehicleid = pMinNetworkVehicle->m_vehicleId;
+    packet.seatid = CCarEnterExit::ComputePassengerIndexFromCarDoor(pMinVehicle, doorId);
+    packet.bForce = false;
+    packet.bPassenger = true;
+    GetPacketFactory().Send(packet);
+    return true;
 }

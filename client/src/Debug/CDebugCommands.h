@@ -21,6 +21,12 @@
 //   object-damage <n>           CObject::ObjectDamage on the n nearest breakable map objects, hit by the player
 //   object-push                 the nearest movable map object flies off, pushed by the player
 //   status                      log the player's position, health, armour and wanted level
+//   car [model] [empty]         a parked car with a random driver (or empty) 6 m ahead (a jacking to test)
+//   enter-driver                into the nearest vehicle as the driver, as the F key
+//   enter-passenger             into the nearest network vehicle as a passenger, as the G key
+//   warp-remote-passenger       warp the other players into seat 0 of the vehicle nearest to them (a late passenger update)
+//   g                           press G for a frame, the passenger enter of CPassengerEnter
+//   watch-anims [ms]            log the active task and the anims of the players on every change
 class CDebugCommands
 {
 public:
@@ -30,4 +36,6 @@ private:
     static void RunCommand(const std::string& line);
 
     static inline bool ms_bPoliceOff = false;
+    static inline unsigned int ms_nWatchAnimsUntil = 0;
+    static inline bool ms_bPressG = false;
 };
