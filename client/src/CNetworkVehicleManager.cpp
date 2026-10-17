@@ -96,6 +96,7 @@ void CNetworkVehicleManager::UpdateDriver(CVehicle* pVehicle)
 		vehicleDriverUpdate.locked = pVehicle->m_eDoorLock;
 		vehicleDriverUpdate.hasRotorSpeed = CNetworkVehicle::GetRotorSpeed(pVehicle, &vehicleDriverUpdate.rotorSpeed);
 		vehicleDriverUpdate.sendTime = g_serverTime;
+		CNetworkVehicle::CollectExtras(pVehicle, vehicleDriverUpdate.extras);
 		vehicleDriverUpdate.trailerid = CNetworkVehicle::GetTrailerId(pVehicle);
 		vehicleDriverUpdate.radioStation = AudioEngine.GetCurrentRadioStationID();
 
@@ -117,6 +118,18 @@ static constexpr unsigned int WAKE_DURATION = 3000;   // ms, it sinks slowly eno
 // the woken vehicles and until when, KeepAwake runs every frame (a pointer is only compared, never read)
 static std::vector<std::pair<CVehicle*, unsigned int>> ms_awakeVehicles;
 
+void CNetworkVehicleManager::Process()
+{
+	// a standing clone skips its ProcessControl (fake physics), its doors and turret still follow the syncer
+	for (auto pNetworkVehicle : m_pVehicles)
+	{
+		if (!pNetworkVehicle->m_bSyncing && !pNetworkVehicle->m_bTrain)
+		{
+			pNetworkVehicle->ProcessExtras();
+		}
+	}
+}
+
 static constexpr unsigned int KEEP_SPEED_TIME = 500;  // ms after the last update, no runaway car when they stop
 
 void CNetworkVehicleManager::AfterProcessControl(CVehicle* pVehicle)
@@ -129,6 +142,7 @@ void CNetworkVehicleManager::AfterProcessControl(CVehicle* pVehicle)
 
 	pNetworkVehicle->ProcessTargetTransform();
 	pNetworkVehicle->ProcessLandingGear();
+	pNetworkVehicle->ProcessExtras();
 
 	if (pNetworkVehicle->m_bKeepSpeed)
 	{
@@ -256,6 +270,7 @@ void CNetworkVehicleManager::UpdateIdle()
 			packet.locked = pVehicle->m_eDoorLock;
 			packet.hasRotorSpeed = CNetworkVehicle::GetRotorSpeed(pVehicle, &packet.rotorSpeed);
 			packet.sendTime = g_serverTime;
+			CNetworkVehicle::CollectExtras(pVehicle, packet.extras);
 			GetPacketFactory().Send(packet);
 		}
 	}

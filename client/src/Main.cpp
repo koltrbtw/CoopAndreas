@@ -225,6 +225,7 @@ public:
                 CAimSync::ProcessSyncing();
 
                 CNetworkPedManager::Process();
+                CNetworkVehicleManager::Process();
 
                 CNetworkEntityBlip::Update();
 

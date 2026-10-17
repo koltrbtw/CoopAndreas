@@ -69,6 +69,7 @@ public:
     float planeGearState{};
     eDoorLock locked{};
 
+    SVehicleExtras extras{};
     server_time_t sendTime = 0;  // g_serverTime of the sender: the receiver moves the target on by the delay
     bool hasRotorSpeed = false;  // helis, planes, boats: the clone's own ai doesn't spin them
     float rotorSpeed = 0.0f;
@@ -105,6 +106,10 @@ public:
             serialize_compressed_float(stream, turnSpeed.y, -0.5f, 0.5f, 0.0001f);
             serialize_compressed_float(stream, turnSpeed.z, -0.5f, 0.5f, 0.0001f);
         }
+        else if (Stream::IsReading)
+        {
+            turnSpeed = CVector(0.0f, 0.0f, 0.0f);  // the packet object is reused, see SVehicleExtras
+        }
 
         serialize_uint8(stream, color1);
         serialize_uint8(stream, color2);
@@ -139,6 +144,7 @@ public:
 
         serialize_int(stream, (int&)locked, DOORLOCK_NOT_USED, DOORLOCK_SKIP_SHUT_DOORS);
 
+        serialize_object(stream, extras);
         serialize_uint32(stream, sendTime);
         serialize_bool(stream, hasRotorSpeed);
         if (hasRotorSpeed)
@@ -183,6 +189,7 @@ public:
     vehicleid_t trailerid{};  // the vehicle it tows, a trailer or a car behind a tow truck
     int8_t radioStation = -1;  // eRadioID the driver listens to, for the passengers
 
+    SVehicleExtras extras{};
     server_time_t sendTime = 0;  // g_serverTime of the sender: the receiver moves the target on by the delay
     bool hasRotorSpeed = false;  // helis, planes, boats: the clone's own ai doesn't spin them
     float rotorSpeed = 0.0f;
@@ -220,6 +227,10 @@ private:
             serialize_compressed_float(stream, turnSpeed.x, -0.5f, 0.5f, 0.0001f);
             serialize_compressed_float(stream, turnSpeed.y, -0.5f, 0.5f, 0.0001f);
             serialize_compressed_float(stream, turnSpeed.z, -0.5f, 0.5f, 0.0001f);
+        }
+        else if (Stream::IsReading)
+        {
+            turnSpeed = CVector(0.0f, 0.0f, 0.0f);  // the packet object is reused, see SVehicleExtras
         }
 
         serialize_uint8(stream, color1);
@@ -261,6 +272,10 @@ private:
         {
             serialize_uint16(stream, miscComponentAngle);
         }
+        else if (Stream::IsReading)
+        {
+            miscComponentAngle = 0;
+        }
 
         if (Stream::IsWriting)
         {
@@ -282,9 +297,14 @@ private:
         {
             serialize_vehicleid(stream, trailerid);
         }
+        else if (Stream::IsReading)
+        {
+            trailerid = vehicleid_t();  // unhooked: the reused packet object kept the last one
+        }
 
         serialize_int(stream, radioStation, -1, 13);
 
+        serialize_object(stream, extras);
         serialize_uint32(stream, sendTime);
         serialize_bool(stream, hasRotorSpeed);
         if (hasRotorSpeed)
