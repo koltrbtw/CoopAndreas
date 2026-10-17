@@ -5,6 +5,7 @@
 #include <CWanted.h>
 #include <CGangWars.h>
 #include "Hooks/PlayerHooks.h"
+#include "Hooks/WorldHooks.h"
 #include <CDummyObject.h>
 
 static CTrain* FindNearestFrontCarriage(const CVector& position, bool bMissionOnly = false)
@@ -236,6 +237,35 @@ void CDebugCommands::RunCommand(const std::string& line)
             CNetworkVehicleManager::Remove(pNearest);
             delete pNearest;
         }
+    }
+    else if (command == "flash-vehicle")
+    {
+        // the vehicle flood: a car generator that creates a vehicle and removes it right away; a VEHICLE_REMOVE
+        // relayed with our serverTime came before the server's VEHICLE_SPAWN at the others, the clone stayed there
+        int count = 10;
+        stream >> count;
+
+        constexpr int MODEL = 400; // landstal
+        CStreaming::RequestModel(MODEL, 0);
+        CStreaming::LoadAllRequestedModels(false);
+
+        int flashed = 0;
+        for (int i = 0; i < count; i++)
+        {
+            CVehicle* pVehicle = new CAutomobile(MODEL, RANDOM_VEHICLE, true);
+            if (!pVehicle)
+            {
+                break;
+            }
+            pVehicle->SetPosn(pPlayer->GetPosition() + CVector(5.0f + 5.0f * (i % 4), 5.0f * (i / 4 % 4), 0.0f));
+            CNetworkVehicle::CreateHosted(pVehicle);
+            CWorld::Add(pVehicle);
+
+            WorldHooks::CWorld__Remove_Hook(pVehicle);
+            delete pVehicle;
+            flashed++;
+        }
+        logger::info("stand debug: created and removed %d vehicles", flashed);
     }
     else if (command == "god")
     {

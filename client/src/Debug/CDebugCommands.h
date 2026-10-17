@@ -15,6 +15,7 @@
 //   teleport <x> <y> <z>        the player (out of the vehicle), the scene loaded first
 //   gang-wars on|off            CGangWars::SetGangWarsActive, as GROVE2 does
 //   forget-vehicle              our nearest vehicle deleted here without VEHICLE_REMOVE (a leaked clone for the others)
+//   flash-vehicle [n]           n vehicles created and removed at once here, like a car generator (10 by default)
 //   god                         the player bullet/fire/explosion/melee proof
 //   provoke                     enough provocation for CGangWars::Update to start an offensive war in this zone
 //   shoot-wave [count]          headshots at up to count members of the war's gang closer than 100 m (synced shots)

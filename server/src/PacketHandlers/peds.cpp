@@ -117,6 +117,9 @@ PACKET_HANDLER(ePacketType::PED_REMOVE, Packets::Peds::PedRemove* pPedRemove, CN
         }
     }
 
+    // the server time: with the syncer's one it may come before the spawn the server sent (CPacketBuffer plays by
+    // serverTime), the others would keep the clone
+    pPedRemove->serverTime = g_serverTime;
     CRelevanceManager::SendToRelevant(*pPedRemove, pNetworkPed->m_vRelevantTo, pNetworkPlayer);
     CNetworkPedManager::Remove(pNetworkPed);
 }

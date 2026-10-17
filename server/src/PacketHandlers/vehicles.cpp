@@ -85,6 +85,9 @@ PACKET_HANDLER(
     {
         if (vehicle->m_pSyncer == pNetworkPlayer)
         {
+            // the server time: with the syncer's one a vehicle removed right after its creation (a car generator)
+            // came before the spawn the server sent, the others kept the clone (CPacketBuffer plays by serverTime)
+            pVehicleRemove->serverTime = g_serverTime;
             CRelevanceManager::SendToRelevant(*pVehicleRemove, vehicle->m_vRelevantTo, pNetworkPlayer);
 
             CNetworkVehicleManager::Remove(vehicle);
