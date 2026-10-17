@@ -93,6 +93,8 @@ class PedHandoff : public Packet
 public:
     pedid_t pedid{};
     bool released = false;  // false: the syncer refused, nothing changes
+    playerid_t target{};    // the syncer hands it over on its own (not asked): to whom
+    bool hasTransform = true;  // false when the server hands it over, the new syncer keeps its clone transform
 
     WorldPositionCompressed pos{};
     float heading{};
@@ -108,8 +110,13 @@ private:
             return true;
         }
 
-        serialize_object(stream, pos);
-        serialize_float(stream, heading);
+        serialize_playerid(stream, target);
+        serialize_bool(stream, hasTransform);
+        if (hasTransform)
+        {
+            serialize_object(stream, pos);
+            serialize_float(stream, heading);
+        }
         return true;
     }
 };

@@ -41,7 +41,27 @@ void CNetworkVehicleManager::RemoveAllHostedAndNotify(CNetworkPlayer* player)
             (*it)->m_pPendingSyncer = nullptr;
         }
 
-        if ((*it)->m_pSyncer == player)
+        // an ambient vehicle goes to the nearest player instead of disappearing in front of him
+        CNetworkPlayer* pNewSyncer = nullptr;
+        if ((*it)->m_pSyncer == player && (*it)->m_nCreatedBy != MISSION_VEHICLE)
+        {
+            pNewSyncer = CNetworkPlayerManager::GetNearestPlayer((*it)->m_vecPosition, CNetworkPlayerManager::HANDOVER_ON_LEAVE_DISTANCE, player);
+        }
+
+        if (pNewSyncer)
+        {
+            (*it)->m_pSyncer = pNewSyncer;
+
+            // the server doesn't know the autopilot: cruise and let the new syncer pick the rest
+            Packets::Vehicles::VehicleHandoff handoff{};
+            handoff.vehicleid = (*it)->m_vehicleId;
+            handoff.released = true;
+            handoff.hasTransform = false;
+            handoff.carMission = MISSION_CRUISE;
+            GetPacketFactory().Send(handoff, pNewSyncer);
+            ++it;
+        }
+        else if ((*it)->m_pSyncer == player)
         {
             Packets::Vehicles::VehicleRemove packet{};
             packet.vehicleid = (*it)->m_vehicleId;

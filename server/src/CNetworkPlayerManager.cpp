@@ -84,3 +84,30 @@ void CNetworkPlayerManager::AssignHostToFirstPlayer()
     playerAssignHost.playerid = player->m_playerId;
     GetPacketFactory().SendToAll(playerAssignHost);
 }
+
+CNetworkPlayer* CNetworkPlayerManager::GetNearestPlayer(const CVector& position, float maxDistance, CNetworkPlayer* except)
+{
+    CNetworkPlayer* pNearest = nullptr;
+    float fNearestDistanceSq = maxDistance * maxDistance;
+
+    for (auto pNetworkPlayer : m_pPlayers)
+    {
+        if (pNetworkPlayer == except)
+        {
+            continue;
+        }
+
+        // the server doesn't link the plugin-sdk CVector methods
+        float dx = pNetworkPlayer->m_vecPosition.x - position.x;
+        float dy = pNetworkPlayer->m_vecPosition.y - position.y;
+        float dz = pNetworkPlayer->m_vecPosition.z - position.z;
+        float fDistanceSq = dx * dx + dy * dy + dz * dz;
+        if (fDistanceSq < fNearestDistanceSq)
+        {
+            pNearest = pNetworkPlayer;
+            fNearestDistanceSq = fDistanceSq;
+        }
+    }
+
+    return pNearest;
+}

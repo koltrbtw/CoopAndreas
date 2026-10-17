@@ -356,6 +356,12 @@ PACKET_HANDLER(ePacketType::PED_HANDOFF, Packets::Peds::PedHandoff* pHandoff, CN
         return;
     }
 
+    // not asked: the syncer gives it away on its own (it would remove it otherwise)
+    if (!pNewSyncer && pHandoff->target.valid() && pHandoff->target != pNetworkPlayer->m_playerId)
+    {
+        pNewSyncer = CNetworkPlayerManager::GetPlayer(pHandoff->target);
+    }
+
     // whoever asked has left meanwhile, the old syncer has to take it back
     if (!pNewSyncer)
     {

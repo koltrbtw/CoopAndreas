@@ -10,6 +10,8 @@ public:
 	char m_nPaintJob = -1;
 	bool m_bSyncing = false;
 	unsigned char m_nCreatedBy;
+	uint8_t m_autoPilotStyle = 0;        // from the last handoff
+	uint8_t m_autoPilotCruiseSpeed = 0;  // from the last handoff, 0: default
 	int m_nBlipHandle = -1;
 	Packets::Vehicles::VehicleDriverUpdate m_playerDriverSnapshot{};
 	CDamageManager m_oldDamageState{};
@@ -21,6 +23,8 @@ public:
 
 	// pHandoff: the vehicle was a clone of someone else's ambient vehicle, continue its life from this state
 	void BecomeSyncer(const Packets::Vehicles::VehicleHandoff* pHandoff);
+	// gives our npc driver the ambient driving task, once both the vehicle and the driver are ours
+	void ResumeDriving();
 	// fills pHandoff with what the new syncer needs and turns the vehicle and our npc peds inside into clones
 	void BecomeClone(Packets::Vehicles::VehicleHandoff* pHandoff);
 	

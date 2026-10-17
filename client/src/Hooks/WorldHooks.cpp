@@ -102,7 +102,7 @@ static void __cdecl CWorld__Add_Hook(CEntity* entity)
     if (entity->IsVTableValid())
         CWorld::Add(entity);
 }
-static void __cdecl CWorld__Remove_Hook(CEntity* entity)
+void __cdecl WorldHooks::CWorld__Remove_Hook(CEntity* entity)
 {
     if (entity->m_nType == eEntityType::ENTITY_TYPE_VEHICLE)
     {
@@ -300,7 +300,7 @@ void WorldHooks::InjectHooks()
         0x717897, 0x738AFF, 0x73997A, 0x739A17, 0x739AD0};
     patch::RedirectCall(
         std::vector<int>(CWorld__Remove_Addresses, CWorld__Remove_Addresses + sizeof(CWorld__Remove_Addresses) / 4),
-        CWorld__Remove_Hook);
+        WorldHooks::CWorld__Remove_Hook);
 
     // patch::RedirectJump(0x47D43E, CWeather__ForceWeather_Hook);
     // patch::RedirectJump(0x72A4F0, CWeather__ForceWeatherNow_Hook);

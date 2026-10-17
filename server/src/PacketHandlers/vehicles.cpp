@@ -85,6 +85,7 @@ PACKET_HANDLER(ePacketType::VEHICLE_DRIVER_UPDATE, Packets::Vehicles::VehicleDri
         pNetworkVehicle->m_vecPosition = pVehicleDriverUpdate->pos;
         pNetworkVehicle->m_vecRotation = pVehicleDriverUpdate->rot;
         pNetworkVehicle->m_bUsedByPed = false;
+        pNetworkPlayer->m_vecPosition = pVehicleDriverUpdate->pos;
         pNetworkVehicle->ReassignSyncer(pNetworkPlayer);
 
         pVehicleDriverUpdate->senderPlayerid = pNetworkPlayer->m_playerId;
@@ -188,6 +189,7 @@ PACKET_HANDLER(ePacketType::VEHICLE_PASSENGER_UPDATE,
         GetPacketFactory().SendToAll(*pVehiclePassengerUpdate, pNetworkPlayer);
 
         pNetworkVehicle->SetOccupant(pVehiclePassengerUpdate->seatid + 1, pNetworkPlayer);
+        pNetworkPlayer->m_vecPosition = pNetworkVehicle->m_vecPosition;
 
         if (pNetworkVehicle->m_nCreatedBy == MISSION_VEHICLE)
         {
@@ -261,6 +263,12 @@ PACKET_HANDLER(ePacketType::VEHICLE_HANDOFF, Packets::Vehicles::VehicleHandoff* 
     if (!pHandoff->released)
     {
         return;
+    }
+
+    // not asked: the syncer gives it away on its own (it would remove it otherwise)
+    if (!pNewSyncer && pHandoff->target.valid() && pHandoff->target != pNetworkPlayer->m_playerId)
+    {
+        pNewSyncer = CNetworkPlayerManager::GetPlayer(pHandoff->target);
     }
 
     // whoever asked has left meanwhile, the old syncer has to take it back
