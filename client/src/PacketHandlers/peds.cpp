@@ -11,6 +11,12 @@ PACKET_HANDLER(ePacketType::PED_SPAWN, Packets::Peds::PedSpawn* pPedSpawn)
         pPedSpawn->pos.x, pPedSpawn->pos.y, pPedSpawn->pos.z, pPedSpawn->pedType, pPedSpawn->createdBy);
 #endif
 
+    // the server sends a spawn whenever the ped comes in our scope, never twice on purpose
+    if (CNetworkPedManager::GetPed(pPedSpawn->pedid))
+    {
+        return;
+    }
+
     CNetworkPed* pNetworkPed = new CNetworkPed(pPedSpawn->pedid, pPedSpawn->modelId, pPedSpawn->pedType, pPedSpawn->pos,
         pPedSpawn->createdBy, pPedSpawn->specialModelName);
 

@@ -1,6 +1,7 @@
 #include "network/packets/peds.h"
 #include "network/packet_types.h"
 #include "stdafx.h"
+#include "CRelevanceManager.h"
 
 PACKET_HANDLER(ePacketType::PED_SPAWN, Packets::Peds::PedSpawn* pPedSpawn, CNetworkPlayer* pNetworkPlayer)
 {
@@ -43,14 +44,13 @@ PACKET_HANDLER(ePacketType::PED_SPAWN, Packets::Peds::PedSpawn* pPedSpawn, CNetw
         return;
     }
 
-    GetPacketFactory().SendToAll(*pPedSpawn, pNetworkPlayer);
-
     CNetworkPed* pNetworkPed = new CNetworkPed(
         pPedSpawn->pedid, pNetworkPlayer, pPedSpawn->modelId, pPedSpawn->pedType, pPedSpawn->pos, pPedSpawn->createdBy);
     snprintf(pNetworkPed->m_szSpecialModelName, sizeof(pNetworkPed->m_szSpecialModelName), "%s",
         pPedSpawn->specialModelName);
 
     CNetworkPedManager::Add(pNetworkPed);
+    CRelevanceManager::OnPedCreated(pNetworkPed);
 }
 
 PACKET_HANDLER(ePacketType::PED_REMOVE, Packets::Peds::PedRemove* pPedRemove, CNetworkPlayer* pNetworkPlayer)
@@ -74,6 +74,7 @@ PACKET_HANDLER(ePacketType::PED_REMOVE, Packets::Peds::PedRemove* pPedRemove, CN
         if (std::find(p->m_vPedClaims.begin(), p->m_vPedClaims.end(), pNetworkPed) != p->m_vPedClaims.end())
         {
             // assign ped's syncer to this player
+            CRelevanceManager::EnsureRelevant(pNetworkPed, p);
             pNetworkPed->m_pSyncer = p;
             pNetworkPed->m_pPendingSyncer = nullptr;
 
@@ -116,7 +117,7 @@ PACKET_HANDLER(ePacketType::PED_REMOVE, Packets::Peds::PedRemove* pPedRemove, CN
         }
     }
 
-    GetPacketFactory().SendToAll(*pPedRemove, pNetworkPlayer);
+    CRelevanceManager::SendToRelevant(*pPedRemove, pNetworkPed->m_vRelevantTo, pNetworkPlayer);
     CNetworkPedManager::Remove(pNetworkPed);
 }
 
@@ -132,7 +133,7 @@ PACKET_HANDLER(ePacketType::PED_ONFOOT, Packets::Peds::PedOnFoot* pPedOnFoot, CN
         }
 
         pPed->m_vecPos = pPedOnFoot->pos;
-        GetPacketFactory().SendToAll(*pPedOnFoot, pNetworkPlayer);
+        CRelevanceManager::SendToRelevant(*pPedOnFoot, pPed->m_vRelevantTo, pNetworkPlayer);
     }
 }
 
@@ -160,8 +161,10 @@ PACKET_HANDLER(
     pNetworkVehicle->m_bUsedByPed = true;
     pNetworkVehicle->m_vecPosition = pPedDriverUpdate->pos;
     pNetworkVehicle->m_vecRotation = pPedDriverUpdate->rot;
+    pNetworkVehicle->m_vecRight = pPedDriverUpdate->roll;
+    pNetworkPed->m_vecPos = pPedDriverUpdate->pos;
 
-    GetPacketFactory().SendToAll(*pPedDriverUpdate, pNetworkPlayer);
+    CRelevanceManager::SendToRelevant(*pPedDriverUpdate, pNetworkPed->m_vRelevantTo, pNetworkPlayer);
 }
 
 PACKET_HANDLER(ePacketType::PED_PASSENGER_UPDATE, Packets::Peds::PedPassengerSync* pPedPassengerSync,
@@ -179,7 +182,12 @@ PACKET_HANDLER(ePacketType::PED_PASSENGER_UPDATE, Packets::Peds::PedPassengerSyn
         return;
     }
 
-    GetPacketFactory().SendToAll(*pPedPassengerSync, pNetworkPlayer);
+    if (auto pNetworkVehicle = CNetworkVehicleManager::GetVehicle(pPedPassengerSync->vehicleid))
+    {
+        pNetworkPed->m_vecPos = pNetworkVehicle->m_vecPosition;
+    }
+
+    CRelevanceManager::SendToRelevant(*pPedPassengerSync, pNetworkPed->m_vRelevantTo, pNetworkPlayer);
 }
 
 PACKET_HANDLER(ePacketType::PED_SHOT_SYNC, Packets::Peds::PedShotSync* pPedShotSync, CNetworkPlayer* pNetworkPlayer)
@@ -196,7 +204,7 @@ PACKET_HANDLER(ePacketType::PED_SHOT_SYNC, Packets::Peds::PedShotSync* pPedShotS
         return;
     }
 
-    GetPacketFactory().SendToAll(*pPedShotSync, pNetworkPlayer);
+    CRelevanceManager::SendToRelevant(*pPedShotSync, pNetworkPed->m_vRelevantTo, pNetworkPlayer);
 }
 
 PACKET_HANDLER(ePacketType::PED_SAY, Packets::Peds::PedSay* pPedSay, CNetworkPlayer* pNetworkPlayer)
@@ -267,6 +275,7 @@ PACKET_HANDLER(ePacketType::PED_RESET_ALL_CLAIMS, Packets::Peds::PedResetAllClai
                 assignPedPacket.isSyncer = false;
                 GetPacketFactory().Send(assignPedPacket, pNetworkPed->m_pSyncer);  // unassign old
 
+                CRelevanceManager::EnsureRelevant(pNetworkPed, pNetworkPlayer);
                 pNetworkPed->m_pSyncer = pNetworkPlayer;
                 pNetworkPed->m_pPendingSyncer = nullptr;
             }
@@ -315,6 +324,7 @@ PACKET_HANDLER(ePacketType::PED_TAKE_HOST, Packets::Peds::PedTakeHost* pPedTakeH
                 }
             }
 
+            CRelevanceManager::EnsureRelevant(pNetworkPed, pNetworkPlayer);
             pNetworkPed->m_pSyncer = pNetworkPlayer;
             pNetworkPed->m_pPendingSyncer = nullptr;
         }
@@ -368,6 +378,7 @@ PACKET_HANDLER(ePacketType::PED_HANDOFF, Packets::Peds::PedHandoff* pHandoff, CN
         pNewSyncer = pNetworkPlayer;
     }
 
+    CRelevanceManager::EnsureRelevant(pNetworkPed, pNewSyncer);
     pNetworkPed->m_pSyncer = pNewSyncer;
     GetPacketFactory().Send(*pHandoff, pNewSyncer);
 }

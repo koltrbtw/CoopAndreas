@@ -2,6 +2,7 @@
 
 #include "CVector.h"
 #include "network/ids.h"
+#include <vector>
 
 #include <eModelID.h>
 #include <ePedType.h>
@@ -23,4 +24,5 @@ public:
     CVector m_vecPos;
     eCharCreatedBy m_nCreatedBy;
     char m_szSpecialModelName[8];
+    std::vector<CNetworkPlayer*> m_vRelevantTo;  // have a clone of it, see CRelevanceManager
 };

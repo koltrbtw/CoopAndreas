@@ -13,6 +13,12 @@ PACKET_HANDLER(ePacketType::VEHICLE_SPAWN, Packets::Vehicles::VehicleSpawn* pVeh
         pVehicleSpawn->rot.m_angle);
 #endif
 
+    // the server sends a spawn whenever the vehicle comes in our scope, never twice on purpose
+    if (CNetworkVehicleManager::GetVehicle(pVehicleSpawn->vehicleid))
+    {
+        return;
+    }
+
     CNetworkVehicle* pNetworkVehicle =
         new CNetworkVehicle(pVehicleSpawn->vehicleid, pVehicleSpawn->modelid, pVehicleSpawn->pos,
             pVehicleSpawn->rot.m_angle, pVehicleSpawn->color1, pVehicleSpawn->color2, pVehicleSpawn->createdBy);

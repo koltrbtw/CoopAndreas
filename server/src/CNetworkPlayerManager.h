@@ -20,7 +20,9 @@ public:
     static CNetworkPlayer* GetHost();
     // ambient entities of a leaving player go to the nearest player within this distance
     static constexpr float HANDOVER_ON_LEAVE_DISTANCE = 300.0f;
-    static CNetworkPlayer* GetNearestPlayer(const CVector& position, float maxDistance, CNetworkPlayer* except);
+    // among candidates only (the players that have a clone of the entity)
+    static CNetworkPlayer* GetNearestPlayer(const CVector& position, float maxDistance, CNetworkPlayer* except,
+        const std::vector<CNetworkPlayer*>& candidates);
     static void AssignHostToFirstPlayer();
 
 private:

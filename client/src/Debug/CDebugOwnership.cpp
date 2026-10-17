@@ -142,6 +142,18 @@ void CDebugOwnership::Process()
 
     ProcessWatchedVehicle();
 
+    // how many network entities we have, ours and clones: the relevance and the handoffs at a glance
+    static unsigned int nLastCountLog = 0;
+    if (CTimer::m_snTimeInMilliseconds - nLastCountLog > 10000)
+    {
+        nLastCountLog = CTimer::m_snTimeInMilliseconds;
+        auto CountOurs = [](const auto& entities)
+        { return std::count_if(entities.begin(), entities.end(), [](auto e) { return e->m_bSyncing; }); };
+        logger::info("ownership debug: network peds %d (ours %d), vehicles %d (ours %d)",
+            (int)CNetworkPedManager::m_pPeds.size(), (int)CountOurs(CNetworkPedManager::m_pPeds),
+            (int)CNetworkVehicleManager::m_pVehicles.size(), (int)CountOurs(CNetworkVehicleManager::m_pVehicles));
+    }
+
     if (GetForegroundWindow() != RsGlobal.ps->window)
     {
         return;
