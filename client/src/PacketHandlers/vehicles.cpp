@@ -93,7 +93,7 @@ PACKET_HANDLER(ePacketType::VEHICLE_IDLE_UPDATE, Packets::Vehicles::VehicleIdleU
     if (pVehicleIdleUpdate->velocity.Magnitude() > 0.001f || pVehicle->m_vecMoveSpeed.Magnitude() > 0.001f)
     {
         pNetworkVehicle->SetTargetTransform(pVehicleIdleUpdate->pos, pVehicleIdleUpdate->roll, pVehicleIdleUpdate->rot,
-            pVehicleIdleUpdate->velocity, pVehicleIdleUpdate->turnSpeed);
+            pVehicleIdleUpdate->velocity, pVehicleIdleUpdate->turnSpeed, pVehicleIdleUpdate->sendTime);
     }
     else
     {
@@ -109,9 +109,8 @@ PACKET_HANDLER(ePacketType::VEHICLE_IDLE_UPDATE, Packets::Vehicles::VehicleIdleU
 
     if (CUtil::GetVehicleType(pNetworkVehicle->m_pVehicle) == eVehicleType::VEHICLE_PLANE)
     {
-        CPlane* pPlane = (CPlane*)pNetworkVehicle->m_pVehicle;
-
-        pPlane->m_fLandingGearStatus = pVehicleIdleUpdate->planeGearState;
+        pNetworkVehicle->m_bHasGear = true;
+        pNetworkVehicle->m_bGearUp = pVehicleIdleUpdate->planeGearState > 0.0f;
     }
 
     pNetworkVehicle->m_pVehicle->m_eDoorLock = pVehicleIdleUpdate->locked;
@@ -138,7 +137,8 @@ PACKET_HANDLER(ePacketType::VEHICLE_DRIVER_UPDATE, Packets::Vehicles::VehicleDri
     if (!pNetworkVehicle->m_bTrain)
     {
         pNetworkVehicle->SetTargetTransform(pVehicleDriverUpdate->pos, pVehicleDriverUpdate->roll,
-            pVehicleDriverUpdate->rot, pVehicleDriverUpdate->velocity, pVehicleDriverUpdate->turnSpeed);
+            pVehicleDriverUpdate->rot, pVehicleDriverUpdate->velocity, pVehicleDriverUpdate->turnSpeed,
+            pVehicleDriverUpdate->sendTime);
     }
     pNetworkVehicle->m_bHasRotorSpeed = pVehicleDriverUpdate->hasRotorSpeed;
     pNetworkVehicle->m_fRotorSpeed = pVehicleDriverUpdate->rotorSpeed;
@@ -173,9 +173,8 @@ PACKET_HANDLER(ePacketType::VEHICLE_DRIVER_UPDATE, Packets::Vehicles::VehicleDri
 
     if (pVehicle->m_nVehicleSubType == VEHICLE_PLANE)
     {
-        CPlane* pPlane = (CPlane*)pVehicle;
-
-        pPlane->m_fLandingGearStatus = pVehicleDriverUpdate->planeGearState;
+        pNetworkVehicle->m_bHasGear = true;
+        pNetworkVehicle->m_bGearUp = pVehicleDriverUpdate->planeGearState > 0.0f;
     }
 
     pNetworkVehicle->m_pVehicle->m_eDoorLock = pVehicleDriverUpdate->locked;

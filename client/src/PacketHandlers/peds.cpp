@@ -199,7 +199,7 @@ PACKET_HANDLER(ePacketType::PED_DRIVER_UPDATE, Packets::Peds::PedDriverUpdate* p
         pNetworkPed->WarpIntoVehicleDriver(pVehicle);
     }
     pNetworkVehicle->SetTargetTransform(pPedDriverUpdate->pos, pPedDriverUpdate->roll, pPedDriverUpdate->rot,
-        pPedDriverUpdate->velocity, pPedDriverUpdate->turnSpeed);
+        pPedDriverUpdate->velocity, pPedDriverUpdate->turnSpeed, pPedDriverUpdate->sendTime);
     pNetworkPed->m_vecVelocity = pPedDriverUpdate->velocity;
     pNetworkVehicle->m_bKeepSpeed = pPedDriverUpdate->onRails;
     pNetworkVehicle->m_vecKeptMoveSpeed = pPedDriverUpdate->velocity;
@@ -229,8 +229,8 @@ PACKET_HANDLER(ePacketType::PED_DRIVER_UPDATE, Packets::Peds::PedDriverUpdate* p
     }
     if (pVehicle->m_nVehicleSubType == VEHICLE_PLANE)
     {
-        CPlane* pPlane = (CPlane*)pVehicle;
-        pPlane->m_fLandingGearStatus = pPedDriverUpdate->planeGearState;
+        pNetworkVehicle->m_bHasGear = true;
+        pNetworkVehicle->m_bGearUp = pPedDriverUpdate->planeGearState > 0.0f;
     }
     if (pVehicle->m_nVehicleSubType == VEHICLE_BMX)
     {

@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include <CServerTime.h>
 #include "CNetworkVehicle.h"
 #include <CKeySync.h>
 #include "CNetworkVehicleManager.h"
@@ -94,6 +95,7 @@ void CNetworkVehicleManager::UpdateDriver(CVehicle* pVehicle)
 
 		vehicleDriverUpdate.locked = pVehicle->m_eDoorLock;
 		vehicleDriverUpdate.hasRotorSpeed = CNetworkVehicle::GetRotorSpeed(pVehicle, &vehicleDriverUpdate.rotorSpeed);
+		vehicleDriverUpdate.sendTime = g_serverTime;
 		vehicleDriverUpdate.trailerid = CNetworkVehicle::GetTrailerId(pVehicle);
 		vehicleDriverUpdate.radioStation = AudioEngine.GetCurrentRadioStationID();
 
@@ -126,6 +128,7 @@ void CNetworkVehicleManager::AfterProcessControl(CVehicle* pVehicle)
 	}
 
 	pNetworkVehicle->ProcessTargetTransform();
+	pNetworkVehicle->ProcessLandingGear();
 
 	if (pNetworkVehicle->m_bKeepSpeed)
 	{
@@ -252,6 +255,7 @@ void CNetworkVehicleManager::UpdateIdle()
 
 			packet.locked = pVehicle->m_eDoorLock;
 			packet.hasRotorSpeed = CNetworkVehicle::GetRotorSpeed(pVehicle, &packet.rotorSpeed);
+			packet.sendTime = g_serverTime;
 			GetPacketFactory().Send(packet);
 		}
 	}

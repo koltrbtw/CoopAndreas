@@ -236,6 +236,7 @@ public:
     uint16_t miscComponentAngle{};  // automobile/mtruck/plane
 
     bool onRails = false;  // STATUS_SIMPLE: CCarCtrl::UpdateCarOnRails moves it at a steady speed, no physics
+    server_time_t sendTime = 0;  // g_serverTime of the sender: the receiver moves the target on by the delay
     bool hasRotorSpeed = false;  // helis, planes, boats: the clone's own ai doesn't spin them
     float rotorSpeed = 0.0f;
 
@@ -368,6 +369,7 @@ private:
 #pragma endregion
 
         serialize_bool(stream, onRails);
+        serialize_uint32(stream, sendTime);
         serialize_bool(stream, hasRotorSpeed);
         if (hasRotorSpeed)
         {

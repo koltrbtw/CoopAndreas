@@ -36,6 +36,10 @@ public:
 	bool m_bKeepSpeed = false;
 	CVector m_vecKeptMoveSpeed{};
 	CVector m_vecKeptTurnSpeed{};
+	// a plane clone: the landing gear goes the way of the syncer's one, see ProcessLandingGear
+	bool m_bHasGear = false;
+	bool m_bGearUp = false;
+	float m_fGearAfterLastFrame = 0.0f;
 	bool m_bHasRotorSpeed = false;  // a clone: the syncer's rotor / propeller speed, kept every frame
 	float m_fRotorSpeed = 0.0f;
 	unsigned int m_nWakeTime = 0;  // ours: last push of a car frozen above the ground, CTimer time
@@ -61,10 +65,13 @@ public:
 	void BecomeClone(Packets::Vehicles::VehicleHandoff* pHandoff);
 
 	// a clone: the transform from an update, the speeds go to the physics straight away
+	// sendTime: g_serverTime of the syncer when it sent it, the target is moved on by its speed for the delay
 	void SetTargetTransform(const CVector& pos, const CVector& right, const CVector& forward, const CVector& moveSpeed,
-		const CVector& turnSpeed);
+		const CVector& turnSpeed, server_time_t sendTime);
 	// a clone, every frame after its ProcessControl
 	void ProcessTargetTransform();
+	// a plane clone, every frame after its ProcessControl
+	void ProcessLandingGear();
 	// rotor of a heli, propeller of a plane or a boat; false for the others
 	static bool GetRotorSpeed(CVehicle* pVehicle, float* pfSpeed);
 	static void SetRotorSpeed(CVehicle* pVehicle, float fSpeed);
