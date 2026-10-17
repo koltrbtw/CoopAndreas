@@ -61,8 +61,8 @@ public:
 	TrainState m_trainState{};  // ours: what we last sent, a clone: what the syncer last sent
 
 	~CNetworkVehicle();
-	CNetworkVehicle(vehicleid_t vehicleid, int modelid, CVector pos, float rotation, unsigned char color1, unsigned char color2, unsigned char createdBy);
-	bool CreateVehicle(vehicleid_t vehicleid, int modelid, CVector pos, float rotation, unsigned char color1, unsigned char color2);
+	CNetworkVehicle(vehicleid_t vehicleid, int modelid, CVector pos, float rotation, unsigned char color1, unsigned char color2, unsigned char createdBy, const int8_t extras[2]);
+	bool CreateVehicle(vehicleid_t vehicleid, int modelid, CVector pos, float rotation, unsigned char color1, unsigned char color2, const int8_t extras[2]);
 	bool HasDriver();
 
 	// pHandoff: the vehicle was a clone of someone else's ambient vehicle, continue its life from this state

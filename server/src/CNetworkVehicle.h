@@ -25,6 +25,7 @@ public:
     CNetworkPlayer* m_pPlayers[8] = {nullptr};
     unsigned char m_nPrimaryColor;
     unsigned char m_nSecondaryColor;
+    int8_t m_anExtras[2] = {-1, -1};
     CDamageManager m_damageManager;
     uint8_t m_aBikeWheelStatus[2]{};
     std::vector<int> m_pComponents;

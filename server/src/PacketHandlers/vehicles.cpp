@@ -29,6 +29,8 @@ PACKET_HANDLER(
     vehicle->m_pSyncer = pNetworkPlayer;
     vehicle->m_nPrimaryColor = pVehicleSpawn->color1;
     vehicle->m_nSecondaryColor = pVehicleSpawn->color2;
+    vehicle->m_anExtras[0] = pVehicleSpawn->extras[0];
+    vehicle->m_anExtras[1] = pVehicleSpawn->extras[1];
     vehicle->m_nCreatedBy = pVehicleSpawn->createdBy;
 
     CNetworkVehicleManager::Add(vehicle);

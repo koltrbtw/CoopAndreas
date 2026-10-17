@@ -3,7 +3,7 @@
 #include "CNetworkVehicle.h"
 #include "CTrainSync.h"
 
-CNetworkVehicle::CNetworkVehicle(vehicleid_t vehicleid, int modelid, CVector pos, float rotation, unsigned char color1, unsigned char color2, unsigned char createdBy)
+CNetworkVehicle::CNetworkVehicle(vehicleid_t vehicleid, int modelid, CVector pos, float rotation, unsigned char color1, unsigned char color2, unsigned char createdBy, const int8_t extras[2])
 {
     if (auto vehicle = CNetworkVehicleManager::GetVehicle(vehicleid))
     {
@@ -20,12 +20,12 @@ CNetworkVehicle::CNetworkVehicle(vehicleid_t vehicleid, int modelid, CVector pos
     m_nModelId = modelid;
     m_nCreatedBy = createdBy;
 
-    if (!CreateVehicle(vehicleid, modelid, pos, rotation, color1, color2))
+    if (!CreateVehicle(vehicleid, modelid, pos, rotation, color1, color2, extras))
         return;
 
 }
 
-bool CNetworkVehicle::CreateVehicle(vehicleid_t vehicleid, int modelid, CVector pos, float rotation, unsigned char color1, unsigned char color2)
+bool CNetworkVehicle::CreateVehicle(vehicleid_t vehicleid, int modelid, CVector pos, float rotation, unsigned char color1, unsigned char color2, const int8_t extras[2])
 {
     unsigned char oldFlags = CStreaming::ms_aInfoForModel[modelid].m_nFlags;
     CStreaming::RequestModel(modelid, GAME_REQUIRED);
@@ -36,6 +36,11 @@ bool CNetworkVehicle::CreateVehicle(vehicleid_t vehicleid, int modelid, CVector 
         CStreaming::SetModelIsDeletable(modelid);
         CStreaming::SetModelTxdIsDeletable(modelid);
     }
+
+    // the creator's extras instead of random ones: ChooseComponent/ChooseSecondComponent take ms_compsToUse
+    // unless it's -2 and reset it, the way CCarGenerator sets them
+    CVehicleModelInfo::ms_compsToUse[0] = extras[0];
+    CVehicleModelInfo::ms_compsToUse[1] = extras[1];
 
     switch (((CVehicleModelInfo*)CModelInfo::ms_modelInfoPtrs[modelid])->m_nVehicleType)
     {
@@ -80,6 +85,10 @@ bool CNetworkVehicle::CreateVehicle(vehicleid_t vehicleid, int modelid, CVector 
     default:
         m_pVehicle = new CAutomobile(modelid, MISSION_VEHICLE, true); break;
     }
+
+    // not taken when the pool was full, it would go to the next vehicle the game creates
+    CVehicleModelInfo::ms_compsToUse[0] = -2;
+    CVehicleModelInfo::ms_compsToUse[1] = -2;
 
     if (!m_pVehicle)
     {
@@ -187,6 +196,12 @@ CNetworkVehicle* CNetworkVehicle::CreateHosted(CVehicle* pVehicle)
     vehicleSpawnPacket.color1 = pVehicle->m_nPrimaryColor;
     vehicleSpawnPacket.color2 = pVehicle->m_nSecondaryColor;
     vehicleSpawnPacket.createdBy = (eVehicleCreatedBy)pVehicle->m_nCreatedBy;
+    for (int i = 0; i < 2; i++)
+    {
+        // extra1..6 or none, CVehicle::SetModelIndex fills them from ChooseComponent
+        int8_t nExtra = pVehicle->m_anExtras[i];
+        vehicleSpawnPacket.extras[i] = nExtra >= -1 && nExtra <= 5 ? nExtra : -1;
+    }
     GetPacketFactory().Send(vehicleSpawnPacket);
 
     return networkVehicle;

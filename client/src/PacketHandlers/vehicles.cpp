@@ -22,7 +22,8 @@ PACKET_HANDLER(ePacketType::VEHICLE_SPAWN, Packets::Vehicles::VehicleSpawn* pVeh
 
     CNetworkVehicle* pNetworkVehicle =
         new CNetworkVehicle(pVehicleSpawn->vehicleid, pVehicleSpawn->modelid, pVehicleSpawn->pos,
-            pVehicleSpawn->rot.m_angle, pVehicleSpawn->color1, pVehicleSpawn->color2, pVehicleSpawn->createdBy);
+            pVehicleSpawn->rot.m_angle, pVehicleSpawn->color1, pVehicleSpawn->color2, pVehicleSpawn->createdBy,
+            pVehicleSpawn->extras);
     CNetworkVehicleManager::Add(pNetworkVehicle);
 }
 
