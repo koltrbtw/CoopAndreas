@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "CDebugOwnership.h"
+#include <map>
 
 static constexpr float MAX_REQUEST_DISTANCE = 50.0f;
 static constexpr float MAX_TRAFFIC_REQUEST_DISTANCE = 150.0f;
@@ -152,6 +153,36 @@ void CDebugOwnership::Process()
         logger::info("ownership debug: network peds %d (ours %d), vehicles %d (ours %d)",
             (int)CNetworkPedManager::m_pPeds.size(), (int)CountOurs(CNetworkPedManager::m_pPeds),
             (int)CNetworkVehicleManager::m_pVehicles.size(), (int)CountOurs(CNetworkVehicleManager::m_pVehicles));
+    }
+
+    // a nearly full vehicle pool: what fills it and whose it is (a flood of clones of one model at one spot)
+    static unsigned int nLastPoolLog = 0;
+    if (CTimer::m_snTimeInMilliseconds - nLastPoolLog > 5000 && CPools::ms_pVehiclePool->GetNoOfUsedSpaces() > 200)
+    {
+        nLastPoolLog = CTimer::m_snTimeInMilliseconds;
+        std::map<int, int> models;
+        for (auto pVehicle : CPools::ms_pVehiclePool)
+        {
+            models[pVehicle->m_nModelIndex]++;
+        }
+        auto top = std::max_element(models.begin(), models.end(), [](auto& a, auto& b) { return a.second < b.second; });
+
+        int ours = 0, clones = 0;
+        CVector position{};
+        for (auto pVehicle : CPools::ms_pVehiclePool)
+        {
+            if (pVehicle->m_nModelIndex == top->first)
+            {
+                position = pVehicle->GetPosition();
+                if (auto pNetworkVehicle = CNetworkVehicleManager::GetVehicle(pVehicle))
+                {
+                    (pNetworkVehicle->m_bSyncing ? ours : clones)++;
+                }
+            }
+        }
+        logger::warn("pool debug: %d vehicles, model %d x%d (ours %d, clones %d), one at %.1f %.1f %.1f",
+            CPools::ms_pVehiclePool->GetNoOfUsedSpaces(), top->first, top->second, ours, clones, position.x, position.y,
+            position.z);
     }
 
     if (GetForegroundWindow() != RsGlobal.ps->window)

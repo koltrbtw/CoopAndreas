@@ -159,6 +159,7 @@ PACKET_HANDLER(
     }
 
     pNetworkVehicle->m_bUsedByPed = true;
+    pNetworkVehicle->m_nLastSyncerPacketTime = g_serverTime;
     pNetworkVehicle->m_vecPosition = pPedDriverUpdate->pos;
     pNetworkVehicle->m_vecRotation = pPedDriverUpdate->rot;
     pNetworkVehicle->m_vecRight = pPedDriverUpdate->roll;

@@ -35,6 +35,9 @@ public:
     std::vector<CNetworkPlayer*> m_vRelevantTo;  // have a clone of it, see CRelevanceManager
     bool m_bTrain = false;     // the front carriage of a train, clones get TRAIN_SPAWN
     TrainState m_trainState{};  // from the last TRAIN_UPDATE
+    // the last update from the syncer (an idle one comes at least once a second): a vehicle its syncer forgot is
+    // removed, see CRelevanceManager::RemoveForgottenVehicles
+    uint32_t m_nLastSyncerPacketTime = 0;
 
     float GetHeading() const;
 

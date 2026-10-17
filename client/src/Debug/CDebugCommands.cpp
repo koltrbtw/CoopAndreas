@@ -165,6 +165,34 @@ void CDebugCommands::RunCommand(const std::string& line)
         stream >> state;
         plugin::Call<0x446570, bool>(state != "off"); // CGangWars::SetGangWarsActive
     }
+    else if (command == "forget-vehicle")
+    {
+        // the leak of a vehicle flood: our nearest vehicle goes away here without VEHICLE_REMOVE, the others keep
+        // the clone (CNetworkVehicleManager::DropStaleClones must take it)
+        CNetworkVehicle* pNearest = nullptr;
+        float fNearest = 200.0f;
+        for (auto pNetworkVehicle : CNetworkVehicleManager::m_pVehicles)
+        {
+            if (pNetworkVehicle->m_bSyncing && !pNetworkVehicle->m_bTrain && pNetworkVehicle->m_pVehicle &&
+                pNetworkVehicle->m_pVehicle != pPlayer->m_pVehicle)
+            {
+                float fDistance = (pNetworkVehicle->m_pVehicle->GetPosition() - pPlayer->GetPosition()).Magnitude();
+                if (fDistance < fNearest)
+                {
+                    pNearest = pNetworkVehicle;
+                    fNearest = fDistance;
+                }
+            }
+        }
+        if (pNearest)
+        {
+            logger::info("stand debug: forgetting %s of model %d", to_string(pNearest->m_vehicleId).c_str(),
+                pNearest->m_nModelId);
+            pNearest->m_bSyncing = false; // the destructor deletes it as a clone, without a packet
+            CNetworkVehicleManager::Remove(pNearest);
+            delete pNearest;
+        }
+    }
     else if (command == "god")
     {
         // the attack waves of a gang war kill a tester standing still

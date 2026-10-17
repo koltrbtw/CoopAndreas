@@ -17,6 +17,7 @@ CNetworkVehicle::CNetworkVehicle(vehicleid_t vehicleid, int modelid, CVector pos
 
     m_vehicleId = vehicleid;
     m_bSyncing = false;
+    OnSyncerPacket();
     m_nModelId = modelid;
     m_nCreatedBy = createdBy;
 
@@ -323,6 +324,7 @@ void CNetworkVehicle::BecomeClone(Packets::Vehicles::VehicleHandoff* pHandoff)
 
     m_bSyncing = false;
     m_nOwnershipChangeTime = CTimer::m_snTimeInMilliseconds;
+    OnSyncerPacket();
 
     if (m_pVehicle)
     {
