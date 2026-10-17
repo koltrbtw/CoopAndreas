@@ -39,6 +39,7 @@
 #include <CCompatibilityChecker.h>
 #include <CWeatherSync.h>
 #include <CGangZonesSync.h>
+#include <CGangWarSync.h>
 #include <network/packets/scripts.h>
 #include <CNetworkEntityBlip.h>
 
@@ -84,6 +85,7 @@ public:
                 bBeenConnected = false;
                 CWeatherSync::Reset();
                 CGangZonesSync::Reset();
+                CGangWarSync::Reset();
                 CChat::AddMessage("{d6dce8}[Network] Disconnected from the server.");
             }
         };
@@ -99,7 +101,9 @@ public:
                 CMoneySync::Process();
                 CWantedSync::Process();
                 CWeatherSync::Process();
+                CGangWarSync::PreProcess();
                 CGangZonesSync::Process();
+                CGangWarSync::Process();
                 CDebugOwnership::Process();
                 CDebugCommands::Process();
                 CPopulationHandover::Process();
