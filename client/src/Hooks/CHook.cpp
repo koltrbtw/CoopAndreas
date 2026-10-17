@@ -18,6 +18,7 @@
 #include "../CPopulationHandover.h"
 #include "../CWorldGridSync.h"
 #include "../CTrainSync.h"
+#include "../CTrafficLightsSync.h"
 #include "../CRadialPopulation.h"
 
 void CHook::Init()
@@ -42,5 +43,6 @@ void CHook::Init()
     CPopulationHandover::InjectHooks();  // after WorldHooks, overlaps its CWorld::Remove call sites
     CWorldGridSync::InjectHooks();
     CTrainSync::InjectHooks();
+    CTrafficLightsSync::InjectHooks();
     CRadialPopulation::InjectHooks();  // after CCarPedGenHooks, overrides two of its call sites
 }
