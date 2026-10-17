@@ -8,6 +8,7 @@
 #include <CMoneySync.h>
 #include <CWorldGridSync.h>
 #include <CWantedSync.h>
+#include <CGangZonesSync.h>
 #include <game_sa/CTagManager.h>
 
 PACKET_HANDLER(ePacketType::PLAYER_CONNECTED, Packets::System::PlayerConnected* pPlayerConnected)
@@ -82,6 +83,7 @@ PACKET_HANDLER(ePacketType::PLAYER_HANDSHAKE, Packets::System::PlayerHandshake* 
     CMoneySync::Reset();
     CWorldGridSync::Reset();
     CWantedSync::Reset();
+    CGangZonesSync::Reset();
 
     // stats are sent only when they change, so the server would not know the ones we already have
     CStatsSync::NotifyChanged();
@@ -115,6 +117,7 @@ PACKET_HANDLER(ePacketType::PLAYER_ASSIGN_HOST, Packets::System::PlayerAssignHos
         CLocalPlayer::m_bIsHost = true;
 
         CWeatherSync::OnBecameHost();
+        CGangZonesSync::OnBecameHost();
         CTagSync::SyncCurrentState();
         CChat::AddMessage("{c7a6ff}[Player] {d6dce8}You are the host now");
         return;
