@@ -121,11 +121,36 @@ private:
     }
 };
 
+// one animation playing on the ped, the clone plays the same set (gestures, chats, fights, idles)
+struct SPedAnim
+{
+    uint8_t group = 0;
+    uint16_t id = 0;
+    float time = 0.0f;
+    float blendAmount = 0.0f;
+    float blendDelta = 0.0f;
+    float speed = 1.0f;
+
+    template <typename Stream>
+    bool Serialize(Stream& stream)
+    {
+        serialize_uint8(stream, group);
+        serialize_uint16(stream, id);
+        serialize_float(stream, time);
+        serialize_float(stream, blendAmount);
+        serialize_float(stream, blendDelta);
+        serialize_float(stream, speed);
+        return true;
+    }
+};
+
 class PedOnFoot : public Packet
 {
     DEFINE_PACKET_TYPE(PedOnFoot, ePacketType::PED_ONFOOT, ePacketChannel::SYNC);
 
 public:
+    static constexpr int MAX_ANIMS = 6;
+
     pedid_t pedid{};
     WorldPositionCompressed pos{};
     MoveSpeedCompressed velocity{};
@@ -139,6 +164,8 @@ public:
     bool bAiming = false;
     uint8_t fightingStyle = 4;
     WorldPositionCompressed weaponAim{};
+    int animCount = 0;
+    SPedAnim anims[MAX_ANIMS]{};
 
 private:
     template <typename Stream>
@@ -146,7 +173,7 @@ private:
     {
         serialize_pedid(stream, pedid);
         serialize_object(stream, pos);
-        // serialize_object(stream, velocity); // not used for now
+        serialize_object(stream, velocity);
         serialize_object(stream, healthSnapshot);
         serialize_object(stream, weaponSnapshot);
         serialize_object(stream, aimingRotation);
@@ -159,6 +186,11 @@ private:
         if (bAiming)
         {
             serialize_object(stream, weaponAim);
+        }
+        serialize_int(stream, animCount, 0, MAX_ANIMS);
+        for (int i = 0; i < animCount; i++)
+        {
+            serialize_object(stream, anims[i]);
         }
         return true;
     }

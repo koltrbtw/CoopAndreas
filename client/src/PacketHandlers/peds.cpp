@@ -1,6 +1,7 @@
 #include "network/packets/peds.h"
 #include "network/packet_types.h"
 #include "stdafx.h"
+#include "CPedAnimSync.h"
 #include <CCarEnterExit.h>
 #include <CTaskSimpleCarSetPedInAsPassenger.h>
 
@@ -120,7 +121,7 @@ PACKET_HANDLER(ePacketType::PED_ONFOOT, Packets::Peds::PedOnFoot* pPedOnFoot)
     }
 
     pNetworkPed->ApplyWeaponSnapshot(pPedOnFoot->weaponSnapshot);
-    pPed->SetPosn(pPedOnFoot->pos);
+    pNetworkPed->SetTargetPosition(pPedOnFoot->pos, pPedOnFoot->velocity);
 
     pNetworkPed->m_fCurrentRotation = pPed->m_fCurrentRotation = pPedOnFoot->currentRotation.m_angle;
     pNetworkPed->m_fAimingRotation = pPed->m_fAimingRotation = pPedOnFoot->aimingRotation.m_angle;
@@ -129,7 +130,6 @@ PACKET_HANDLER(ePacketType::PED_ONFOOT, Packets::Peds::PedOnFoot* pPedOnFoot)
     pNetworkPed->m_fHealth = pPed->m_fHealth = pPedOnFoot->healthSnapshot.iHealth;
     pPed->m_fArmour = pPedOnFoot->healthSnapshot.iArmour;
 
-    pNetworkPed->m_vecVelocity = pPedOnFoot->velocity;
     pNetworkPed->m_nMoveState = pPedOnFoot->moveState;
 
     if (CUtil::IsDucked(pPed) != pPedOnFoot->bDucked)
@@ -164,6 +164,8 @@ PACKET_HANDLER(ePacketType::PED_ONFOOT, Packets::Peds::PedOnFoot* pPedOnFoot)
     }
 
     pPed->m_nFightingStyle = pPedOnFoot->fightingStyle;
+
+    CPedAnimSync::Apply(pPed, pPedOnFoot->anims, pPedOnFoot->animCount);
 }
 
 PACKET_HANDLER(ePacketType::PED_DRIVER_UPDATE, Packets::Peds::PedDriverUpdate* pPedDriverUpdate)

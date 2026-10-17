@@ -4,6 +4,7 @@
 #include <CCarEnterExit.h>
 #include <CTaskSimpleCarSetPedOut.h>
 #include <Hooks/PedHooks.h>
+#include "CPedAnimSync.h"
 
 CNetworkPed::CNetworkPed(pedid_t pedid, int modelId, ePedType pedType, CVector pos, unsigned char createdBy, char specialModelName[])
 {
@@ -267,6 +268,8 @@ void CNetworkPed::BecomeSyncer(bool bResumeAmbientLife)
         return;
     }
 
+    CPedAnimSync::Release(m_pPed);
+
     m_pPed->SetCharCreatedBy(m_nCreatedBy);
 
     if (!bResumeAmbientLife || m_nCreatedBy != RANDOM_CHAR)
@@ -305,6 +308,7 @@ void CNetworkPed::BecomeClone(bool bStopAmbientLife)
 {
     m_bSyncing = false;
     m_nOwnershipChangeTime = CTimer::m_snTimeInMilliseconds;
+    m_bHasTargetPos = false;
 
     if (!m_pPed)
     {
@@ -350,4 +354,43 @@ void CNetworkPed::ApplyHandoff(const Packets::Peds::PedHandoff& handoff)
 
     BecomeSyncer(true);
     logger::info("ped %s taken over", to_string(handoff.pedid).c_str());
+}
+
+// the clone walks on its own synced anims, the packets only correct the drift: setting the packet position every
+// 50 ms pulled it back to where the syncer's ped was a moment ago, it moved in small jumps
+static constexpr float TARGET_SNAP_DISTANCE = 3.0f;
+static constexpr unsigned int MAX_TARGET_EXTRAPOLATION = 250;  // ms, a lost packet must not send it flying
+
+void CNetworkPed::SetTargetPosition(const CVector& pos, const CVector& velocity)
+{
+    m_vecTargetPos = pos;
+    m_vecVelocity = velocity;
+    m_nTargetPosTime = CTimer::m_snTimeInMilliseconds;
+
+    if (!m_bHasTargetPos || DistanceBetweenPoints(m_pPed->GetPosition(), pos) > TARGET_SNAP_DISTANCE)
+    {
+        m_pPed->SetPosn(pos);
+    }
+    m_bHasTargetPos = true;
+}
+
+void CNetworkPed::ProcessTargetPosition()
+{
+    if (!m_bHasTargetPos || !m_pPed)
+    {
+        return;
+    }
+
+    // where the syncer's ped is now: the last position moved on by its speed (m_vecMoveSpeed is per 1/50 s)
+    unsigned int nElapsed = std::min(CTimer::m_snTimeInMilliseconds - m_nTargetPosTime, MAX_TARGET_EXTRAPOLATION);
+    CVector predicted = m_vecTargetPos + m_vecVelocity * (nElapsed / 20.0f);
+    CVector error = predicted - m_pPed->GetPosition();
+    if (error.Magnitude() > TARGET_SNAP_DISTANCE)
+    {
+        m_pPed->SetPosn(predicted);
+        return;
+    }
+
+    float fPull = std::min(1.0f, 0.1f * CTimer::ms_fTimeStep);
+    m_pPed->SetPosn(m_pPed->GetPosition() + error * fPull);
 }

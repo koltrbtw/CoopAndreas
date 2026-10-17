@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "CPedAnimSync.h"
 #include "CNetworkVehicle.h"
 #include "CNetworkPed.h"
 
@@ -188,6 +189,7 @@ void CNetworkPedManager::Update()
             }
 
             packet.fightingStyle = pPed->m_nFightingStyle;
+            packet.animCount = CPedAnimSync::Collect(pPed, packet.anims, Packets::Peds::PedOnFoot::MAX_ANIMS);
 
             GetPacketFactory().Send(packet);
         }
@@ -213,6 +215,7 @@ void CNetworkPedManager::Process()
             ped->m_fAimingRotation = networkPed->m_fAimingRotation;
             ped->m_fCurrentRotation = networkPed->m_fCurrentRotation;
             ped->m_fLookDirection = networkPed->m_fLookDirection;
+            networkPed->ProcessTargetPosition();
         }
     }
 }
