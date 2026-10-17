@@ -16,6 +16,8 @@ public:
     uint8_t color1 = 0;
     uint8_t color2 = 0;
     eVehicleCreatedBy createdBy = RANDOM_VEHICLE;
+    // CVehicle::m_anExtras, the model's extra1..6 parts (roof, bed cover) the game picks at random, -1 is none
+    int8_t extras[2] = {-1, -1};
 
 private:
     template <typename Stream>
@@ -28,6 +30,8 @@ private:
         serialize_uint8(stream, color1);
         serialize_uint8(stream, color2);
         serialize_int(stream, (int&)createdBy, RANDOM_VEHICLE, PERMANENT_VEHICLE);
+        serialize_int(stream, extras[0], -1, 5);
+        serialize_int(stream, extras[1], -1, 5);
         return true;
     }
 };

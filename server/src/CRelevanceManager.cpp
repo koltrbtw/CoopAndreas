@@ -84,6 +84,8 @@ void CRelevanceManager::SendVehicleSpawn(CNetworkVehicle* pNetworkVehicle, CNetw
     vehicleSpawnPacket.color1 = pNetworkVehicle->m_nPrimaryColor;
     vehicleSpawnPacket.color2 = pNetworkVehicle->m_nSecondaryColor;
     vehicleSpawnPacket.createdBy = static_cast<eVehicleCreatedBy>(pNetworkVehicle->m_nCreatedBy);
+    vehicleSpawnPacket.extras[0] = pNetworkVehicle->m_anExtras[0];
+    vehicleSpawnPacket.extras[1] = pNetworkVehicle->m_anExtras[1];
     GetPacketFactory().Send(vehicleSpawnPacket, pNetworkPlayer);
 
     Packets::Vehicles::VehicleDamage vehicleDamagePacket{};
