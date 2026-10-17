@@ -66,6 +66,51 @@ public:
     }
 };
 
+// what MTA's vehicle puresync carries besides the transform: door open ratios, the turret of the Rhino and the
+// fire trucks, a few flags (CVehicleSA::SetEngineOn, SetSmokeTrailEnabled, SetHeliSearchLightVisible)
+struct SVehicleExtras
+{
+    bool engineOn = false;
+    bool lightsOn = false;
+    bool heliSearchLight = false;
+    bool smokeTrail = false;
+    bool hasDoors = false;
+    uint8_t doors[6]{};  // open ratio 0..255, eDoors: bonnet, boot, front left, front right, rear left, rear right
+    bool hasTurret = false;
+    float turretHorizontal = 0.0f;
+    float turretVertical = 0.0f;
+
+    template <typename Stream>
+    bool Serialize(Stream& stream)
+    {
+        // the packet object is reused for every update read, what isn't sent must not keep the last one's values
+        if (Stream::IsReading)
+        {
+            *this = SVehicleExtras{};
+        }
+
+        serialize_bool(stream, engineOn);
+        serialize_bool(stream, lightsOn);
+        serialize_bool(stream, heliSearchLight);
+        serialize_bool(stream, smokeTrail);
+        serialize_bool(stream, hasDoors);
+        if (hasDoors)
+        {
+            for (uint8_t& door : doors)
+            {
+                serialize_uint8(stream, door);
+            }
+        }
+        serialize_bool(stream, hasTurret);
+        if (hasTurret)
+        {
+            serialize_float(stream, turretHorizontal);
+            serialize_float(stream, turretVertical);
+        }
+        return true;
+    }
+};
+
 // mission vehicles get more than the default 1000 (SET_CAR_HEALTH), a clamp to 1000 made them weaker after a handoff
 inline constexpr float MAX_VEHICLE_HEALTH = 10000.0f;
 

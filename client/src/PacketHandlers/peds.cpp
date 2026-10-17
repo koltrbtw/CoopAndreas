@@ -205,6 +205,7 @@ PACKET_HANDLER(ePacketType::PED_DRIVER_UPDATE, Packets::Peds::PedDriverUpdate* p
     pNetworkVehicle->m_vecKeptMoveSpeed = pPedDriverUpdate->velocity;
     pNetworkVehicle->m_vecKeptTurnSpeed = pPedDriverUpdate->turnSpeed;
     pNetworkVehicle->m_bHasRotorSpeed = pPedDriverUpdate->hasRotorSpeed;
+    pNetworkVehicle->ApplyExtras(pPedDriverUpdate->extras);
     pNetworkVehicle->m_fRotorSpeed = pPedDriverUpdate->rotorSpeed;
 
     pNetworkPed->ApplyWeaponSnapshot(pPedDriverUpdate->pedWeapon);

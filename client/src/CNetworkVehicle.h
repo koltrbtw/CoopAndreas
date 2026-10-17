@@ -40,6 +40,15 @@ public:
 	bool m_bHasGear = false;
 	bool m_bGearUp = false;
 	float m_fGearAfterLastFrame = 0.0f;
+	// a clone: the syncer's doors (interpolated like MTA's SetDoorOpenRatioInterpolated) and turret
+	bool m_bHasDoors = false;
+	float m_afDoorStart[6]{};
+	float m_afDoorTarget[6]{};
+	unsigned int m_nDoorStartTime = 0;
+	unsigned int m_nDoorDuration = 0;
+	bool m_bHasTurret = false;
+	float m_fTurretHorizontal = 0.0f;
+	float m_fTurretVertical = 0.0f;
 	bool m_bHasRotorSpeed = false;  // a clone: the syncer's rotor / propeller speed, kept every frame
 	float m_fRotorSpeed = 0.0f;
 	unsigned int m_nWakeTime = 0;  // ours: last push of a car frozen above the ground, CTimer time
@@ -72,6 +81,10 @@ public:
 	void ProcessTargetTransform();
 	// a plane clone, every frame after its ProcessControl
 	void ProcessLandingGear();
+	// doors, turret and flags: ours fills the update, a clone takes them and keeps the doors and the turret every frame
+	static void CollectExtras(CVehicle* pVehicle, SVehicleExtras& extras);
+	void ApplyExtras(const SVehicleExtras& extras);
+	void ProcessExtras();
 	// rotor of a heli, propeller of a plane or a boat; false for the others
 	static bool GetRotorSpeed(CVehicle* pVehicle, float* pfSpeed);
 	static void SetRotorSpeed(CVehicle* pVehicle, float fSpeed);

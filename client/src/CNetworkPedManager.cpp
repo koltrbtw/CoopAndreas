@@ -126,6 +126,7 @@ void CNetworkPedManager::Update()
                 packet.hasRotorSpeed = CNetworkVehicle::GetRotorSpeed(pVehicle, &packet.rotorSpeed);
                 packet.onRails = pVehicle->m_nStatus == STATUS_SIMPLE;
                 packet.sendTime = g_serverTime;
+                CNetworkVehicle::CollectExtras(pVehicle, packet.extras);
                 packet.gasPedal = pVehicle->m_fGasPedal;
                 packet.breakPedal = pVehicle->m_fBreakPedal;
                 packet.steerAngle = pVehicle->m_fSteerAngle;

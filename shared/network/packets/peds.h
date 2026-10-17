@@ -236,6 +236,7 @@ public:
     uint16_t miscComponentAngle{};  // automobile/mtruck/plane
 
     bool onRails = false;  // STATUS_SIMPLE: CCarCtrl::UpdateCarOnRails moves it at a steady speed, no physics
+    SVehicleExtras extras{};
     server_time_t sendTime = 0;  // g_serverTime of the sender: the receiver moves the target on by the delay
     bool hasRotorSpeed = false;  // helis, planes, boats: the clone's own ai doesn't spin them
     float rotorSpeed = 0.0f;
@@ -285,6 +286,10 @@ private:
             serialize_compressed_float(stream, turnSpeed.y, -0.5f, 0.5f, 0.0001f);
             serialize_compressed_float(stream, turnSpeed.z, -0.5f, 0.5f, 0.0001f);
         }
+        else if (Stream::IsReading)
+        {
+            turnSpeed = CVector(0.0f, 0.0f, 0.0f);  // the packet object is reused, see SVehicleExtras
+        }
 
 #pragma endregion
 #pragma region painjob
@@ -316,6 +321,10 @@ private:
         if (hasTrailer)
         {
             serialize_vehicleid(stream, trailerid);
+        }
+        else if (Stream::IsReading)
+        {
+            trailerid = vehicleid_t();  // unhooked: the reused packet object kept the last one
         }
 #pragma endregion
 #pragma region pedals
@@ -365,10 +374,15 @@ private:
             {
                 serialize_uint16(stream, miscComponentAngle);
             }
+            else if (Stream::IsReading)
+            {
+                miscComponentAngle = 0;
+            }
         }
 #pragma endregion
 
         serialize_bool(stream, onRails);
+        serialize_object(stream, extras);
         serialize_uint32(stream, sendTime);
         serialize_bool(stream, hasRotorSpeed);
         if (hasRotorSpeed)

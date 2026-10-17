@@ -87,6 +87,7 @@ PACKET_HANDLER(ePacketType::VEHICLE_IDLE_UPDATE, Packets::Vehicles::VehicleIdleU
 
     CVehicle* pVehicle = pNetworkVehicle->m_pVehicle;
     pNetworkVehicle->m_bHasRotorSpeed = pVehicleIdleUpdate->hasRotorSpeed;
+    pNetworkVehicle->ApplyExtras(pVehicleIdleUpdate->extras);
     pNetworkVehicle->m_fRotorSpeed = pVehicleIdleUpdate->rotorSpeed;
 
     // rolling, pushed, falling: like a driven one; a standing one is set as it is, it may skip its physics
@@ -141,6 +142,7 @@ PACKET_HANDLER(ePacketType::VEHICLE_DRIVER_UPDATE, Packets::Vehicles::VehicleDri
             pVehicleDriverUpdate->sendTime);
     }
     pNetworkVehicle->m_bHasRotorSpeed = pVehicleDriverUpdate->hasRotorSpeed;
+    pNetworkVehicle->ApplyExtras(pVehicleDriverUpdate->extras);
     pNetworkVehicle->m_fRotorSpeed = pVehicleDriverUpdate->rotorSpeed;
 
     pNetworkPlayer->ApplyWeaponSnapshot(pVehicleDriverUpdate->playerWeapon);

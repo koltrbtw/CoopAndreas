@@ -752,3 +752,130 @@ void CNetworkVehicle::ProcessLandingGear()
     }
     m_fGearAfterLastFrame = fGear;
 }
+
+static constexpr int DOOR_NODES[6] = {CAR_BONNET, CAR_BOOT, CAR_DOOR_LF, CAR_DOOR_RF, CAR_DOOR_LR, CAR_DOOR_RR};
+static constexpr uintptr_t OFFSET_TURRET = 0x94C;       // two floats, MTA's CVehicleSA::Get/SetTurretRotation
+static constexpr uintptr_t OFFSET_SMOKE_TRAIL = 0xA00;  // CPlane, MTA's SetSmokeTrailEnabled
+static constexpr uintptr_t OFFSET_SEARCH_LIGHT = 0xA11; // CHeli, see CHeli::PreRender
+
+static bool HasTurret(CVehicle* pVehicle)
+{
+    switch (pVehicle->m_nModelIndex)
+    {
+    case MODEL_RHINO:
+    case MODEL_FIRETRUK:
+    case MODEL_SWATVAN:
+        return true;
+    }
+    return false;
+}
+
+template <typename T>
+static T& VehicleField(CVehicle* pVehicle, uintptr_t offset)
+{
+    return *reinterpret_cast<T*>(reinterpret_cast<uintptr_t>(pVehicle) + offset);
+}
+
+void CNetworkVehicle::CollectExtras(CVehicle* pVehicle, SVehicleExtras& extras)
+{
+    extras.engineOn = pVehicle->m_nVehicleFlags.bEngineOn;
+    extras.lightsOn = pVehicle->m_nVehicleFlags.bLightsOn;
+    extras.heliSearchLight = pVehicle->m_nVehicleSubType == VEHICLE_HELI && VehicleField<bool>(pVehicle, OFFSET_SEARCH_LIGHT);
+    extras.smokeTrail = pVehicle->m_nVehicleSubType == VEHICLE_PLANE && VehicleField<uint8_t>(pVehicle, OFFSET_SMOKE_TRAIL) == 1;
+
+    if (pVehicle->m_nVehicleType != VEHICLE_AUTOMOBILE)
+    {
+        return;
+    }
+
+    CAutomobile* pAutomobile = static_cast<CAutomobile*>(pVehicle);
+    for (int i = 0; i < 6; i++)
+    {
+        float fRatio = std::clamp(pAutomobile->m_doors[i].GetAngleOpenRatio(), 0.0f, 1.0f);
+        extras.doors[i] = static_cast<uint8_t>(fRatio * 255.0f + 0.5f);
+        extras.hasDoors |= extras.doors[i] != 0;
+    }
+
+    if (HasTurret(pVehicle))
+    {
+        extras.hasTurret = true;
+        extras.turretHorizontal = VehicleField<float>(pVehicle, OFFSET_TURRET);
+        extras.turretVertical = VehicleField<float>(pVehicle, OFFSET_TURRET + 4);
+    }
+}
+
+void CNetworkVehicle::ApplyExtras(const SVehicleExtras& extras)
+{
+    if (!m_pVehicle)
+    {
+        return;
+    }
+
+    m_pVehicle->m_nVehicleFlags.bEngineOn = extras.engineOn;
+    m_pVehicle->m_nVehicleFlags.bLightsOn = extras.lightsOn;
+    if (m_pVehicle->m_nVehicleSubType == VEHICLE_HELI)
+    {
+        VehicleField<bool>(m_pVehicle, OFFSET_SEARCH_LIGHT) = extras.heliSearchLight;
+    }
+    if (m_pVehicle->m_nVehicleSubType == VEHICLE_PLANE)
+    {
+        VehicleField<uint8_t>(m_pVehicle, OFFSET_SMOKE_TRAIL) = extras.smokeTrail ? 1 : 0;
+    }
+
+    m_bHasTurret = extras.hasTurret;
+    m_fTurretHorizontal = extras.turretHorizontal;
+    m_fTurretVertical = extras.turretVertical;
+
+    if (m_pVehicle->m_nVehicleType != VEHICLE_AUTOMOBILE)
+    {
+        return;
+    }
+
+    // from where the doors are drawn now to the syncer's over the time to the next update
+    CAutomobile* pAutomobile = static_cast<CAutomobile*>(m_pVehicle);
+    for (int i = 0; i < 6; i++)
+    {
+        m_afDoorStart[i] = pAutomobile->m_doors[i].GetAngleOpenRatio();
+        m_afDoorTarget[i] = extras.doors[i] / 255.0f;
+    }
+    m_nDoorStartTime = CTimer::m_snTimeInMilliseconds;
+    m_nDoorDuration = std::clamp(CTimer::m_snTimeInMilliseconds - m_nLastTargetTime, 50u, 400u);
+    m_bHasDoors = true;
+}
+
+void CNetworkVehicle::ProcessExtras()
+{
+    if (!m_pVehicle)
+    {
+        return;
+    }
+
+    if (m_bHasTurret)
+    {
+        VehicleField<float>(m_pVehicle, OFFSET_TURRET) = m_fTurretHorizontal;
+        VehicleField<float>(m_pVehicle, OFFSET_TURRET + 4) = m_fTurretVertical;
+    }
+
+    if (!m_bHasDoors || m_pVehicle->m_nVehicleType != VEHICLE_AUTOMOBILE)
+    {
+        return;
+    }
+
+    float fStep = std::min(static_cast<float>(CTimer::m_snTimeInMilliseconds - m_nDoorStartTime) /
+                               static_cast<float>(std::max(m_nDoorDuration, 1u)),
+        1.0f);
+    CAutomobile* pAutomobile = static_cast<CAutomobile*>(m_pVehicle);
+    for (int i = 0; i < 6; i++)
+    {
+        uint8_t nStatus = pAutomobile->m_damageManager.m_anDoorsStatus[i];
+        if (nStatus == 4 || !pAutomobile->m_aCarNodes[DOOR_NODES[i]])  // missing
+        {
+            continue;
+        }
+        float fRatio = m_afDoorStart[i] + (m_afDoorTarget[i] - m_afDoorStart[i]) * fStep;
+        if (std::fabs(pAutomobile->m_doors[i].GetAngleOpenRatio() - fRatio) > 0.001f)
+        {
+            pAutomobile->OpenDoor(nullptr, DOOR_NODES[i], static_cast<eDoors>(i), fRatio, false);
+        }
+    }
+}
