@@ -1,9 +1,10 @@
 #include "stdafx.h"
-#include "CDebugTrains.h"
+#include "CDebugCommands.h"
 #include <fstream>
 #include <sstream>
+#include <CWanted.h>
 
-static CTrain* FindNearestFrontCarriage(const CVector& position)
+static CTrain* FindNearestFrontCarriage(const CVector& position, bool bMissionOnly = false)
 {
     CTrain* pNearest = nullptr;
     float fNearestDistance = 1000.0f;
@@ -11,6 +12,11 @@ static CTrain* FindNearestFrontCarriage(const CVector& position)
     for (auto pVehicle : CPools::ms_pVehiclePool)
     {
         if (CUtil::GetVehicleType(pVehicle) != VEHICLE_TRAIN || !static_cast<CTrain*>(pVehicle)->m_nTrainFlags.bIsFrontCarriage)
+        {
+            continue;
+        }
+
+        if (bMissionOnly && !static_cast<CTrain*>(pVehicle)->m_nTrainFlags.bMissionTrain)
         {
             continue;
         }
@@ -42,10 +48,10 @@ static void CreateMissionTrain(int type, CPlayerPed* pPlayer)
     const CVector& pos = pPlayer->GetPosition();
     int handle = 0;
     plugin::Command<Commands::CREATE_MISSION_TRAIN>(type, pos.x, pos.y, pos.z, true, &handle);
-    logger::info("train debug: mission train of type %d created, handle %d", type, handle);
+    logger::info("stand debug: mission train of type %d created, handle %d", type, handle);
 }
 
-static void RunCommand(const std::string& line)
+void CDebugCommands::RunCommand(const std::string& line)
 {
     CPlayerPed* pPlayer = FindPlayerPed(0);
     if (!pPlayer)
@@ -57,7 +63,17 @@ static void RunCommand(const std::string& line)
     std::string command;
     stream >> command;
 
-    if (command == "mission-train")
+    if (command == "police")
+    {
+        std::string state;
+        stream >> state;
+        ms_bPoliceOff = state == "off";
+        if (!ms_bPoliceOff)
+        {
+            CWanted::SetMaximumWantedLevel(6);
+        }
+    }
+    else if (command == "mission-train")
     {
         int type = 0;
         stream >> type;
@@ -91,20 +107,63 @@ static void RunCommand(const std::string& line)
             CTrain::SetTrainSpeed(static_cast<CTrain*>(pPlayer->m_pVehicle), speed);
         }
     }
+    else if (command == "teleport")
+    {
+        CVector pos{};
+        stream >> pos.x >> pos.y >> pos.z;
+        // the scene first, a writing of the matrix dropped the player through the not yet loaded collision
+        CStreaming::LoadScene(&pos);
+        if (pPlayer->m_pVehicle)
+        {
+            plugin::Command<Commands::WARP_CHAR_FROM_CAR_TO_COORD>(CPools::GetPedRef(pPlayer), pos.x, pos.y, pos.z);
+        }
+        else
+        {
+            plugin::Command<Commands::SET_CHAR_COORDINATES>(CPools::GetPedRef(pPlayer), pos.x, pos.y, pos.z);
+        }
+    }
+    else if (command == "script-speed" || command == "script-cruise")
+    {
+        float speed = 0.0f;
+        stream >> speed;
+        if (CTrain* pTrain = FindNearestFrontCarriage(pPlayer->GetPosition(), true))
+        {
+            int handle = CPools::GetVehicleRef(pTrain);
+            if (command == "script-speed")
+            {
+                plugin::Command<Commands::SET_TRAIN_SPEED>(handle, speed);
+            }
+            else
+            {
+                plugin::Command<Commands::SET_TRAIN_CRUISE_SPEED>(handle, speed);
+            }
+        }
+    }
     else
     {
-        logger::warn("train debug: unknown command '%s'", line.c_str());
+        logger::warn("stand debug: unknown command '%s'", line.c_str());
         return;
     }
 
-    logger::info("train debug: %s", line.c_str());
+    logger::info("stand debug: %s", line.c_str());
 }
 
-void CDebugTrains::Process()
+void CDebugCommands::Process()
 {
     if (!CCore::ms_bDebug)
     {
         return;
+    }
+
+    // again every frame: the scripts set the maximum back (the city borders, the missions)
+    if (ms_bPoliceOff)
+    {
+        CWanted::SetMaximumWantedLevel(0);
+        CWanted* pWanted = FindPlayerWanted(0);
+        if (pWanted && pWanted->m_nWantedLevel > 0)
+        {
+            pWanted->ClearWantedLevelAndGoOnParole();
+        }
     }
 
     static unsigned int nLastCheck = 0;
