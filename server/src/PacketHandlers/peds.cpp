@@ -224,6 +224,29 @@ PACKET_HANDLER(
     CRelevanceManager::SendToRelevant(*pPedVehicleEnter, pNetworkPed->m_vRelevantTo, pNetworkPlayer);
 }
 
+PACKET_HANDLER(ePacketType::PED_DIED, Packets::Peds::PedDied* pPedDied, CNetworkPlayer* pNetworkPlayer)
+{
+    if (pPedDied->entity.entityType == NETWORK_ENTITY_TYPE_PLAYER)
+    {
+        pPedDied->entity.playerid = pNetworkPlayer->m_playerId;
+        GetPacketFactory().SendToAll(*pPedDied, pNetworkPlayer);
+        return;
+    }
+
+    CNetworkPed* pNetworkPed = CNetworkPedManager::GetPed(pPedDied->entity.pedid);
+    if (pNetworkPed == nullptr || pNetworkPed->m_pSyncer != pNetworkPlayer)
+    {
+        return;
+    }
+    CRelevanceManager::SendToRelevant(*pPedDied, pNetworkPed->m_vRelevantTo, pNetworkPlayer);
+}
+
+PACKET_HANDLER(ePacketType::PED_STEALTH_KILL, Packets::Peds::PedStealthKill* pPedStealthKill, CNetworkPlayer* pNetworkPlayer)
+{
+    pPedStealthKill->senderPlayerid = pNetworkPlayer->m_playerId;
+    GetPacketFactory().SendToAll(*pPedStealthKill, pNetworkPlayer);
+}
+
 PACKET_HANDLER(ePacketType::PED_SAY, Packets::Peds::PedSay* pPedSay, CNetworkPlayer* pNetworkPlayer)
 {
     if (pPedSay->entity.entityType == NETWORK_ENTITY_TYPE_PLAYER)

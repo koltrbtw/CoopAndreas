@@ -1,6 +1,5 @@
 #include "stdafx.h"
 #include "DamageHooks.h"
-#include <eEventType.h>
 
 // a clone: a remote player's ped or a ped someone else syncs
 static bool IsClone(CPed* pPed)
@@ -13,23 +12,13 @@ static bool IsClone(CPed* pPed)
     return pNetworkPed && !pNetworkPed->m_bSyncing;
 }
 
-// what the owner said about its health: a clone dies by a local hit once that is 0 (the death is not synced yet)
-static bool IsCloneAlive(CPed* pPed)
-{
-    if (CNetworkPlayer* pNetworkPlayer = CNetworkPlayerManager::GetPlayer(pPed))
-    {
-        return pNetworkPlayer->m_onFootSnapshotInterpolated.healthSnapshot.iHealth >= 1;
-    }
-    CNetworkPed* pNetworkPed = CNetworkPedManager::GetPed(pPed);
-    return pNetworkPed && pNetworkPed->m_fHealth >= 1.0f;
-}
-
-// the damage a clone takes, its fall, its bike knock off come from its owner (health and anims in the updates,
-// PLAYER_FALL, VEHICLE_EXIT): a local hit would count the damage twice and make the clone fall on its own, while
-// the owner's ped stands. Without AffectsPed there is no damage response, no event, no reaction task (as MTA)
+// the damage a clone takes, its fall, its bike knock off, its death come from its owner (health and anims in the
+// updates, PLAYER_FALL, VEHICLE_EXIT, PED_DIED): a local hit would count the damage twice and make the clone fall
+// or die on its own, while the owner's ped stands. Without AffectsPed there is no damage response, no event, no
+// reaction task (as MTA)
 static bool __fastcall CEventDamage__AffectsPed_Hook(CEventDamage* This, SKIP_EDX, CPed* pPed)
 {
-    if (CNetwork::m_bAuthenticated && pPed && IsClone(pPed) && IsCloneAlive(pPed))
+    if (CNetwork::m_bAuthenticated && pPed && IsClone(pPed))
     {
         return false;
     }
@@ -50,7 +39,7 @@ static void __fastcall CPed__KillPedWithCar_Hook(CPed* This, SKIP_EDX, CVehicle*
 
 // a ped clone runs no ai of its own: collisions, gun shots, threats, a car on fire... would give it response tasks
 // (dodge, flee, shake a fist, leave the car) its owner's ped doesn't play, the owner's anims and moves come in the
-// updates. The damage of a ped its owner says is dead still goes through: the death is not synced yet
+// updates, its death in PED_DIED
 static bool __stdcall ShouldDropEvent(CPed* pPed, void* pEvent)
 {
     if (!pPed || !CNetwork::m_bAuthenticated)
@@ -59,13 +48,7 @@ static bool __stdcall ShouldDropEvent(CPed* pPed, void* pEvent)
     }
 
     CNetworkPed* pNetworkPed = CNetworkPedManager::GetPed(pPed);
-    if (!pNetworkPed || pNetworkPed->m_bSyncing)
-    {
-        return false;
-    }
-
-    int nEventType = (*reinterpret_cast<int(__thiscall***)(void*)>(pEvent))[1](pEvent);  // CEvent::GetEventType
-    return !(nEventType == EVENT_DAMAGE && pNetworkPed->m_fHealth < 1.0f);
+    return pNetworkPed && !pNetworkPed->m_bSyncing;
 }
 
 // CEventGroup::Add(CEvent*, bool), the entry: its 217 callers. The first 7 bytes (push ecx; push ebx; push esi;
@@ -98,8 +81,29 @@ static void __declspec(naked) CEventGroup__Add_Hook()
     }
 }
 
+// CTaskSimpleDead::ProcessPed (0x630755, 0x63075C): the weapons and the money a body leaves are made by the game of
+// its owner; every clone made its own, with its own random amount
+static void __fastcall CPed__CreateDeadPedWeaponPickups_Hook(CPed* This)
+{
+    if (!CNetwork::m_bAuthenticated || !IsClone(This))
+    {
+        plugin::CallMethod<0x4591D0, CPed*>(This);
+    }
+}
+
+static void __fastcall CPed__CreateDeadPedMoney_Hook(CPed* This)
+{
+    if (!CNetwork::m_bAuthenticated || !IsClone(This))
+    {
+        plugin::CallMethod<0x4590F0, CPed*>(This);
+    }
+}
+
 void DamageHooks::InjectHooks()
 {
+    patch::RedirectCall(0x630755, CPed__CreateDeadPedWeaponPickups_Hook);
+    patch::RedirectCall(0x63075C, CPed__CreateDeadPedMoney_Hook);
+
     patch::RedirectJump(0x4AB420, CEventGroup__Add_Hook);
 
     // every call of CEventDamage::AffectsPed (sa-disasm xref 0x4B35A0) and its vtable slot

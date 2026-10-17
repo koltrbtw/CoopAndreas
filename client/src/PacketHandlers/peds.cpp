@@ -69,8 +69,10 @@ PACKET_HANDLER(ePacketType::PED_REQUEST_OWNERSHIP, Packets::Peds::PedRequestOwne
 
     CNetworkPed* pNetworkPed = CNetworkPedManager::GetPed(pRequest->pedid);
 
-    // peds in vehicles go together with the vehicle, see VEHICLE_REQUEST_OWNERSHIP
-    if (pNetworkPed && pNetworkPed->m_bSyncing && pNetworkPed->m_pPed && !pNetworkPed->m_pPed->m_nPedFlags.bInVehicle)
+    // peds in vehicles go together with the vehicle, see VEHICLE_REQUEST_OWNERSHIP; a dying or dead one stays
+    // (its die task would be flushed, the body would get an ambient life)
+    if (pNetworkPed && pNetworkPed->m_bSyncing && pNetworkPed->m_pPed && !pNetworkPed->m_pPed->m_nPedFlags.bInVehicle &&
+        pNetworkPed->m_pPed->IsAlive() && pNetworkPed->m_pPed->m_ePedState != PEDSTATE_DIE_BY_STEALTH)
     {
         handoff.released = true;
         handoff.pos = pNetworkPed->m_pPed->GetPosition();
@@ -355,6 +357,16 @@ PACKET_HANDLER(ePacketType::PED_SAY, Packets::Peds::PedSay* pPedSay)
     }
 }
 
+
+PACKET_HANDLER(ePacketType::PED_DIED, Packets::Peds::PedDied* pPedDied)
+{
+    CPedDeathSync::HandleDied(*pPedDied);
+}
+
+PACKET_HANDLER(ePacketType::PED_STEALTH_KILL, Packets::Peds::PedStealthKill* pPedStealthKill)
+{
+    CPedDeathSync::HandleStealthKill(*pPedStealthKill);
+}
 
 PACKET_HANDLER(ePacketType::PED_RESET_ALL_CLAIMS, Packets::Peds::PedResetAllClaims* pPedResetAllClaims)
 {

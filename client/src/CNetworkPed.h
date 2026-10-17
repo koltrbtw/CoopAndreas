@@ -34,6 +34,8 @@ public:
 	unsigned int m_nEnterVehicleTime = 0;
 	// ours: the vehicle PED_VEHICLE_ENTER went for, while the enter task lasts
 	CVehicle* m_pEnterSentVehicle = nullptr;
+	bool m_bDeathSent = false;  // ours: PED_DIED went for this death
+	unsigned int m_nNoHealthSince = 0;  // a clone: CTimer time its syncer said 0 health and it still lives here
 
 	static CNetworkPed* CreateHosted(CPed* ped);
 	void WarpIntoVehicleDriver(CVehicle* vehicle);
