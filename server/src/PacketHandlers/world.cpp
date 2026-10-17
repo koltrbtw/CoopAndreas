@@ -3,6 +3,7 @@
 #include "network/packet_handler.h"
 #include "network/packets/world.h"
 #include "CGangZones.h"
+#include "CWorldObjects.h"
 
 PACKET_HANDLER(
     ePacketType::GAME_WEATHER_TIME, Packets::World::GameWeatherTime* pGameWeatherTime, CNetworkPlayer* pNetworkPlayer)
@@ -62,4 +63,14 @@ PACKET_HANDLER(ePacketType::GANG_WARS_SETTINGS, Packets::World::GangWarsSettings
 PACKET_HANDLER(ePacketType::GANG_WAR_STATE, Packets::World::GangWarState* pGangWarState, CNetworkPlayer* pNetworkPlayer)
 {
 	CGangZones::HandleWarState(pGangWarState, pNetworkPlayer);
+}
+
+PACKET_HANDLER(ePacketType::WORLD_OBJECT_STATES, Packets::World::WorldObjectStates* pWorldObjectStates, CNetworkPlayer* pNetworkPlayer)
+{
+	CWorldObjects::HandleStates(pWorldObjectStates, pNetworkPlayer);
+}
+
+PACKET_HANDLER(ePacketType::WORLD_OBJECT_MOTION, Packets::World::WorldObjectMotion* pWorldObjectMotion, CNetworkPlayer* pNetworkPlayer)
+{
+	CWorldObjects::HandleMotion(pWorldObjectMotion, pNetworkPlayer);
 }
