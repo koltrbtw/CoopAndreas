@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "CNetworkVehicle.h"
+#include "CTrainSync.h"
 
 CNetworkVehicle::CNetworkVehicle(vehicleid_t vehicleid, int modelid, CVector pos, float rotation, unsigned char color1, unsigned char color2, unsigned char createdBy)
 {
@@ -99,6 +100,13 @@ CNetworkVehicle::~CNetworkVehicle()
         vehicleRemovePacket.vehicleid = m_vehicleId;
         GetPacketFactory().Send(vehicleRemovePacket);
     }
+    else if (m_bTrain)
+    {
+        if (m_pVehicle && m_pVehicle->IsVTableValid())
+        {
+            CTrainSync::RemoveCloneTrain(static_cast<CTrain*>(m_pVehicle));
+        }
+    }
     else
     {
         if (m_pVehicle && m_pVehicle->IsVTableValid())
@@ -165,6 +173,12 @@ void CNetworkVehicle::BecomeSyncer(const Packets::Vehicles::VehicleHandoff* pHan
         return;
     }
 
+    if (m_bTrain)
+    {
+        CTrainSync::OnBecomeSyncer(this);
+        return;
+    }
+
     m_pVehicle->SetVehicleCreatedBy(m_nCreatedBy);
 
     if (!pHandoff)
@@ -214,6 +228,16 @@ void CNetworkVehicle::BecomeClone(Packets::Vehicles::VehicleHandoff* pHandoff)
 {
     pHandoff->vehicleid = m_vehicleId;
     pHandoff->released = true;
+
+    // the train driver is a local npc of everyone, nothing goes with it
+    if (m_bTrain)
+    {
+        pHandoff->hasTransform = false;
+        m_bSyncing = false;
+        m_nOwnershipChangeTime = CTimer::m_snTimeInMilliseconds;
+        CTrainSync::OnBecomeClone(this);
+        return;
+    }
 
     if (m_pVehicle)
     {

@@ -4,6 +4,7 @@
 #include <CCarEnterExit.h>
 #include <CTaskSimpleCarSetPedOut.h>
 #include <Debug/CDebugOwnership.h>
+#include <CTrainSync.h>
 
 PACKET_HANDLER(ePacketType::VEHICLE_SPAWN, Packets::Vehicles::VehicleSpawn* pVehicleSpawn)
 {
@@ -23,6 +24,16 @@ PACKET_HANDLER(ePacketType::VEHICLE_SPAWN, Packets::Vehicles::VehicleSpawn* pVeh
         new CNetworkVehicle(pVehicleSpawn->vehicleid, pVehicleSpawn->modelid, pVehicleSpawn->pos,
             pVehicleSpawn->rot.m_angle, pVehicleSpawn->color1, pVehicleSpawn->color2, pVehicleSpawn->createdBy);
     CNetworkVehicleManager::Add(pNetworkVehicle);
+}
+
+PACKET_HANDLER(ePacketType::TRAIN_SPAWN, Packets::Vehicles::TrainSpawn* pTrainSpawn)
+{
+    CTrainSync::HandleSpawn(pTrainSpawn);
+}
+
+PACKET_HANDLER(ePacketType::TRAIN_UPDATE, Packets::Vehicles::TrainUpdate* pTrainUpdate)
+{
+    CTrainSync::HandleUpdate(pTrainUpdate);
 }
 
 PACKET_HANDLER(ePacketType::VEHICLE_REMOVE, Packets::Vehicles::VehicleRemove* pVehicleRemove)
@@ -45,7 +56,7 @@ PACKET_HANDLER(ePacketType::VEHICLE_IDLE_UPDATE, Packets::Vehicles::VehicleIdleU
     if (pNetworkVehicle == nullptr)
         return;
 
-    if (!pNetworkVehicle->m_pVehicle)
+    if (!pNetworkVehicle->m_pVehicle || pNetworkVehicle->m_bTrain)
         return;
 
     if (pNetworkVehicle->m_pVehicle->m_matrix == nullptr)
@@ -96,11 +107,15 @@ PACKET_HANDLER(ePacketType::VEHICLE_DRIVER_UPDATE, Packets::Vehicles::VehicleDri
         pNetworkPlayer->WarpIntoVehicleDriver(pVehicle);
     }
 
-    pVehicle->m_matrix->pos = pVehicleDriverUpdate->pos;
-    pVehicle->m_matrix->right = pVehicleDriverUpdate->roll;
-    pVehicle->m_matrix->up = pVehicleDriverUpdate->rot;
-    pVehicle->m_vecMoveSpeed = pVehicleDriverUpdate->velocity;
-    pVehicle->m_vecTurnSpeed = pVehicleDriverUpdate->turnSpeed;
+    // a train is put on its track by TRAIN_UPDATE, a matrix would only fight CTrain::ProcessControl
+    if (!pNetworkVehicle->m_bTrain)
+    {
+        pVehicle->m_matrix->pos = pVehicleDriverUpdate->pos;
+        pVehicle->m_matrix->right = pVehicleDriverUpdate->roll;
+        pVehicle->m_matrix->up = pVehicleDriverUpdate->rot;
+        pVehicle->m_vecMoveSpeed = pVehicleDriverUpdate->velocity;
+        pVehicle->m_vecTurnSpeed = pVehicleDriverUpdate->turnSpeed;
+    }
 
     pNetworkPlayer->ApplyWeaponSnapshot(pVehicleDriverUpdate->playerWeapon);
     pNetworkPlayer->m_onFootSnapshotInterpolated.healthSnapshot = pVehicleDriverUpdate->playerHealth;
@@ -391,7 +406,11 @@ PACKET_HANDLER(ePacketType::ASSIGN_VEHICLE, Packets::Vehicles::AssignVehicleSync
     else
     {
         pNetworkVehicle->m_bSyncing = false;
-        if (auto pVehicle = pNetworkVehicle->m_pVehicle)
+        if (pNetworkVehicle->m_bTrain)
+        {
+            CTrainSync::OnBecomeClone(pNetworkVehicle);
+        }
+        else if (auto pVehicle = pNetworkVehicle->m_pVehicle)
         {
             pVehicle->SetVehicleCreatedBy(eVehicleCreatedBy::MISSION_VEHICLE);
         }
@@ -456,7 +475,7 @@ PACKET_HANDLER(ePacketType::SET_VEHICLE_CREATED_BY, Packets::Vehicles::SetVehicl
     {
         pNetworkVehicle->m_nCreatedBy = pSetVehicleCreatedBy->createdBy;
 
-        if (pNetworkVehicle->m_bSyncing)
+        if (pNetworkVehicle->m_bSyncing && !pNetworkVehicle->m_bTrain)
         {
             if (auto pVehicle = pNetworkVehicle->m_pVehicle)
             {

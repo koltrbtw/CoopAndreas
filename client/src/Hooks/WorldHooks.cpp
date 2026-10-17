@@ -3,6 +3,7 @@
 #include "WorldHooks.h"
 #include "CNetworkVehicle.h"
 #include "CNetworkPed.h"
+#include "CTrainSync.h"
 #include <CEntryExit.h>
 #include <CEntryExitMarkerSync.h>
 #include <CEntryExitTransitionSync.h>
@@ -86,13 +87,19 @@ static void __cdecl CWorld__Add_Hook(CEntity* entity)
             {
                 return;
             }
-            CNetworkVehicle* networkVehicle = CNetworkVehicle::CreateHosted(vehicle);
+
+            // CTrainSync registers a train as a whole, by its front carriage
+            if (CUtil::GetVehicleType(vehicle) != VEHICLE_TRAIN)
+            {
+                CNetworkVehicle::CreateHosted(vehicle);
+            }
         }
         else if (entity->m_nType == eEntityType::ENTITY_TYPE_PED)
         {
             CPed* ped = (CPed*)entity;
 
-            if (ped->m_nPedType > 1)
+            // the train driver: every client puts its own one into its copy of the train
+            if (ped->m_nPedType > 1 && !CTrainSync::ms_bCreatingTrain)
             {
                 CNetworkPed* networkPed = CNetworkPed::CreateHosted(ped);
             }

@@ -35,6 +35,47 @@ PACKET_HANDLER(
     CRelevanceManager::OnVehicleCreated(vehicle);
 }
 
+PACKET_HANDLER(ePacketType::TRAIN_SPAWN, Packets::Vehicles::TrainSpawn* pTrainSpawn, CNetworkPlayer* pNetworkPlayer)
+{
+    if (pTrainSpawn->vehicleid.creator() != pNetworkPlayer->m_playerId)
+    {
+        logger::warn("%s tried to create a train with someone else's id %s", pNetworkPlayer->GetName().c_str(),
+            to_string(pTrainSpawn->vehicleid).c_str());
+        return;
+    }
+
+    if (CNetworkVehicleManager::GetVehicle(pTrainSpawn->vehicleid) != nullptr)
+    {
+        logger::warn("%s tried to create a train with an id that is already in use %s",
+            pNetworkPlayer->GetName().c_str(), to_string(pTrainSpawn->vehicleid).c_str());
+        return;
+    }
+
+    // the model doesn't matter, the receivers build the carriages from the train type
+    CNetworkVehicle* vehicle = new CNetworkVehicle(pTrainSpawn->vehicleid, 0, pTrainSpawn->pos, 0.0f);
+
+    vehicle->m_pSyncer = pNetworkPlayer;
+    vehicle->m_nCreatedBy = pTrainSpawn->isMission ? MISSION_VEHICLE : RANDOM_VEHICLE;
+    vehicle->m_bTrain = true;
+    vehicle->m_trainState = pTrainSpawn->state;
+
+    CNetworkVehicleManager::Add(vehicle);
+    CRelevanceManager::OnVehicleCreated(vehicle);
+}
+
+PACKET_HANDLER(ePacketType::TRAIN_UPDATE, Packets::Vehicles::TrainUpdate* pTrainUpdate, CNetworkPlayer* pNetworkPlayer)
+{
+    CNetworkVehicle* vehicle = CNetworkVehicleManager::GetVehicle(pTrainUpdate->vehicleid);
+    if (!vehicle || !vehicle->m_bTrain || vehicle->m_pSyncer != pNetworkPlayer)
+    {
+        return;
+    }
+
+    vehicle->m_vecPosition = pTrainUpdate->pos;
+    vehicle->m_trainState = pTrainUpdate->state;
+    CRelevanceManager::SendToRelevant(*pTrainUpdate, vehicle->m_vRelevantTo, pNetworkPlayer);
+}
+
 PACKET_HANDLER(
     ePacketType::VEHICLE_REMOVE, Packets::Vehicles::VehicleRemove* pVehicleRemove, CNetworkPlayer* pNetworkPlayer)
 {

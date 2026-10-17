@@ -110,7 +110,8 @@ void CNetworkVehicleManager::UpdateIdle()
 		if (pVehicle == nullptr)
 			continue;
 
-		if (pNetworkVehicle->m_bSyncing && !pNetworkVehicle->HasDriver())
+		// a train has its own updates, see CTrainSync
+		if (pNetworkVehicle->m_bSyncing && !pNetworkVehicle->HasDriver() && !pNetworkVehicle->m_bTrain)
 		{
 			Packets::Vehicles::VehicleIdleUpdate packet{};
 			packet.vehicleid = pNetworkVehicle->m_vehicleId;
