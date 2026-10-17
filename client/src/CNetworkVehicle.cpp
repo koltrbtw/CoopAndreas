@@ -171,22 +171,33 @@ void CNetworkVehicle::BecomeSyncer(const Packets::Vehicles::VehicleHandoff* pHan
         return;
     }
 
-    m_pVehicle->m_matrix->pos = pHandoff->pos;
-    m_pVehicle->m_matrix->right = pHandoff->roll;
-    m_pVehicle->m_matrix->up = pHandoff->rot;
-    m_pVehicle->m_vecMoveSpeed = pHandoff->velocity;
+    if (pHandoff->hasTransform)
+    {
+        m_pVehicle->m_matrix->pos = pHandoff->pos;
+        m_pVehicle->m_matrix->right = pHandoff->roll;
+        m_pVehicle->m_matrix->up = pHandoff->rot;
+        m_pVehicle->m_vecMoveSpeed = pHandoff->velocity;
+    }
 
     // the population code may remove it again, but not in the same frame
     m_pVehicle->m_nTimeTillWeNeedThisCar = CTimer::m_snTimeInMilliseconds + 5000;
 
-    if (m_nCreatedBy == MISSION_VEHICLE)
+    // keep them for the npc driver, whose handoff may come later (a leaving player's peds and vehicles go separately)
+    m_autoPilotStyle = pHandoff->drivingStyle;
+    m_autoPilotCruiseSpeed = pHandoff->cruiseSpeed;
+    ResumeDriving();
+}
+
+void CNetworkVehicle::ResumeDriving()
+{
+    if (!m_bSyncing || !m_pVehicle || m_nCreatedBy == MISSION_VEHICLE)
     {
         return;
     }
 
     CPed* pDriver = m_pVehicle->m_pDriver;
     CNetworkPed* pNetworkDriver = pDriver ? CNetworkPedManager::GetPed(pDriver) : nullptr;
-    if (!pNetworkDriver || !pNetworkDriver->m_bSyncing)
+    if (!pNetworkDriver || !pNetworkDriver->m_bSyncing || pNetworkDriver->m_nCreatedBy != RANDOM_CHAR)
     {
         return;
     }
@@ -194,7 +205,7 @@ void CNetworkVehicle::BecomeSyncer(const Packets::Vehicles::VehicleHandoff* pHan
     // the same task the game gives to ambient drivers (CPopulation::AddPedInCar); its SetUpCar (0x63CB60) joins
     // the road network from the current position and sets the cruise mission, the clone autopilot is garbage
     auto pTask = new CTaskComplexCarDriveWander(
-        m_pVehicle, pHandoff->drivingStyle, static_cast<float>(pHandoff->cruiseSpeed ? pHandoff->cruiseSpeed : 10));
+        m_pVehicle, m_autoPilotStyle, static_cast<float>(m_autoPilotCruiseSpeed ? m_autoPilotCruiseSpeed : 10));
     pDriver->m_pIntelligence->m_TaskMgr.SetTask(pTask, TASK_PRIMARY_PRIMARY, false);
 }
 

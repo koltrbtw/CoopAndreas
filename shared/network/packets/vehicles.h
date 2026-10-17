@@ -444,6 +444,8 @@ public:
 
     vehicleid_t vehicleid{};
     bool released = false;  // false: the syncer refused, nothing changes
+    playerid_t target{};    // the syncer hands it over on its own (not asked): to whom
+    bool hasTransform = true;  // false when the server hands it over, the new syncer keeps its clone transform
 
     WorldPositionCompressed pos{};
     NormalizedVector rot{};
@@ -468,10 +470,15 @@ private:
             return true;
         }
 
-        serialize_object(stream, pos);
-        serialize_object(stream, rot);
-        serialize_object(stream, roll);
-        serialize_object(stream, velocity);
+        serialize_playerid(stream, target);
+        serialize_bool(stream, hasTransform);
+        if (hasTransform)
+        {
+            serialize_object(stream, pos);
+            serialize_object(stream, rot);
+            serialize_object(stream, roll);
+            serialize_object(stream, velocity);
+        }
 
         serialize_uint8(stream, carMission);
         serialize_uint8(stream, drivingStyle);

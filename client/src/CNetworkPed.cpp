@@ -284,8 +284,15 @@ void CNetworkPed::BecomeSyncer(bool bResumeAmbientLife)
     // the population code may remove it again, but not in the same frame (m_nTimeTillWeNeedThisPed)
     m_pPed->field_54C = static_cast<int>(CTimer::m_snTimeInMilliseconds + 5000);
 
-    // drivers get their task from the vehicle handoff, see CNetworkVehicle::BecomeSyncer
-    if (!m_pPed->m_nPedFlags.bInVehicle)
+    if (m_pPed->m_nPedFlags.bInVehicle)
+    {
+        // the vehicle handoff may have come first
+        if (CNetworkVehicle* pNetworkVehicle = m_pPed->m_pVehicle ? CNetworkVehicleManager::GetVehicle(m_pPed->m_pVehicle) : nullptr)
+        {
+            pNetworkVehicle->ResumeDriving();
+        }
+    }
+    else
     {
         // CTaskComplexWander::GetWanderTaskByPedType, the same task CPopulation::AddPed gives
         CTask* pWanderTask = plugin::CallAndReturn<CTask*, 0x673D00, CPed*>(m_pPed);

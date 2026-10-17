@@ -84,7 +84,7 @@ PACKET_HANDLER(ePacketType::PED_HANDOFF, Packets::Peds::PedHandoff* pHandoff)
         return;
     }
 
-    if (CPed* pPed = pNetworkPed->m_pPed)
+    if (CPed* pPed = pNetworkPed->m_pPed; pPed && pHandoff->hasTransform)
     {
         pPed->SetPosn(pHandoff->pos);
         pPed->m_fCurrentRotation = pPed->m_fAimingRotation = pHandoff->heading;

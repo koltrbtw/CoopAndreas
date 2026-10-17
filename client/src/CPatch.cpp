@@ -133,8 +133,10 @@ void PatchStreaming()
     patch::SetUInt(0x8A5A80, 536870912);  // 512 megabytes
     patch::SetUInt(0x5B8E6A, 536870912);  // hardcoded value
 
-    // patch game freezeing if inactive
-    //patch::Nop(0x561AF0, 7);  // dont pause the game loop if paused
+    // the world must live while the pause menu is open: other players see our traffic and npcs, we simulate them.
+    // The menu calls CTimer::StartUserPause, and CTimer::Update keeps the time step at 0 while m_UserPause is set
+    // (0x561C4B); CGame::Process still runs every frame (WinMain always sends rsIDLE in game)
+    patch::SetUChar(0x561AF0, 0xC3);  // CTimer::StartUserPause: mov byte ptr [m_UserPause], 1 -> ret
     patch::Nop(0x745BC9, 2);  // unlock resolutions
     // patch::SetUChar(0x747FB6, 1);
     patch::SetUChar(0x74805A, 1);  // ForegroundApp always 1

@@ -115,9 +115,16 @@ static void ProcessWatchedVehicle()
     if (pNetworkVehicle && pNetworkVehicle->m_pVehicle)
     {
         CVehicle* pVehicle = pNetworkVehicle->m_pVehicle;
-        logger::info("ownership debug: vehicle %s 3 s after the handoff: syncing %d, speed %.1f, mission %d, status %d",
+        CNetworkPed* pNetworkDriver = pVehicle->m_pDriver ? CNetworkPedManager::GetPed(pVehicle->m_pDriver) : nullptr;
+        logger::info("ownership debug: vehicle %s 3 s after the handoff: syncing %d, speed %.1f, mission %d, status %d, "
+                     "npc driver %d (ours %d)",
             to_string(ms_watchedVehicleId).c_str(), pNetworkVehicle->m_bSyncing, pVehicle->m_vecMoveSpeed.Magnitude() * 50.0f,
-            pVehicle->m_autoPilot.m_nCarMission, pVehicle->m_nStatus);
+            pVehicle->m_autoPilot.m_nCarMission, pVehicle->m_nStatus, pNetworkDriver != nullptr,
+            pNetworkDriver && pNetworkDriver->m_bSyncing);
+    }
+    else
+    {
+        logger::info("ownership debug: vehicle %s is gone 3 s after the handoff", to_string(ms_watchedVehicleId).c_str());
     }
 
     ms_watchedVehicleId = vehicleid_t();

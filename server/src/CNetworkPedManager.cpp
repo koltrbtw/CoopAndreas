@@ -44,7 +44,25 @@ void CNetworkPedManager::RemoveAllHostedAndNotify(CNetworkPlayer* player)
             (*it)->m_pPendingSyncer = nullptr;
         }
 
-        if ((*it)->m_pSyncer == player)
+        // an ambient ped goes to the nearest player instead of disappearing in front of him
+        CNetworkPlayer* pNewSyncer = nullptr;
+        if ((*it)->m_pSyncer == player && (*it)->m_nCreatedBy != MISSION_CHAR)
+        {
+            pNewSyncer = CNetworkPlayerManager::GetNearestPlayer((*it)->m_vecPos, CNetworkPlayerManager::HANDOVER_ON_LEAVE_DISTANCE, player);
+        }
+
+        if (pNewSyncer)
+        {
+            (*it)->m_pSyncer = pNewSyncer;
+
+            Packets::Peds::PedHandoff handoff{};
+            handoff.pedid = (*it)->m_pedId;
+            handoff.released = true;
+            handoff.hasTransform = false;
+            GetPacketFactory().Send(handoff, pNewSyncer);
+            ++it;
+        }
+        else if ((*it)->m_pSyncer == player)
         {
             packet.pedid = (*it)->m_pedId;
             GetPacketFactory().SendToAll(packet, player);

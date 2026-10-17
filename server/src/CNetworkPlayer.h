@@ -22,6 +22,7 @@ public:
     bool m_bIsHost = false;
     int8_t m_nSeatId = -1;
     vehicleid_t m_vehicleId{};
+    CVector m_vecPosition{};  // last known, from the player's own updates
     bool m_bCorrectVersion = false;
     float m_afStats[14]{};
     uint8_t m_nWantedLevel = 0;
