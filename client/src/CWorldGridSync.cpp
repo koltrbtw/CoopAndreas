@@ -35,6 +35,14 @@ static bool __cdecl CCarCtrl__GenerateCarCreationCoors2_Hook(CVector posn, float
     bool bInFront, float rVisible, float rHidden, CVector* pOutPos, CNodeAddress* pOutNode1, CNodeAddress* pOutNode2,
     float* pOutFrac, bool bUseFlag1NodeCache, bool bNoNthNodeStart)
 {
+    // radius instead of the camera: any direction (minDot -1), and an off screen point on the same ring as a visible
+    // one instead of 38 units behind the player (CRadialPopulation keeps such a car alive at 0x43199F)
+    dirX = 1.0f;
+    dirY = 0.0f;
+    minDot = -1.0f;
+    bInFront = true;
+    rHidden = rVisible;
+
     bool bFound = plugin::CallAndReturn<bool, 0x424210, CVector, float, float, float, bool, float, float, CVector*,
         CNodeAddress*, CNodeAddress*, float*, bool, bool>(posn, dirX, dirY, minDot, bInFront, rVisible, rHidden, pOutPos,
         pOutNode1, pOutNode2, pOutFrac, bUseFlag1NodeCache, bNoNthNodeStart);
@@ -47,6 +55,11 @@ static bool __fastcall CPathFind__GeneratePedCreationCoors_Hook(CPathFind* This,
     float maxVis, float minHid, float maxHid, CVector* pOutPos, CNodeAddress* pOutNode1, CNodeAddress* pOutNode2,
     float* pOutFrac, bool bAllowFlag20Nodes, RwMatrix* pCamMatrix)
 {
+    // radius instead of the camera: the off screen ring (15..25 units, so peds popped up right behind the player)
+    // is the visible one
+    minHid = minVis;
+    maxHid = maxVis;
+
     bool bFound = plugin::CallMethodAndReturn<bool, 0x44E790, CPathFind*, float, float, float, float, float, float,
         CVector*, CNodeAddress*, CNodeAddress*, float*, bool, RwMatrix*>(This, x, y, minVis, maxVis, minHid, maxHid,
         pOutPos, pOutNode1, pOutNode2, pOutFrac, bAllowFlag20Nodes, pCamMatrix);
