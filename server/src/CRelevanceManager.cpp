@@ -151,6 +151,11 @@ void CRelevanceManager::EnsureRelevant(CNetworkVehicle* pNetworkVehicle, CNetwor
     }
 }
 
+void CRelevanceManager::OnCloneDropped(CNetworkVehicle* pNetworkVehicle, CNetworkPlayer* pNetworkPlayer)
+{
+    Erase(pNetworkVehicle->m_vRelevantTo, pNetworkPlayer);
+}
+
 void CRelevanceManager::SendToRelevant(Packet& packet, const std::vector<CNetworkPlayer*>& relevantTo, CNetworkPlayer* pExcept)
 {
     for (auto pNetworkPlayer : relevantTo)
@@ -175,6 +180,32 @@ void CRelevanceManager::OnPlayerDisconnected(CNetworkPlayer* pNetworkPlayer)
     }
 }
 
+void CRelevanceManager::RemoveForgottenVehicles()
+{
+    // its syncer lost it without VEHICLE_REMOVE: the clones would stay with everyone, and a parked car generator
+    // that made it again would pile them up at its spot
+    constexpr uint32_t FORGOTTEN_TIME = 15000;
+
+    for (auto pNetworkVehicle : std::vector<CNetworkVehicle*>(CNetworkVehicleManager::m_pVehicles))
+    {
+        // a standing train sends nothing
+        if (pNetworkVehicle->m_bTrain || g_serverTime - pNetworkVehicle->m_nLastSyncerPacketTime < FORGOTTEN_TIME)
+        {
+            continue;
+        }
+
+        logger::warn("vehicle %s: nothing from its syncer %s for 15 s, removed", to_string(pNetworkVehicle->m_vehicleId).c_str(),
+            pNetworkVehicle->m_pSyncer ? pNetworkVehicle->m_pSyncer->GetName().c_str() : "-");
+
+        // the syncer too: if it does have it after all, its copy goes away with the others
+        Packets::Vehicles::VehicleRemove packet{};
+        packet.vehicleid = pNetworkVehicle->m_vehicleId;
+        SendToRelevant(packet, pNetworkVehicle->m_vRelevantTo, nullptr);
+
+        CNetworkVehicleManager::Remove(pNetworkVehicle);
+    }
+}
+
 void CRelevanceManager::Update()
 {
     static server_time_t nLastUpdate = 0;
@@ -186,6 +217,8 @@ void CRelevanceManager::Update()
     }
 
     nLastUpdate = g_serverTime;
+
+    RemoveForgottenVehicles();
 
     // removals first and peds before vehicles: a clone ped must not stay in a removed clone vehicle
     for (auto pNetworkPed : CNetworkPedManager::m_pPeds)

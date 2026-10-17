@@ -24,6 +24,9 @@ public:
     // before a player becomes the syncer: it must have the clone
     static void EnsureRelevant(CNetworkPed* pNetworkPed, CNetworkPlayer* pNetworkPlayer);
     static void EnsureRelevant(CNetworkVehicle* pNetworkVehicle, CNetworkPlayer* pNetworkPlayer);
+    // the player dropped its clone, see VEHICLE_REMOVE from a non-syncer
+    static void RemoveForgottenVehicles();
+    static void OnCloneDropped(CNetworkVehicle* pNetworkVehicle, CNetworkPlayer* pNetworkPlayer);
 
     static void SendToRelevant(Packet& packet, const std::vector<CNetworkPlayer*>& relevantTo, CNetworkPlayer* pExcept);
 

@@ -91,7 +91,11 @@ PACKET_HANDLER(
         }
         else
         {
-            logger::warn("%s tried to delete someone else's vehicle", pNetworkPlayer->GetName().c_str());
+            // a clone the sender dropped, see CNetworkVehicleManager::DropStaleClones on the client: if the vehicle
+            // is alive and the sender wants it, the next relevance update spawns it again
+            logger::info("%s dropped its clone of %s", pNetworkPlayer->GetName().c_str(),
+                to_string(pVehicleRemove->vehicleid).c_str());
+            CRelevanceManager::OnCloneDropped(vehicle, pNetworkPlayer);
         }
     }
 }
@@ -103,6 +107,7 @@ PACKET_HANDLER(ePacketType::VEHICLE_IDLE_UPDATE, Packets::Vehicles::VehicleIdleU
     {
         if (vehicle->m_pSyncer == pNetworkPlayer)
         {
+            vehicle->m_nLastSyncerPacketTime = g_serverTime;
             vehicle->m_bUsedByPed = false;
             vehicle->m_vecPosition = pVehicleIdleUpdate->pos;
             vehicle->m_vecRotation = pVehicleIdleUpdate->rot;
@@ -126,6 +131,7 @@ PACKET_HANDLER(ePacketType::VEHICLE_DRIVER_UPDATE, Packets::Vehicles::VehicleDri
     if (auto pNetworkVehicle = CNetworkVehicleManager::GetVehicle(pVehicleDriverUpdate->vehicleid))
     {
         pNetworkVehicle->SetOccupant(0, pNetworkPlayer);
+        pNetworkVehicle->m_nLastSyncerPacketTime = g_serverTime;
         pNetworkVehicle->m_vecPosition = pVehicleDriverUpdate->pos;
         pNetworkVehicle->m_vecRotation = pVehicleDriverUpdate->rot;
         pNetworkVehicle->m_vecRight = pVehicleDriverUpdate->roll;

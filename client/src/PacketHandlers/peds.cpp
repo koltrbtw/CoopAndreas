@@ -175,6 +175,7 @@ PACKET_HANDLER(ePacketType::PED_DRIVER_UPDATE, Packets::Peds::PedDriverUpdate* p
     {
         return;
     }
+    pNetworkVehicle->OnSyncerPacket();
 
     CVehicle* pVehicle = pNetworkVehicle->m_pVehicle;
     if (pVehicle == nullptr || !pVehicle->IsVTableValid())
