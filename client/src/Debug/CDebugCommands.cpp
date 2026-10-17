@@ -5,6 +5,7 @@
 #include <CWanted.h>
 #include <CGangWars.h>
 #include "Hooks/PlayerHooks.h"
+#include <CDummyObject.h>
 
 static CTrain* FindNearestFrontCarriage(const CVector& position, bool bMissionOnly = false)
 {
@@ -31,6 +32,48 @@ static CTrain* FindNearestFrontCarriage(const CVector& position, bool bMissionOn
         }
     }
     return pNearest;
+}
+
+// the map objects around, the nearest first
+static std::vector<CObject*> FindMapObjects(const CVector& position, float radius)
+{
+    std::vector<std::pair<float, CObject*>> found;
+    for (auto pObject : CPools::ms_pObjectPool)
+    {
+        if (pObject->m_nObjectType != 1 || !pObject->m_pDummyObject)  // OBJECT_GAME
+        {
+            continue;
+        }
+
+        float fDistance = (pObject->GetPosition() - position).Magnitude();
+        if (fDistance < radius)
+        {
+            found.push_back({fDistance, pObject});
+        }
+    }
+    std::sort(found.begin(), found.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+
+    std::vector<CObject*> objects;
+    for (const auto& [distance, pObject] : found)
+    {
+        objects.push_back(pObject);
+    }
+    return objects;
+}
+
+static void LogMapObjects(const CVector& position)
+{
+    for (CObject* pObject : FindMapObjects(position, 40.0f))
+    {
+        const CVector& pos = pObject->GetPosition();
+        const CVector& original = pObject->m_pDummyObject->GetPosition();
+        logger::info("stand debug: object %d at %.2f %.2f %.2f (dummy %.2f %.2f %.2f) effect %d damaged %d collision %d "
+                     "visible %d broken %d exploded %d static %d up.z %.2f",
+            pObject->m_nModelIndex, pos.x, pos.y, pos.z, original.x, original.y, original.z,
+            pObject->m_nColDamageEffect, pObject->m_bRenderDamaged, pObject->m_bUsesCollision, pObject->m_bIsVisible,
+            pObject->m_nObjectFlags.bIsBroken, pObject->m_nObjectFlags.bIsExploded, pObject->m_bIsStatic,
+            pObject->m_matrix ? pObject->m_matrix->at.z : 1.0f);
+    }
 }
 
 static void CreateMissionTrain(int type, CPlayerPed* pPlayer)
@@ -183,6 +226,54 @@ void CDebugCommands::RunCommand(const std::string& line)
         int count = 100;
         stream >> count;
         ShootGangMembers(pPlayer, count);
+    }
+    else if (command == "objects")
+    {
+        LogMapObjects(pPlayer->GetPosition());
+    }
+    else if (command == "object-damage")
+    {
+        int count = 1;
+        stream >> count;
+        for (CObject* pObject : FindMapObjects(pPlayer->GetPosition(), 40.0f))
+        {
+            if (count <= 0)
+            {
+                break;
+            }
+            if (pObject->m_nColDamageEffect == 0 || !pObject->m_bUsesCollision)
+            {
+                continue;
+            }
+
+            CVector origin = pObject->GetPosition();
+            CVector direction(0.0f, 0.0f, 1.0f);
+            pObject->ObjectDamage(10000.0f, &origin, &direction, pPlayer, WEAPON_PISTOL);
+            logger::info("stand debug: damaged object %d at %.2f %.2f %.2f", pObject->m_nModelIndex, origin.x, origin.y,
+                origin.z);
+            count--;
+        }
+    }
+    else if (command == "object-push")
+    {
+        for (CObject* pObject : FindMapObjects(pPlayer->GetPosition(), 40.0f))
+        {
+            // not the fixed ones (infinite mass: fences, signs bolted down)
+            if (!pObject->m_bUsesCollision || pObject->m_nPhysicalFlags.bInfiniteMass ||
+                pObject->m_nPhysicalFlags.bDisableMoveForce || pObject->m_fMass >= 99999.0f)
+            {
+                continue;
+            }
+
+            pObject->m_pDamageEntity = pPlayer;
+            pObject->SetIsStatic(false);
+            pObject->AddToMovingList();
+            pObject->m_vecMoveSpeed = CVector(0.1f, 0.05f, 0.15f);
+            pObject->m_vecTurnSpeed = CVector(0.02f, 0.0f, 0.01f);
+            logger::info("stand debug: pushed object %d at %.2f %.2f %.2f", pObject->m_nModelIndex,
+                pObject->GetPosition().x, pObject->GetPosition().y, pObject->GetPosition().z);
+            break;
+        }
     }
     else if (command == "script-speed" || command == "script-cruise")
     {

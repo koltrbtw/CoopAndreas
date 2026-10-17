@@ -17,6 +17,9 @@
 //   god                         the player bullet/fire/explosion/melee proof
 //   provoke                     enough provocation for CGangWars::Update to start an offensive war in this zone
 //   shoot-wave [count]          headshots at up to count members of the war's gang closer than 100 m (synced shots)
+//   objects                     log the map objects within 40 m (CWorldObjectSync): model, flags, static, displaced
+//   object-damage <n>           CObject::ObjectDamage on the n nearest breakable map objects, hit by the player
+//   object-push                 the nearest movable map object flies off, pushed by the player
 class CDebugCommands
 {
 public:

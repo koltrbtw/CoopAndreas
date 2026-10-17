@@ -13,6 +13,7 @@
 #include <network/packets/scripts.h>
 #include <network/packets/world.h>
 #include "CGangZones.h"
+#include "CWorldObjects.h"
 
 bool CNetwork::Init(unsigned short port)
 {
@@ -45,6 +46,7 @@ bool CNetwork::Init(unsigned short port)
         CRTTBroadcastManager::Update();
         CRelevanceManager::Update();
         CSectorManager::Update();
+        CWorldObjects::Update();
 
         while (enet_host_service(pENetHost, &eNetEvent, 1) > 0)
         {
@@ -124,6 +126,7 @@ void CNetwork::HandlePlayerDisconnected(ENetEvent& event)
     CRelevanceManager::OnPlayerDisconnected(pNetworkPlayer);
     CSectorManager::OnPlayerDisconnected(pNetworkPlayer);
     CGangZones::OnPlayerDisconnected(pNetworkPlayer);
+    CWorldObjects::OnPlayerDisconnected(pNetworkPlayer);
 
     CNetworkPlayerManager::Remove(pNetworkPlayer);
 
