@@ -137,7 +137,21 @@ PACKET_HANDLER(ePacketType::PED_ONFOOT, Packets::Peds::PedOnFoot* pPedOnFoot)
             return;
         }
 
-        pNetworkPed->RemoveFromVehicle(pVehicle);
+        // our copy of the leave task (or a player jacking it here) gets it out on its own, the position of the
+        // syncer would fight it; the syncer far away gave it up
+        if (pNetworkPed->IsLeavingVehicle(pVehicle) &&
+            (pPed->GetPosition() - pPedOnFoot->pos).Magnitude() <= PED_ENTER_VEHICLE_GIVE_UP_DISTANCE)
+        {
+            pNetworkPed->ApplyWeaponSnapshot(pPedOnFoot->weaponSnapshot);
+            return;
+        }
+
+        // the syncer's exit that waited for it has the way it got out (a fall), else a plain warp out
+        if (!CVehicleExitSync::ApplyPendingPedExit(pNetworkPed))
+        {
+            pNetworkPed->RemoveFromVehicle(pVehicle);
+        }
+        pNetworkPed->m_nLeaveVehicleTime = 0;
     }
 
     // on the way in our copy of the enter task walks it to the door and plays the get in (or the jacking), the
@@ -233,6 +247,12 @@ PACKET_HANDLER(ePacketType::PED_DRIVER_UPDATE, Packets::Peds::PedDriverUpdate* p
         return;
     }
 
+    // sent before the syncer's ped got out
+    if (pNetworkPed->HasJustLeftVehicle(pPedDriverUpdate->vehicleid))
+    {
+        return;
+    }
+
     if (pPed->m_pVehicle != pVehicle || !pPed->m_nPedFlags.bInVehicle)
     {
         // our enter task lags behind the syncer's, a warp would cut its get in (or jacking) anim; the vehicle waits
@@ -315,6 +335,12 @@ PACKET_HANDLER(ePacketType::PED_PASSENGER_UPDATE, Packets::Peds::PedPassengerSyn
     if (!pNetworkVehicle->m_pVehicle->IsVTableValid() || !pNetworkPed->m_pPed->IsVTableValid())
         return;
 
+    // sent before the syncer's ped got out
+    if (pNetworkPed->HasJustLeftVehicle(pPedPassengerSync->vehicleid))
+    {
+        return;
+    }
+
     if ((!pNetworkPed->m_pPed->m_nPedFlags.bInVehicle || pNetworkVehicle->m_pVehicle->m_pDriver == pNetworkPed->m_pPed) &&
         !pNetworkPed->IsEnteringVehicle(pNetworkVehicle->m_pVehicle))
     {
@@ -357,6 +383,11 @@ PACKET_HANDLER(ePacketType::PED_SAY, Packets::Peds::PedSay* pPedSay)
     }
 }
 
+
+PACKET_HANDLER(ePacketType::PED_VEHICLE_EXIT, Packets::Peds::PedVehicleExit* pPedVehicleExit)
+{
+    CVehicleExitSync::HandlePedPacket(*pPedVehicleExit);
+}
 
 PACKET_HANDLER(ePacketType::PED_DIED, Packets::Peds::PedDied* pPedDied)
 {

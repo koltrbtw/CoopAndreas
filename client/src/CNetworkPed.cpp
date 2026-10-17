@@ -213,7 +213,7 @@ void CNetworkPed::WarpIntoVehiclePassenger(CVehicle* vehicle, int seatid)
     task.ProcessPed(m_pPed);
 }
 
-void CNetworkPed::RemoveFromVehicle(CVehicle* vehicle)
+void CNetworkPed::RemoveFromVehicle(CVehicle* vehicle, bool bKnockedOff)
 {
     assert(m_pPed != nullptr);
 
@@ -231,9 +231,62 @@ void CNetworkPed::RemoveFromVehicle(CVehicle* vehicle)
 
     auto task = CTaskSimpleCarSetPedOut(vehicle, 1, false);
     task.m_bWarpingOutOfCar = true;
+    task.m_bKnockedOffBike = bKnockedOff;
     task.ProcessPed(m_pPed);
 
     m_pPed->m_pIntelligence->FlushImmediately(true); // create a default primary task (fix bug)
+}
+
+// a leave takes a few seconds (slowing down, the get out anim, the door); past that the updates of the syncer win
+static constexpr unsigned int LEAVE_VEHICLE_TIMEOUT = 6000;
+
+void CNetworkPed::LeaveVehicle(CVehicle* vehicle)
+{
+    assert(m_pPed != nullptr);
+
+    if (!vehicle->IsVTableValid() || !m_pPed->IsVTableValid())
+    {
+        return;
+    }
+
+    m_nLeaveVehicleTime = CTimer::m_snTimeInMilliseconds;
+    m_pPed->m_pIntelligence->m_TaskMgr.SetTask(new CTaskComplexLeaveCar(vehicle, 0, 0, true, false),
+        TASK_PRIMARY_PRIMARY, false);
+}
+
+bool CNetworkPed::IsLeavingVehicle(CVehicle* vehicle)
+{
+    if (m_pPed == nullptr)
+    {
+        return false;
+    }
+
+    // a player jacking it here plays the same jack on the syncer's game (VEHICLE_ENTER), the drag out ends by itself
+    auto& taskManager = m_pPed->m_pIntelligence->m_TaskMgr;
+    for (int taskType : {TASK_COMPLEX_CAR_SLOW_BE_DRAGGED_OUT_AND_STAND_UP, TASK_COMPLEX_CAR_SLOW_BE_DRAGGED_OUT,
+             TASK_COMPLEX_CAR_QUICK_BE_DRAGGED_OUT, TASK_SIMPLE_BIKE_JACKED})
+    {
+        if (taskManager.FindActiveTaskByType(taskType))
+        {
+            return true;
+        }
+    }
+
+    if (m_nLeaveVehicleTime == 0 || CTimer::m_snTimeInMilliseconds - m_nLeaveVehicleTime > LEAVE_VEHICLE_TIMEOUT)
+    {
+        return false;
+    }
+
+    auto pTask = static_cast<CTaskComplexLeaveCar*>(taskManager.FindActiveTaskByType(TASK_COMPLEX_LEAVE_CAR));
+    return pTask && pTask->m_pTargetVehicle == vehicle;
+}
+
+bool CNetworkPed::HasJustLeftVehicle(vehicleid_t vehicleid)
+{
+    // longer than a vehicle update can lag behind an event
+    constexpr unsigned int LATE_UPDATE_TIME = 1000;
+    return m_nExitVehicleTime != 0 && m_exitVehicleId == vehicleid &&
+           CTimer::m_snTimeInMilliseconds - m_nExitVehicleTime < LATE_UPDATE_TIME;
 }
 
 // the walk to the door and the get in (or a jacking) take seconds; past that the updates of the syncer win
@@ -397,6 +450,11 @@ void CNetworkPed::BecomeSyncer(bool bResumeAmbientLife)
 {
     m_bSyncing = true;
     m_bClaimOnRelease = false;
+    // the clone's wait for a leave of the old syncer is over; our own leave is watched from now on
+    m_pendingExit.reset();
+    m_nLeaveVehicleTime = 0;
+    m_exitWatchVehicleId = vehicleid_t();
+    m_bExitLeaveSent = false;
     m_nOwnershipChangeTime = CTimer::m_snTimeInMilliseconds;
 
     if (!m_pPed)

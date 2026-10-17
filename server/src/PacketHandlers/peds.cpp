@@ -224,6 +224,17 @@ PACKET_HANDLER(
     CRelevanceManager::SendToRelevant(*pPedVehicleEnter, pNetworkPed->m_vRelevantTo, pNetworkPlayer);
 }
 
+PACKET_HANDLER(
+    ePacketType::PED_VEHICLE_EXIT, Packets::Peds::PedVehicleExit* pPedVehicleExit, CNetworkPlayer* pNetworkPlayer)
+{
+    CNetworkPed* pNetworkPed = CNetworkPedManager::GetPed(pPedVehicleExit->pedid);
+    if (pNetworkPed == nullptr || pNetworkPed->m_pSyncer != pNetworkPlayer)
+    {
+        return;
+    }
+    CRelevanceManager::SendToRelevant(*pPedVehicleExit, pNetworkPed->m_vRelevantTo, pNetworkPlayer);
+}
+
 PACKET_HANDLER(ePacketType::PED_DIED, Packets::Peds::PedDied* pPedDied, CNetworkPlayer* pNetworkPlayer)
 {
     if (pPedDied->entity.entityType == NETWORK_ENTITY_TYPE_PLAYER)

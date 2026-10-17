@@ -39,6 +39,9 @@
 //   ram-ped [speed]             an empty car rolls into the nearest ped someone else syncs, watched (watch-ped)
 //   watch-ped <id>              watch-anims logs that ped too (c1v12)
 //   kill-me                     a pistol shot that kills the player (CWeapon::GenerateDamageEvent)
+//   npc-leave [speed]           the npc driver we sync of the nearest vehicle leaves it (pushed forward: rolls out)
+//   npc-knock                   CEventKnockOffBike on that driver
+//   npc-flush                   FlushImmediately on that driver: out at once
 //   knife                       give the player a knife and take it in hand
 //   stab [clone]                behind the nearest ped (one someone else syncs with "clone"), a stealth kill
 //   watch-anims [ms]            log the active task and the anims of the players, the doors of the nearest car

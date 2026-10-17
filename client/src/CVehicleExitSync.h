@@ -20,6 +20,12 @@ public:
     // the exit that waited (CNetworkPlayer::m_pendingExit) now; false when there is none
     static bool ApplyPendingExit(CNetworkPlayer* pNetworkPlayer);
 
+    // our ped (CNetworkPedManager::Update, before its update): PED_VEHICLE_EXIT when it starts to leave or is out
+    static void ProcessPed(CNetworkPed* pNetworkPed);
+    // the clone side of PED_VEHICLE_EXIT
+    static void HandlePedPacket(const Packets::Peds::PedVehicleExit& packet);
+    static bool ApplyPendingPedExit(CNetworkPed* pNetworkPed);
+
 private:
     static void SendOut(CPlayerPed* pPlayerPed, vehicleid_t vehicleid);
 

@@ -35,12 +35,28 @@ public:
 	// ours: the vehicle PED_VEHICLE_ENTER went for, while the enter task lasts
 	CVehicle* m_pEnterSentVehicle = nullptr;
 	bool m_bDeathSent = false;  // ours: PED_DIED went for this death
+	// ours: the network vehicle it sat in at the last update, and PED_VEHICLE_EXIT LEAVE went for it
+	vehicleid_t m_exitWatchVehicleId{};
+	bool m_bExitLeaveSent = false;
+	// a clone: CTimer time of our copy of the leave task; the vehicle and time of the last PED_VEHICLE_EXIT (out);
+	// the exit that waits for our copy of the leave / of a jacker (CVehicleExitSync::ProcessPedClones)
+	unsigned int m_nLeaveVehicleTime = 0;
+	vehicleid_t m_exitVehicleId{};
+	unsigned int m_nExitVehicleTime = 0;
+	std::optional<Packets::Peds::PedVehicleExit> m_pendingExit;
 	unsigned int m_nNoHealthSince = 0;  // a clone: CTimer time its syncer said 0 health and it still lives here
 
 	static CNetworkPed* CreateHosted(CPed* ped);
 	void WarpIntoVehicleDriver(CVehicle* vehicle);
 	void WarpIntoVehiclePassenger(CVehicle* vehicle, int seatid);
-	void RemoveFromVehicle(CVehicle* vehicle);
+	// bKnockedOff: thrown out (CTaskSimpleCarSetPedOut::m_bKnockedOffBike), it falls instead of standing up
+	void RemoveFromVehicle(CVehicle* vehicle, bool bKnockedOff = false);
+	// PED_VEHICLE_EXIT LEAVE: our copy of the syncer's leave task
+	void LeaveVehicle(CVehicle* vehicle);
+	// still on the way out by our copy of the leave task, or dragged out by a jacker here
+	bool IsLeavingVehicle(CVehicle* vehicle);
+	// a vehicle update the syncer sent before its PED_VEHICLE_EXIT
+	bool HasJustLeftVehicle(vehicleid_t vehicleid);
 	// PED_VEHICLE_ENTER: our copy of the syncer's enter task
 	void EnterVehicle(CVehicle* vehicle, bool bPassenger, int seat, playerid_t syncer);
 	// still on the way in by our copy of the enter task

@@ -4,6 +4,7 @@
 #include <CPed.h>
 #include <CVehicle.h>
 #include <eGlobalSpeechContexts.h>
+#include "network/packets/vehicles.h"  // eVehicleExitReason, eVehicleExitFall
 
 namespace Packets::Peds
 {
@@ -397,6 +398,52 @@ private:
         if (passenger)
         {
             serialize_int(stream, seat, 0, 7);
+        }
+        return true;
+    }
+};
+
+// the syncer's ped got out of a vehicle (or started its leave task): the same as VEHICLE_EXIT of a player, the clone
+// plays the same way out instead of a warp at the first on foot update (CVehicleExitSync)
+class PedVehicleExit : public Packet
+{
+    DEFINE_PACKET_TYPE(PedVehicleExit, ePacketType::PED_VEHICLE_EXIT, ePacketChannel::EVENT);
+
+public:
+    pedid_t pedid{};
+    vehicleid_t vehicleid{};
+    uint8_t reason = Packets::Vehicles::VEHICLE_EXIT_LEAVE;  // eVehicleExitReason
+
+    // out: where the ped is the frame the vehicle let it go
+    WorldPositionCompressed pos{};
+    MoveSpeedCompressed moveSpeed{};
+    RadianAngleCompressed heading{};
+    uint8_t fall = Packets::Vehicles::VEHICLE_EXIT_FALL_NONE;  // eVehicleExitFall
+    uint8_t animGroup = 0;
+    uint16_t animId = 0;
+    uint16_t downTime = 0;
+
+private:
+    template <typename Stream>
+    bool Serialize(Stream& stream)
+    {
+        serialize_pedid(stream, pedid);
+        serialize_vehicleid(stream, vehicleid);
+        serialize_int(stream, reason, 0, Packets::Vehicles::VEHICLE_EXIT_REASON_COUNT - 1);
+        if (reason == Packets::Vehicles::VEHICLE_EXIT_LEAVE)
+        {
+            return true;
+        }
+
+        serialize_object(stream, pos);
+        serialize_object(stream, moveSpeed);
+        serialize_object(stream, heading);
+        serialize_int(stream, fall, 0, Packets::Vehicles::VEHICLE_EXIT_FALL_COUNT - 1);
+        if (fall == Packets::Vehicles::VEHICLE_EXIT_FALL_ANIM)
+        {
+            serialize_uint8(stream, animGroup);
+            serialize_uint16(stream, animId);
+            serialize_uint16(stream, downTime);
         }
         return true;
     }

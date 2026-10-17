@@ -65,6 +65,7 @@ void CNetworkPedManager::Update()
             continue;
 
         pNetworkPed->CollectVehicleEnter();
+        CVehicleExitSync::ProcessPed(pNetworkPed);
 
         CVehicle* pVehicle = pPed->m_pVehicle;
         CNetworkVehicle* pNetworkVehicle = pVehicle ? CNetworkVehicleManager::GetVehicle(pVehicle) : nullptr;
