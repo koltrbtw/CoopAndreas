@@ -1,6 +1,7 @@
 #include "CNetworkPlayerManager.h"
 #include "CRTTBroadcastManager.h"
 #include "CRelevanceManager.h"
+#include "CSectorManager.h"
 #include "CPacketFactory.h"
 #include "logger.h"
 #include "network/packet.h"
@@ -42,6 +43,7 @@ bool CNetwork::Init(unsigned short port)
         CServerTime::Update();
         CRTTBroadcastManager::Update();
         CRelevanceManager::Update();
+        CSectorManager::Update();
 
         while (enet_host_service(pENetHost, &eNetEvent, 1) > 0)
         {
@@ -119,6 +121,7 @@ void CNetwork::HandlePlayerDisconnected(ENetEvent& event)
     CNetworkPedManager::RemoveAllHostedAndNotify(pNetworkPlayer);
     CNetworkVehicleManager::RemoveAllHostedAndNotify(pNetworkPlayer);
     CRelevanceManager::OnPlayerDisconnected(pNetworkPlayer);
+    CSectorManager::OnPlayerDisconnected(pNetworkPlayer);
 
     CNetworkPlayerManager::Remove(pNetworkPlayer);
 

@@ -4,6 +4,7 @@
 #include <CWeatherSync.h>
 #include <CMoonSync.h>
 #include <CMoneySync.h>
+#include <CWorldGridSync.h>
 #include <game_sa/CTagManager.h>
 
 PACKET_HANDLER(ePacketType::GAME_WEATHER_TIME, Packets::World::GameWeatherTime* pGameWeatherTime)
@@ -72,4 +73,9 @@ PACKET_HANDLER(ePacketType::UPDATE_MOON_SIZE, Packets::World::UpdateMoonSize* pU
 PACKET_HANDLER(ePacketType::SET_MONEY, Packets::World::SetMoney* pSetMoney)
 {
 	CMoneySync::HandlePacket(pSetMoney);
+}
+
+PACKET_HANDLER(ePacketType::WORLD_GRID, Packets::World::WorldGridSectors* pWorldGridSectors)
+{
+	CWorldGridSync::HandlePacket(pWorldGridSectors);
 }

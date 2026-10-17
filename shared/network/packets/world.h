@@ -1,4 +1,5 @@
 #pragma once
+#include "../world_grid.h"
 #include "CWeather.h"
 #include <CExplosion.h>
 
@@ -217,6 +218,28 @@ private:
     bool Serialize(Stream& stream)
     {
         serialize_int(stream, delta, -2 * MAX_MONEY, 2 * MAX_MONEY);
+        return true;
+    }
+};
+
+// server -> client: the sectors where this client spawns the ambient population
+class WorldGridSectors : public Packet
+{
+    DEFINE_PACKET_TYPE(WorldGridSectors, ePacketType::WORLD_GRID, ePacketChannel::EVENT);
+
+public:
+    uint8_t count{};
+    uint16_t sectors[WorldGrid::MAX_SECTORS_PER_PLAYER]{};
+
+private:
+    template <typename Stream>
+    bool Serialize(Stream& stream)
+    {
+        serialize_int(stream, count, 0, WorldGrid::MAX_SECTORS_PER_PLAYER);
+        for (int i = 0; i < count; i++)
+        {
+            serialize_int(stream, sectors[i], 0, WorldGrid::SECTOR_COUNT - 1);
+        }
         return true;
     }
 };

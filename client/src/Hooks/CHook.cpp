@@ -16,6 +16,7 @@
 #include "ShadowHooks.h"
 #include "CCarPedGenHooks.h"
 #include "../CPopulationHandover.h"
+#include "../CWorldGridSync.h"
 
 void CHook::Init()
 {
@@ -37,4 +38,5 @@ void CHook::Init()
     ShadowHooks::InjectHooks();
     CCarPedGenHooks::InjectHooks();
     CPopulationHandover::InjectHooks();  // after WorldHooks, overlaps its CWorld::Remove call sites
+    CWorldGridSync::InjectHooks();
 }
