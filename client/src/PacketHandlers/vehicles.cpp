@@ -62,13 +62,25 @@ PACKET_HANDLER(ePacketType::VEHICLE_IDLE_UPDATE, Packets::Vehicles::VehicleIdleU
     if (pNetworkVehicle->m_pVehicle->m_matrix == nullptr)
         return;
 
-    pNetworkVehicle->m_pVehicle->m_matrix->pos = pVehicleIdleUpdate->pos;
+    CVehicle* pVehicle = pNetworkVehicle->m_pVehicle;
+    CVector previousPos = pVehicle->m_matrix->pos;
+    pVehicle->m_matrix->pos = pVehicleIdleUpdate->pos;
 
     // if (CUtil::IsPositionUpdateNeeded(pNetworkVehicle->m_pVehicle->m_matrix->right, pVehicleIdleUpdate->roll, 1))
-    pNetworkVehicle->m_pVehicle->m_matrix->right = pVehicleIdleUpdate->roll;
+    pVehicle->m_matrix->right = pVehicleIdleUpdate->roll;
 
     // if (CUtil::IsPositionUpdateNeeded(pNetworkVehicle->m_pVehicle->m_matrix->up, pVehicleIdleUpdate->rot, 1))
-    pNetworkVehicle->m_pVehicle->m_matrix->up = pVehicleIdleUpdate->rot;
+    pVehicle->m_matrix->up = pVehicleIdleUpdate->rot;
+
+    // a parked clone gets a zero speed every update and soon skips its physics (m_nFakePhysics, see
+    // WakeFloatingVehicle in CNetworkVehicleManager.cpp), then nothing moves its RW frame to the matrix anymore: it
+    // was drawn where it was created, above the spot the syncer's car had dropped to, until someone got in
+    pVehicle->UpdateRwMatrix();
+    pVehicle->UpdateRwFrame();
+    if (DistanceBetweenPoints(previousPos, pVehicle->m_matrix->pos) > 0.05f)
+    {
+        pVehicle->RemoveAndAdd();  // the world sectors, for the collision
+    }
 
     pNetworkVehicle->m_pVehicle->m_vecMoveSpeed = pVehicleIdleUpdate->velocity;
     pNetworkVehicle->m_pVehicle->m_vecTurnSpeed = pVehicleIdleUpdate->turnSpeed;

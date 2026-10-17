@@ -19,6 +19,7 @@ public:
 	Packets::Vehicles::VehicleDriverUpdate m_playerDriverSnapshot{};
 	CDamageManager m_oldDamageState{};
 	uint8_t m_aOldBikeWheelStatus[2]{};
+	unsigned int m_nWakeTime = 0;  // ours: last push of a car frozen above the ground, CTimer time
 	bool m_bDamageApplied = false;  // the first VEHICLE_DAMAGE puts the parts without effects
 	// the front carriage of a train, see CTrainSync; the other carriages have no network id
 	bool m_bTrain = false;

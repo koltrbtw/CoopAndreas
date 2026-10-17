@@ -41,6 +41,8 @@ void __fastcall CVehicle__ProcessControl_Hook()
     else if (vtbl == 0x872370)  // CTrain
         call_addr = 0x6F86A0;
 
+    CNetworkVehicleManager::KeepAwake(vehicle);
+
     if (vehicle->m_pDriver == FindPlayerPed(0))
     {
         plugin::CallMethod<0x502280, CAEVehicleAudioEntity*>(&vehicle->m_vehicleAudio);
