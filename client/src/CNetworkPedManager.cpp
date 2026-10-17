@@ -216,22 +216,6 @@ void CNetworkPedManager::Process()
     }
 }
 
-void CNetworkPedManager::AssignHost()
-{
-    /*for (auto networkPed : m_pPeds)
-    {
-        CPed* ped = networkPed->m_pPed;
-
-        if (ped)
-        {
-            ped->SetCharCreatedBy(networkPed->m_nCreatedBy);
-
-            CTaskComplexWander* task = plugin::CallAndReturn<CTaskComplexWander*, 0x673D00>(ped); //
-    GetWanderTaskByPedType ped->m_pIntelligence->m_TaskMgr.SetTask(task, 0, false);
-        }
-    }*/
-}
-
 pedid_t CNetworkPedManager::AllocatePedId()
 {
     assert(CNetworkPlayerManager::m_localPlayerId.valid());
