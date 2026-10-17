@@ -83,7 +83,8 @@ void CPopulationHandover::HandOverPed(CNetworkPed* pNetworkPed, CNetworkPlayer* 
     handoff.pos = pPed->GetPosition();
     handoff.heading = pPed->m_fCurrentRotation;
 
-    pNetworkPed->BecomeClone(true);
+    // the tasks of a mission ped are the script's, the clone keeps them for when the ped comes back
+    pNetworkPed->BecomeClone(pNetworkPed->m_nCreatedBy != MISSION_CHAR);
     GetPacketFactory().Send(handoff);
 
     // the removal may come at the end of a fade out, the ped must stay visible
@@ -232,6 +233,101 @@ static CNetworkPlayer* FindMigrationTarget(const CVector& position, unsigned int
     return fTargetDistance * fTargetDistance < fOwnerDistance * fOwnerDistance * CLOSER_FACTOR_SQ ? pTarget : nullptr;
 }
 
+// CColStore::HasCollisionLoaded
+static bool HasCollisionLoaded(const CVector& position, int nAreaCode)
+{
+    return plugin::CallAndReturn<bool, 0x410CE0, const CVector&, int>(position, nAreaCode);
+}
+
+// where to give a mission entity we sync. The script keeps it wherever it is, also far from us: there our game has no
+// collision, the entity hangs frozen (m_bIsStaticWaitingForCollision) or falls, and the clone of a player standing next
+// to it, which lies on its own collision, is pulled after it by our packets and jumps. A player near it syncs it then;
+// a borrowed one goes back to the host, whose scripts drive it, once the host is near again
+static CNetworkPlayer* FindMissionTarget(CPhysical* pEntity, unsigned int nOwnershipChangeTime, bool bBorrowed)
+{
+    constexpr unsigned int HOLD_TIME = 3000;  // no ping-pong right after a change
+    // well inside the collision the game keeps around a player
+    constexpr float MAX_TARGET_DISTANCE = 100.0f;
+    constexpr float MAX_HOST_DISTANCE = 50.0f;
+
+    if (CTimer::m_snTimeInMilliseconds - nOwnershipChangeTime < HOLD_TIME)
+    {
+        return nullptr;
+    }
+
+    const CVector& position = pEntity->GetPosition();
+
+    if (bBorrowed)
+    {
+        for (auto pNetworkPlayer : CNetworkPlayerManager::m_pPlayers)
+        {
+            if (pNetworkPlayer->m_bIsHost && pNetworkPlayer->m_pPed &&
+                (pNetworkPlayer->m_pPed->GetPosition() - position).Magnitude() < MAX_HOST_DISTANCE)
+            {
+                return pNetworkPlayer;
+            }
+        }
+    }
+
+    if (HasCollisionLoaded(position, pEntity->m_nAreaCode))
+    {
+        return nullptr;
+    }
+
+    return CPopulationHandover::FindNearestRemotePlayer(position, MAX_TARGET_DISTANCE);
+}
+
+static bool HasPlayerInside(CVehicle* pVehicle)
+{
+    if (pVehicle->m_pDriver && pVehicle->m_pDriver->IsPlayer())
+    {
+        return true;
+    }
+
+    return std::any_of(std::begin(pVehicle->m_apPassengers), std::end(pVehicle->m_apPassengers),
+        [](CPed* pPassenger) { return pPassenger && pPassenger->IsPlayer(); });
+}
+
+static void MigrateMissionEntities()
+{
+    for (auto pNetworkVehicle : std::vector<CNetworkVehicle*>(CNetworkVehicleManager::m_pVehicles))
+    {
+        CVehicle* pVehicle = pNetworkVehicle->m_pVehicle;
+        // a towed one goes with its tractor, a train has its own rules (CTrainSync)
+        if (!pVehicle || !pNetworkVehicle->m_bSyncing || pNetworkVehicle->m_nCreatedBy != MISSION_VEHICLE ||
+            pNetworkVehicle->m_bTrain || pVehicle->m_pTractor || HasPlayerInside(pVehicle))
+        {
+            continue;
+        }
+
+        if (auto pTarget =
+                FindMissionTarget(pVehicle, pNetworkVehicle->m_nOwnershipChangeTime, pNetworkVehicle->m_bBorrowed))
+        {
+            CPopulationHandover::HandOverVehicle(pNetworkVehicle, pTarget);
+            logger::info("mission vehicle %s handed over to %s for its collision",
+                to_string(pNetworkVehicle->m_vehicleId).c_str(), to_string(pTarget->m_playerId).c_str());
+        }
+    }
+
+    for (auto pNetworkPed : std::vector<CNetworkPed*>(CNetworkPedManager::m_pPeds))
+    {
+        CPed* pPed = pNetworkPed->m_pPed;
+        // one in a vehicle goes with the vehicle
+        if (!pPed || !pNetworkPed->m_bSyncing || pNetworkPed->m_nCreatedBy != MISSION_CHAR ||
+            pPed->m_nPedFlags.bInVehicle || IsInPlayerGroup(pPed))
+        {
+            continue;
+        }
+
+        if (auto pTarget = FindMissionTarget(pPed, pNetworkPed->m_nOwnershipChangeTime, pNetworkPed->m_bBorrowed))
+        {
+            CPopulationHandover::HandOverPed(pNetworkPed, pTarget);
+            logger::info("mission ped %s handed over to %s for its collision", to_string(pNetworkPed->m_pedId).c_str(),
+                to_string(pTarget->m_playerId).c_str());
+        }
+    }
+}
+
 // someone else's ped that ended up in our player's group follows our player only if its ai runs here
 static void ClaimLocalGroup()
 {
@@ -281,6 +377,7 @@ void CPopulationHandover::Process()
     }
 
     ClaimLocalGroup();
+    MigrateMissionEntities();
 
     for (auto pNetworkPed : std::vector<CNetworkPed*>(CNetworkPedManager::m_pPeds))
     {

@@ -22,6 +22,7 @@ public:
     static void HandOverVehicle(CNetworkVehicle* pNetworkVehicle, CNetworkPlayer* pTarget);
 
     // every 500 ms: our ambient entities go to a player clearly closer to them
+    // and our mission ones to a player near them when our game has no collision under them
     static void Process();
 
     static void InjectHooks();

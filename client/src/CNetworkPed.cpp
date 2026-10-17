@@ -317,6 +317,7 @@ void CNetworkPed::BecomeSyncer(bool bResumeAmbientLife)
 void CNetworkPed::BecomeClone(bool bStopAmbientLife)
 {
     m_bSyncing = false;
+    m_bBorrowed = false;
     m_nOwnershipChangeTime = CTimer::m_snTimeInMilliseconds;
     m_bHasTargetPos = false;
 
@@ -363,6 +364,9 @@ void CNetworkPed::ApplyHandoff(const Packets::Peds::PedHandoff& handoff)
     }
 
     BecomeSyncer(true);
+
+    // mission peds are handed over only by the collision rule of CPopulationHandover::Process
+    m_bBorrowed = m_nCreatedBy == MISSION_CHAR && !CLocalPlayer::m_bIsHost;
     logger::info("ped %s taken over", to_string(handoff.pedid).c_str());
 }
 
