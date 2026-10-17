@@ -4,6 +4,7 @@
 #include <CAimSync.h>
 #include <CEntryExitTransitionSync.h>
 #include <CWantedSync.h>
+#include <CCheatSync.h>
 #include <CProjectileInfo.h>
 
 PACKET_HANDLER(ePacketType::PLAYER_ONFOOT_UPDATE, Packets::Players::OnFootUpdate* pOnFootUpdate)
@@ -264,4 +265,9 @@ PACKET_HANDLER(ePacketType::REBUILD_PLAYER, Packets::Players::RebuildPlayer* pRe
 PACKET_HANDLER(ePacketType::PLAYER_WANTED_LEVEL, Packets::Players::PlayerWantedLevel* pPlayerWantedLevel)
 {
     CWantedSync::HandlePacket(pPlayerWantedLevel);
+}
+
+PACKET_HANDLER(ePacketType::PLAYER_CHEAT, Packets::Players::PlayerCheat* pPlayerCheat)
+{
+    CCheatSync::HandlePacket(pPlayerCheat);
 }
