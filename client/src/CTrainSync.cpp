@@ -160,9 +160,16 @@ void CTrainSync::Process()
         CollectState(pNetworkVehicle, packet.state);
         if (packet.state.derailed)
         {
-            packet.rot = pVehicle->m_matrix->up;
-            packet.roll = pVehicle->m_matrix->right;
-            packet.velocity = pVehicle->m_vecMoveSpeed;
+            for (auto pCarriage = static_cast<CTrain*>(pVehicle);
+                 pCarriage && packet.carriageCount < Packets::Vehicles::TrainUpdate::MAX_CARRIAGES;
+                 pCarriage = pCarriage->m_pNextCarriage)
+            {
+                auto& carriage = packet.carriages[packet.carriageCount++];
+                carriage.pos = pCarriage->GetPosition();
+                carriage.rot = pCarriage->m_matrix->up;
+                carriage.roll = pCarriage->m_matrix->right;
+                carriage.velocity = pCarriage->m_vecMoveSpeed;
+            }
         }
         pNetworkVehicle->m_trainState = packet.state;
         GetPacketFactory().Send(packet);
@@ -265,10 +272,16 @@ void CTrainSync::HandleUpdate(Packets::Vehicles::TrainUpdate* pPacket)
             logger::info("train %s derailed", to_string(pPacket->vehicleid).c_str());
         }
 
-        pTrain->m_matrix->pos = pPacket->pos;
-        pTrain->m_matrix->up = pPacket->rot;
-        pTrain->m_matrix->right = pPacket->roll;
-        pTrain->m_vecMoveSpeed = pPacket->velocity;
+        // the same carriages in the same order, both built from the train type
+        CTrain* pCarriage = pTrain;
+        for (int i = 0; i < pPacket->carriageCount && pCarriage; i++, pCarriage = pCarriage->m_pNextCarriage)
+        {
+            const auto& carriage = pPacket->carriages[i];
+            pCarriage->m_matrix->pos = carriage.pos;
+            pCarriage->m_matrix->up = carriage.rot;
+            pCarriage->m_matrix->right = carriage.roll;
+            pCarriage->m_vecMoveSpeed = carriage.velocity;
+        }
         return;
     }
 

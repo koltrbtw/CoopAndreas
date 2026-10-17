@@ -553,14 +553,34 @@ class TrainUpdate : public Packet
     DEFINE_PACKET_TYPE(TrainUpdate, ePacketType::TRAIN_UPDATE, ePacketChannel::SYNC);
 
 public:
+    static constexpr int MAX_CARRIAGES = 15;  // a train config holds up to 15 models
+
+    // off the rails every carriage moves by physics, not by the track position
+    struct Carriage
+    {
+        WorldPositionCompressed pos{};
+        NormalizedVector rot{};
+        NormalizedVector roll{};
+        MoveSpeedCompressed velocity{};
+
+        template <typename Stream>
+        bool Serialize(Stream& stream)
+        {
+            serialize_object(stream, pos);
+            serialize_object(stream, rot);
+            serialize_object(stream, roll);
+            serialize_object(stream, velocity);
+            return true;
+        }
+    };
+
     vehicleid_t vehicleid{};
     WorldPositionCompressed pos{};
     TrainState state{};
 
-    // off the rails the front carriage moves by physics, not by the track position
-    NormalizedVector rot{};
-    NormalizedVector roll{};
-    MoveSpeedCompressed velocity{};
+    // from the front carriage on, only when derailed
+    uint8_t carriageCount{};
+    Carriage carriages[MAX_CARRIAGES]{};
 
 private:
     template <typename Stream>
@@ -571,9 +591,11 @@ private:
         serialize_object(stream, state);
         if (state.derailed)
         {
-            serialize_object(stream, rot);
-            serialize_object(stream, roll);
-            serialize_object(stream, velocity);
+            serialize_int(stream, carriageCount, 0, MAX_CARRIAGES);
+            for (int i = 0; i < carriageCount; i++)
+            {
+                serialize_object(stream, carriages[i]);
+            }
         }
         return true;
     }
