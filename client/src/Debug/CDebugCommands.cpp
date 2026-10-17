@@ -739,6 +739,50 @@ void CDebugCommands::RunCommand(const std::string& line)
                                                      : "?");
         }
     }
+    else if (command == "npc-leave" || command == "npc-knock" || command == "npc-flush")
+    {
+        // the npc driver we sync of the nearest vehicle (car [model]): leaves it (pushed forward: rolls out), is
+        // knocked off it, is set out at once
+        CVehicle* pVehicle = FindNearestVehicle(pPlayer->GetPosition(), 30.0f);
+        CPed* pDriver = pVehicle ? pVehicle->m_pDriver : nullptr;
+        CNetworkPed* pNetworkPed = pDriver ? CNetworkPedManager::GetPed(pDriver) : nullptr;
+        if (!pNetworkPed || !pNetworkPed->m_bSyncing)
+        {
+            logger::info("stand debug: no npc driver of ours near");
+        }
+        else if (command == "npc-leave")
+        {
+            float speed = 0.0f;
+            stream >> speed;
+            if (speed > 0.0f)
+            {
+                pVehicle->m_vecMoveSpeed = pVehicle->GetForward() * speed;
+            }
+            pDriver->m_pIntelligence->m_TaskMgr.SetTask(new CTaskComplexLeaveCar(pVehicle, 0, 0, true, false),
+                TASK_PRIMARY_PRIMARY, false);
+        }
+        else if (command == "npc-knock")
+        {
+            alignas(4) uint8_t event[0x3C];
+            CVector moveSpeed = pVehicle->m_vecMoveSpeed;
+            CVector impact = moveSpeed;
+            plugin::CallMethod<0x4AFCF0, void*, CVehicle*, CVector*, CVector*, float, float, uint8_t, uint8_t, int, CPed*,
+                bool, bool>(event, pVehicle, &moveSpeed, &impact, 100.0f, 0.0f, 49, 0, 0, nullptr, true, true);
+            plugin::CallMethod<0x4AB420, void*, void*, bool>(reinterpret_cast<uint8_t*>(pDriver->m_pIntelligence) + 0x68,
+                event, false);
+            using Dtor = void(__thiscall*)(void*, int);
+            (*reinterpret_cast<Dtor**>(event))[0](event, 0);
+        }
+        else
+        {
+            pDriver->m_pIntelligence->FlushImmediately(true);
+        }
+        if (pNetworkPed && pNetworkPed->m_bSyncing)
+        {
+            ms_watchedPed = to_string(pNetworkPed->m_pedId);
+            logger::info("stand debug: %s %s", command.c_str(), ms_watchedPed.c_str());
+        }
+    }
     else if (command == "watch-ped")
     {
         stream >> ms_watchedPed;
