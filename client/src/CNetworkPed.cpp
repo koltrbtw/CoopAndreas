@@ -260,6 +260,7 @@ void CNetworkPed::BecomeSyncer(bool bResumeAmbientLife)
 {
     m_bSyncing = true;
     m_bClaimOnRelease = false;
+    m_nOwnershipChangeTime = CTimer::m_snTimeInMilliseconds;
 
     if (!m_pPed)
     {
@@ -303,6 +304,7 @@ void CNetworkPed::BecomeSyncer(bool bResumeAmbientLife)
 void CNetworkPed::BecomeClone(bool bStopAmbientLife)
 {
     m_bSyncing = false;
+    m_nOwnershipChangeTime = CTimer::m_snTimeInMilliseconds;
 
     if (!m_pPed)
     {

@@ -22,6 +22,7 @@ public:
 	float m_fHealth = 100.0f;
 	int m_nBlipHandle = -1;
 	bool m_bClaimOnRelease = false;
+	unsigned int m_nOwnershipChangeTime = 0;  // when it became ours or someone else's, CTimer time
 
 	static CNetworkPed* CreateHosted(CPed* ped);
 	void WarpIntoVehicleDriver(CVehicle* vehicle);
