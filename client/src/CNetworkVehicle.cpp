@@ -256,3 +256,37 @@ void CNetworkVehicle::BecomeClone(Packets::Vehicles::VehicleHandoff* pHandoff)
         m_pVehicle->SetVehicleCreatedBy(MISSION_VEHICLE);
     }
 }
+
+vehicleid_t CNetworkVehicle::GetTrailerId(CVehicle* pVehicle)
+{
+    CNetworkVehicle* pNetworkTrailer = pVehicle->m_pTrailer ? CNetworkVehicleManager::GetVehicle(pVehicle->m_pTrailer) : nullptr;
+    return pNetworkTrailer ? pNetworkTrailer->m_vehicleId : vehicleid_t();
+}
+
+void CNetworkVehicle::ApplyTrailer(vehicleid_t trailerid)
+{
+    if (!m_pVehicle || m_bSyncing)
+    {
+        return;
+    }
+
+    CNetworkVehicle* pNetworkTrailer = trailerid.valid() ? CNetworkVehicleManager::GetVehicle(trailerid) : nullptr;
+    CVehicle* pWanted = pNetworkTrailer && !pNetworkTrailer->m_bSyncing ? pNetworkTrailer->m_pVehicle : nullptr;
+    CVehicle* pCurrent = m_pVehicle->m_pTrailer;
+
+    if (pCurrent == pWanted)
+    {
+        return;
+    }
+
+    if (pCurrent)
+    {
+        pCurrent->BreakTowLink();
+    }
+
+    // a clone is STATUS_ABANDONED, which CTrailer::SetTowLink accepts; put it at the tow bar right away
+    if (pWanted)
+    {
+        pWanted->SetTowLink(m_pVehicle, true);
+    }
+}

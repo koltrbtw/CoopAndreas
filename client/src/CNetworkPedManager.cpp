@@ -120,6 +120,7 @@ void CNetworkPedManager::Update()
                     packet.miscComponentAngle = pAutomobile->m_wMiscComponentAngle;
                 }
                 packet.locked = pVehicle->m_eDoorLock;
+                packet.trailerid = CNetworkVehicle::GetTrailerId(pVehicle);
                 packet.gasPedal = pVehicle->m_fGasPedal;
                 packet.breakPedal = pVehicle->m_fBreakPedal;
                 packet.steerAngle = pVehicle->m_fSteerAngle;

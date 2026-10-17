@@ -26,6 +26,10 @@ public:
 	void BecomeSyncer(const Packets::Vehicles::VehicleHandoff* pHandoff);
 	// gives our npc driver the ambient driving task, once both the vehicle and the driver are ours
 	void ResumeDriving();
+
+	// tow links: the network id of what this vehicle tows, and attaching/detaching our clone of it to match
+	static vehicleid_t GetTrailerId(CVehicle* pVehicle);
+	void ApplyTrailer(vehicleid_t trailerid);
 	// fills pHandoff with what the new syncer needs and turns the vehicle and our npc peds inside into clones
 	void BecomeClone(Packets::Vehicles::VehicleHandoff* pHandoff);
 	

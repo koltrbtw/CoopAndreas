@@ -53,6 +53,12 @@ static CNetworkVehicle* GetOwnedAmbientVehicle(CVehicle* pVehicle)
     {
         return nullptr;
     }
+
+    // a towed vehicle goes together with its tractor, see HandOverVehicle
+    if (pVehicle->m_pTractor)
+    {
+        return nullptr;
+    }
     return pNetworkVehicle;
 }
 
@@ -82,6 +88,8 @@ void CPopulationHandover::HandOverVehicle(CNetworkVehicle* pNetworkVehicle, CNet
 {
     CVehicle* pVehicle = pNetworkVehicle->m_pVehicle;
 
+    CVehicle* pTrailer = pVehicle->m_pTrailer;
+
     Packets::Vehicles::VehicleHandoff handoff{};
     pNetworkVehicle->BecomeClone(&handoff);
     handoff.target = pTarget->m_playerId;
@@ -91,6 +99,13 @@ void CPopulationHandover::HandOverVehicle(CNetworkVehicle* pNetworkVehicle, CNet
     if (pVehicle->m_pRwClump)
     {
         CVisibilityPlugins::SetClumpAlpha(pVehicle->m_pRwClump, 255);
+    }
+
+    // what it tows goes with it, the new syncer drives both
+    CNetworkVehicle* pNetworkTrailer = pTrailer ? CNetworkVehicleManager::GetVehicle(pTrailer) : nullptr;
+    if (pNetworkTrailer && pNetworkTrailer->m_bSyncing)
+    {
+        HandOverVehicle(pNetworkTrailer, pTarget);
     }
 }
 
