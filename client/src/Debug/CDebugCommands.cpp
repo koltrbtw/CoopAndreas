@@ -68,11 +68,12 @@ static void LogMapObjects(const CVector& position)
         const CVector& pos = pObject->GetPosition();
         const CVector& original = pObject->m_pDummyObject->GetPosition();
         logger::info("stand debug: object %d at %.2f %.2f %.2f (dummy %.2f %.2f %.2f) effect %d damaged %d collision %d "
-                     "visible %d broken %d exploded %d static %d up.z %.2f",
+                     "visible %d broken %d exploded %d static %d up.z %.2f explodes %d",
             pObject->m_nModelIndex, pos.x, pos.y, pos.z, original.x, original.y, original.z,
             pObject->m_nColDamageEffect, pObject->m_bRenderDamaged, pObject->m_bUsesCollision, pObject->m_bIsVisible,
             pObject->m_nObjectFlags.bIsBroken, pObject->m_nObjectFlags.bIsExploded, pObject->m_bIsStatic,
-            pObject->m_matrix ? pObject->m_matrix->at.z : 1.0f);
+            pObject->m_matrix ? pObject->m_matrix->at.z : 1.0f,
+            pObject->m_pObjectInfo ? pObject->m_pObjectInfo->m_bCausesExplosion : 0);
     }
 }
 
@@ -230,6 +231,13 @@ void CDebugCommands::RunCommand(const std::string& line)
     else if (command == "objects")
     {
         LogMapObjects(pPlayer->GetPosition());
+    }
+    else if (command == "status")
+    {
+        const CVector& pos = pPlayer->GetPosition();
+        CWanted* pWanted = FindPlayerWanted(0);
+        logger::info("stand debug: player at %.2f %.2f %.2f health %.1f armour %.1f wanted %d", pos.x, pos.y, pos.z,
+            pPlayer->m_fHealth, pPlayer->m_fArmour, pWanted ? pWanted->m_nWantedLevel : -1);
     }
     else if (command == "object-damage")
     {
