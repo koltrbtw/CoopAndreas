@@ -9,6 +9,7 @@
 #include <CWorldGridSync.h>
 #include <CWantedSync.h>
 #include <CGangZonesSync.h>
+#include <CGangWarSync.h>
 #include <game_sa/CTagManager.h>
 
 PACKET_HANDLER(ePacketType::PLAYER_CONNECTED, Packets::System::PlayerConnected* pPlayerConnected)
@@ -84,6 +85,7 @@ PACKET_HANDLER(ePacketType::PLAYER_HANDSHAKE, Packets::System::PlayerHandshake* 
     CWorldGridSync::Reset();
     CWantedSync::Reset();
     CGangZonesSync::Reset();
+    CGangWarSync::Reset();
 
     // stats are sent only when they change, so the server would not know the ones we already have
     CStatsSync::NotifyChanged();

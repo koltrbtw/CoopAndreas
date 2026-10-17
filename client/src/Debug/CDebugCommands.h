@@ -13,6 +13,10 @@
 //   script-speed <speed>        SET_TRAIN_SPEED / SET_TRAIN_CRUISE_SPEED of the nearest train, as a mission script
 //   script-cruise <speed>
 //   teleport <x> <y> <z>        the player (out of the vehicle), the scene loaded first
+//   gang-wars on|off            CGangWars::SetGangWarsActive, as GROVE2 does
+//   god                         the player bullet/fire/explosion/melee proof
+//   provoke                     enough provocation for CGangWars::Update to start an offensive war in this zone
+//   shoot-wave [count]          headshots at up to count members of the war's gang closer than 100 m (synced shots)
 class CDebugCommands
 {
 public:

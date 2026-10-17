@@ -3,6 +3,8 @@
 #include <fstream>
 #include <sstream>
 #include <CWanted.h>
+#include <CGangWars.h>
+#include "Hooks/PlayerHooks.h"
 
 static CTrain* FindNearestFrontCarriage(const CVector& position, bool bMissionOnly = false)
 {
@@ -49,6 +51,41 @@ static void CreateMissionTrain(int type, CPlayerPed* pPlayer)
     int handle = 0;
     plugin::Command<Commands::CREATE_MISSION_TRAIN>(type, pos.x, pos.y, pos.z, true, &handle);
     logger::info("stand debug: mission train of type %d created, handle %d", type, handle);
+}
+
+// headshots from the player at the members of the gang of the current war (its attackers, also the clones of someone
+// else's war) closer than 100 m, through the synced shot path
+static void ShootGangMembers(CPlayerPed* pPlayer, int count)
+{
+    pPlayer->GiveWeapon(WEAPON_M4, 500, false);
+    pPlayer->SetCurrentWeapon(WEAPON_M4);
+    CWeapon& weapon = pPlayer->GetWeapon();
+
+    int shot = 0;
+    for (int i = 0; i < CPools::ms_pPedPool->m_nSize && shot < count; i++)
+    {
+        CPed* pPed = CPools::ms_pPedPool->GetAt(i);
+        if (!pPed || pPed->IsPlayer() || pPed->m_nPedType != CGangWars::Gang1 + PED_TYPE_GANG1 ||
+            pPed->m_fHealth <= 0.0f || (pPed->GetPosition() - pPlayer->GetPosition()).Magnitude() > 100.0f)
+        {
+            continue;
+        }
+
+        for (int bullet = 0; bullet < 6 && pPed->m_fHealth > 0.0f; bullet++)
+        {
+            CVector start = pPlayer->GetPosition() + CVector(0.0f, 0.0f, 0.7f);
+            CVector end = pPed->GetPosition() + CVector(0.0f, 0.0f, 0.6f);
+            CColPoint colPoint{};
+            colPoint.m_vecPoint = end;
+            colPoint.m_vecNormal = start - end;
+            colPoint.m_vecNormal.Normalise();
+            colPoint.m_nSurfaceTypeB = 9; // PED_PIECE_HEAD, CollectShotSnapshot takes it from here
+            colPoint.m_nPieceTypeB = 9;
+            PlayerHooks::DoLocalPlayerBulletImpact(&weapon, pPed, &start, &end, &colPoint);
+        }
+        shot++;
+    }
+    logger::info("stand debug: shot %d members of gang %d", shot, CGangWars::Gang1);
 }
 
 void CDebugCommands::RunCommand(const std::string& line)
@@ -121,6 +158,31 @@ void CDebugCommands::RunCommand(const std::string& line)
         {
             plugin::Command<Commands::SET_CHAR_COORDINATES>(CPools::GetPedRef(pPlayer), pos.x, pos.y, pos.z);
         }
+    }
+    else if (command == "gang-wars")
+    {
+        std::string state;
+        stream >> state;
+        plugin::Call<0x446570, bool>(state != "off"); // CGangWars::SetGangWarsActive
+    }
+    else if (command == "god")
+    {
+        // the attack waves of a gang war kill a tester standing still
+        pPlayer->m_nPhysicalFlags.bBulletProof = true;
+        pPlayer->m_nPhysicalFlags.bFireProof = true;
+        pPlayer->m_nPhysicalFlags.bExplosionProof = true;
+        pPlayer->m_nPhysicalFlags.bMeleeProof = true;
+    }
+    else if (command == "provoke")
+    {
+        // as if the player killed enough gang members here, CGangWars::Update starts an offensive war
+        CGangWars::Provocation = 3.0f;
+    }
+    else if (command == "shoot-wave")
+    {
+        int count = 100;
+        stream >> count;
+        ShootGangMembers(pPlayer, count);
     }
     else if (command == "script-speed" || command == "script-cruise")
     {
