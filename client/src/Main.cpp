@@ -152,6 +152,7 @@ public:
                 CDriveBy::Process(localPlayer);
                 CVehicleExitSync::Process();
                 CVehicleExitSync::ProcessClones();
+                CPlayerFallSync::Process();
 
                 int syncRate = 50;
                 CVector velocity{};

@@ -496,6 +496,29 @@ private:
 };
 
 // a cheat that changes the world (traffic, peds, time) typed by a player, the others apply it too
+// the sender knocked down on foot, CTaskComplexFallAndGetUp: its clone plays the same fall (CPlayerFallSync)
+class PlayerFall : public Packet
+{
+    DEFINE_PACKET_TYPE(PlayerFall, ePacketType::PLAYER_FALL, ePacketChannel::EVENT);
+
+public:
+    SenderPlayerId senderPlayerid{};
+    uint8_t animGroup = 0;
+    uint16_t animId = 0;
+    uint16_t downTime = 0;  // ms on the ground before getting up
+
+private:
+    template <typename Stream>
+    bool Serialize(Stream& stream)
+    {
+        serialize_object(stream, senderPlayerid);
+        serialize_uint8(stream, animGroup);
+        serialize_uint16(stream, animId);
+        serialize_uint16(stream, downTime);
+        return true;
+    }
+};
+
 class PlayerCheat : public Packet
 {
     DEFINE_PACKET_TYPE(PlayerCheat, ePacketType::PLAYER_CHEAT, ePacketChannel::EVENT);

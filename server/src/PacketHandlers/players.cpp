@@ -90,6 +90,12 @@ PACKET_HANDLER(ePacketType::REBUILD_PLAYER, Packets::Players::RebuildPlayer* pRe
 }
 
 
+PACKET_HANDLER(ePacketType::PLAYER_FALL, Packets::Players::PlayerFall* pPlayerFall, CNetworkPlayer* pNetworkPlayer)
+{
+    pPlayerFall->senderPlayerid = pNetworkPlayer->m_playerId;
+    GetPacketFactory().SendToAll(*pPlayerFall, pNetworkPlayer);
+}
+
 PACKET_HANDLER(ePacketType::PLAYER_CHEAT, Packets::Players::PlayerCheat* pPlayerCheat, CNetworkPlayer* pNetworkPlayer)
 {
     pPlayerCheat->senderPlayerid = pNetworkPlayer->m_playerId;

@@ -15,8 +15,8 @@ public:
     static void SendLeave(CVehicle* pVehicle);
     // the clone side of VEHICLE_EXIT
     static void HandlePacket(const Packets::Vehicles::VehicleExit& packet);
-    // after the vehicle let the clone go: the fall the sender plays
-    static void ApplyFall(CPed* pPed, const Packets::Vehicles::VehicleExit& packet);
+    // the fall the owner plays (eVehicleExitFall): out of a vehicle, or hit on foot (CPlayerFallSync)
+    static void ApplyFall(CPed* pPed, uint8_t fall, int nGroup, int nAnimId, int nDownTime);
     // the exit that waited (CNetworkPlayer::m_pendingExit) now; false when there is none
     static bool ApplyPendingExit(CNetworkPlayer* pNetworkPlayer);
 

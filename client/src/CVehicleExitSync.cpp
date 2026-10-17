@@ -38,6 +38,7 @@ static void CollectReason(CPlayerPed* pPlayerPed, bool bLeaveSent, VehicleExit& 
 
     if (CTask* pFall = taskManager.FindActiveTaskByType(TASK_COMPLEX_FALL_AND_GET_UP))
     {
+        CPlayerFallSync::OnFallSent(pFall);
         SetFallAnim(packet, TaskField<int>(pFall, FALL_AND_GET_UP_ANIM_GROUP), TaskField<int>(pFall, FALL_AND_GET_UP_ANIM_ID),
             TaskField<int>(pFall, FALL_AND_GET_UP_DOWN_TIME));
     }
@@ -147,7 +148,7 @@ void CVehicleExitSync::Reset()
     ms_bLeaveSent = false;
 }
 
-void CVehicleExitSync::ApplyFall(CPed* pPed, const VehicleExit& packet)
+void CVehicleExitSync::ApplyFall(CPed* pPed, uint8_t fall, int nGroup, int nAnimId, int nDownTime)
 {
     auto& taskManager = pPed->m_pIntelligence->m_TaskMgr;
 
@@ -160,15 +161,13 @@ void CVehicleExitSync::ApplyFall(CPed* pPed, const VehicleExit& packet)
     }
 
     CTask* pTask = nullptr;
-    if (packet.fall == VEHICLE_EXIT_FALL_IN_AIR)
+    if (fall == VEHICLE_EXIT_FALL_IN_AIR)
     {
         pTask = static_cast<CTask*>(CTask::operator new(IN_AIR_AND_LAND_SIZE));
         plugin::CallMethod<0x678C80, CTask*, bool, bool>(pTask, false, false);  // CTaskComplexInAirAndLand ctor
     }
-    else if (packet.fall == VEHICLE_EXIT_FALL_ANIM)
+    else if (fall == VEHICLE_EXIT_FALL_ANIM)
     {
-        int nGroup = packet.animGroup;
-        int nAnimId = packet.animId;
         // a bike's own block may be gone here already, ped.ifp is always in; CTaskSimpleFall waits for the end of
         // its anim, a looped one would keep the ped down for good
         CAnimBlendStaticAssociation* pAnim =
@@ -180,7 +179,7 @@ void CVehicleExitSync::ApplyFall(CPed* pPed, const VehicleExit& packet)
         }
 
         pTask = static_cast<CTask*>(CTask::operator new(FALL_AND_GET_UP_SIZE));
-        plugin::CallMethod<0x6786C0, CTask*, int, int, int>(pTask, nAnimId, nGroup, packet.downTime);  // CTaskComplexFallAndGetUp ctor
+        plugin::CallMethod<0x6786C0, CTask*, int, int, int>(pTask, nAnimId, nGroup, nDownTime);  // CTaskComplexFallAndGetUp ctor
     }
 
     if (pTask)
@@ -211,7 +210,7 @@ static void ApplyExit(CNetworkPlayer* pNetworkPlayer, const VehicleExit& packet)
     pPlayerPed->m_fCurrentRotation = pPlayerPed->m_fAimingRotation = packet.heading.m_angle;
     pPlayerPed->SetHeading(packet.heading.m_angle);
 
-    CVehicleExitSync::ApplyFall(pPlayerPed, packet);
+    CVehicleExitSync::ApplyFall(pPlayerPed, packet.fall, packet.animGroup, packet.animId, packet.downTime);
 }
 
 bool CVehicleExitSync::ApplyPendingExit(CNetworkPlayer* pNetworkPlayer)

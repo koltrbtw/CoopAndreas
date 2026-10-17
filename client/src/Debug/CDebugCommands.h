@@ -32,6 +32,9 @@
 //   leave [speed]               the exit key; with a speed the vehicle is pushed forward first (a roll out)
 //   flush                       FlushImmediately on the player: out of the vehicle at once, as a script warp
 //   jack-me                     a random ped next to our vehicle drags us out
+//   ram-me [speed]              an empty car 12 m ahead rolls into the player (0.6 by default)
+//   ram-ped [speed]             an empty car rolls into the nearest ped someone else syncs, watched (watch-ped)
+//   watch-ped <id>              watch-anims logs that ped too (c1v12)
 //   watch-anims [ms]            log the active task and the anims of the players, the doors of the nearest car
 class CDebugCommands
 {

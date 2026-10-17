@@ -407,6 +407,7 @@ void CNetworkPed::BecomeSyncer(bool bResumeAmbientLife)
     CPedAnimSync::Release(m_pPed);
 
     m_pPed->SetCharCreatedBy(m_nCreatedBy);
+    m_pPed->m_nPedFlags.CantBeKnockedOffBike = 0;  // 0 - default
 
     if (!bResumeAmbientLife || m_nCreatedBy != RANDOM_CHAR)
     {
@@ -462,6 +463,8 @@ void CNetworkPed::BecomeClone(bool bStopAmbientLife)
     }
 
     m_pPed->SetCharCreatedBy(MISSION_CHAR);
+    // its owner says when it falls off (a clone in a vehicle taken over keeps the flag of its old owner)
+    m_pPed->m_nPedFlags.CantBeKnockedOffBike = 1;  // 1 - never
 
     if (!bStopAmbientLife)
     {
