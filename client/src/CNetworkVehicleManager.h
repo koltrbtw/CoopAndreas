@@ -12,6 +12,8 @@ public:
     static void Remove(CNetworkVehicle* vehicle);
     static void UpdateDriver(CVehicle* pVehicle);
     static void UpdateIdle();
+    // every frame before the vehicle's ProcessControl: a car woken up from hanging in the air keeps its physics
+    static void KeepAwake(CVehicle* pVehicle);
     static void UpdatePassenger(CVehicle* pVehicle, CPlayerPed* pPlayerPed);
     static vehicleid_t AllocateVehicleId();
     static void ResetIdAllocator();

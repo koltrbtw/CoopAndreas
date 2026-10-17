@@ -100,6 +100,89 @@ void CNetworkVehicleManager::UpdateDriver(CVehicle* pVehicle)
 	}
 }
 
+// CAutomobile::ProcessControl skips the physics of an abandoned car after 10 frames without a noticeable force
+// (CPhysical::m_nFakePhysics, field_B8) and zeroes its speed every frame from then on. Frames with no time step (the
+// creation, a pause) reach that before gravity has pulled the car onto its wheels: it hangs in the air for good, for
+// the clones too: it stands on its fully extended wheels, a settled car sinks into its suspension (~0.25 m). The
+// suspension values can't tell (a skipped car keeps no wheel contact), the height of its collision box above the
+// ground can (the box takes the extended wheels); a push down lets the physics run again
+static constexpr float MIN_SETTLED_SINK = 0.05f;
+static constexpr unsigned int WAKE_INTERVAL = 30000;  // ms, a stiff suspension that barely sinks must not bounce
+static constexpr unsigned int MIN_AGE_TO_WAKE = 5000;  // ms since the vehicle was created
+static constexpr unsigned int WAKE_DURATION = 3000;   // ms, it sinks slowly enough to be frozen again half way
+
+// the woken vehicles and until when, KeepAwake runs every frame (a pointer is only compared, never read)
+static std::vector<std::pair<CVehicle*, unsigned int>> ms_awakeVehicles;
+
+void CNetworkVehicleManager::KeepAwake(CVehicle* pVehicle)
+{
+	if (ms_awakeVehicles.empty())
+	{
+		return;
+	}
+
+	auto it = std::find_if(ms_awakeVehicles.begin(), ms_awakeVehicles.end(), [pVehicle](auto& e) { return e.first == pVehicle; });
+	if (it == ms_awakeVehicles.end())
+	{
+		return;
+	}
+
+	if (CTimer::m_snTimeInMilliseconds > it->second)
+	{
+		ms_awakeVehicles.erase(it);
+		return;
+	}
+	pVehicle->field_B8 = 0;
+}
+
+static void WakeFloatingVehicle(CNetworkVehicle* pNetworkVehicle)
+{
+	CVehicle* pVehicle = pNetworkVehicle->m_pVehicle;
+	if (pNetworkVehicle->m_nWakeTime && CTimer::m_snTimeInMilliseconds - pNetworkVehicle->m_nWakeTime < WAKE_INTERVAL)
+	{
+		return;
+	}
+
+	if (pVehicle->m_nVehicleType != VEHICLE_AUTOMOBILE || pVehicle->m_nStatus != STATUS_ABANDONED ||
+		pVehicle->field_B8 < 10 || pVehicle->m_vecMoveSpeed.z != 0.0f || pVehicle->m_matrix->at.z < 0.9f)  // at: the up axis in plugin-sdk
+	{
+		return;
+	}
+
+	eVehicleType subType = static_cast<eVehicleType>(pVehicle->m_nVehicleSubType);
+	if (subType == VEHICLE_HELI || subType == VEHICLE_PLANE)
+	{
+		return;
+	}
+
+	// woken over a ground without collision yet (the first seconds of a session) it fell through the map
+	if (CTimer::m_snTimeInMilliseconds - pVehicle->m_nCreationTime < MIN_AGE_TO_WAKE ||
+		!plugin::CallAndReturn<bool, 0x410CE0, const CVector&, int>(pVehicle->GetPosition(), pVehicle->m_nAreaCode))  // CColStore::HasCollisionLoaded
+	{
+		return;
+	}
+
+	CColModel* pColModel = CModelInfo::GetModelInfo(pVehicle->m_nModelIndex)->m_pColModel;
+	if (!pColModel)
+	{
+		return;
+	}
+
+	const CVector& pos = pVehicle->GetPosition();
+	bool bFound = false;
+	float fGroundZ = CWorld::FindGroundZFor3DCoord(pos.x, pos.y, pos.z + 2.0f, &bFound, nullptr);  // from inside the car it finds none
+	if (!bFound || pos.z + pColModel->m_boundBox.m_vecMin.z - fGroundZ < -MIN_SETTLED_SINK)
+	{
+		return;
+	}
+
+	pNetworkVehicle->m_nWakeTime = CTimer::m_snTimeInMilliseconds;
+	pVehicle->field_B8 = 0;
+	pVehicle->m_vecMoveSpeed.z = -0.02f;
+	ms_awakeVehicles.emplace_back(pVehicle, CTimer::m_snTimeInMilliseconds + WAKE_DURATION);
+	logger::info("vehicle %s woke up from hanging above the ground", to_string(pNetworkVehicle->m_vehicleId).c_str());
+}
+
 void CNetworkVehicleManager::UpdateIdle()
 {
 	CNetworkVehicleManager::RemoveHostedUnused();
@@ -113,6 +196,8 @@ void CNetworkVehicleManager::UpdateIdle()
 		// a train has its own updates, see CTrainSync
 		if (pNetworkVehicle->m_bSyncing && !pNetworkVehicle->HasDriver() && !pNetworkVehicle->m_bTrain)
 		{
+			WakeFloatingVehicle(pNetworkVehicle);
+
 			Packets::Vehicles::VehicleIdleUpdate packet{};
 			packet.vehicleid = pNetworkVehicle->m_vehicleId;
 
