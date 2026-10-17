@@ -106,6 +106,10 @@ static void CollectShotSnapshot(Packets::Players::PlayerBulletShot& packet, CEnt
         {
             packet.pedPiece = (ePedPieceTypes)colPoint->m_nSurfaceTypeB;
         }
+        if (victim && victim->m_nType == ENTITY_TYPE_VEHICLE)
+        {
+            packet.vehiclePiece = colPoint->m_nPieceTypeB;
+        }
     }
 
     packet.incrementalHit = incrementalHit;

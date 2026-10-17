@@ -167,6 +167,11 @@ PACKET_HANDLER(ePacketType::PLAYER_BULLET_SHOT, Packets::Players::PlayerBulletSh
             {
                 colPoint.m_nSurfaceTypeB = pPlayerBulletShot->pedPiece;
             }
+            else if (pPlayerBulletShot->hitEntity.entityType == NETWORK_ENTITY_TYPE_VEHICLE)
+            {
+                // our own ray may miss the wheel the shooter hit by a few centimeters
+                colPoint.m_nPieceTypeB = pPlayerBulletShot->vehiclePiece;
+            }
         }
     }
     else

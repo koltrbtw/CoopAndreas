@@ -194,6 +194,7 @@ public:
     bool bHitNetworkEntity = false;
     CNetworkEntitySerializer hitEntity{};
     ePedPieceTypes pedPiece = PED_COL_SPHERE_LEG;
+    uint8_t vehiclePiece = 0;  // CColPoint::m_nPieceTypeB of the shooter's hit: a tyre bursts on the syncer too
     int incrementalHit = 0;
 
 private:
@@ -216,6 +217,10 @@ private:
                     hitEntity.entityType == NETWORK_ENTITY_TYPE_PED)
                 {
                     serialize_int(stream, (int&)pedPiece, PED_COL_SPHERE_LEG, PED_SPHERE_HEAD);
+                }
+                else if (hitEntity.entityType == NETWORK_ENTITY_TYPE_VEHICLE)
+                {
+                    serialize_uint8(stream, vehiclePiece);
                 }
             }
         }

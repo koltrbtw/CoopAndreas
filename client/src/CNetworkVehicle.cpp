@@ -424,6 +424,60 @@ static bool IsRepaired(const CDamageManager& current, const CDamageManager& next
     return false;
 }
 
+static constexpr int PANEL_WINDSCREEN = 4;
+static constexpr int PANEL_FRONT_BUMPER = 5;
+static constexpr int PANEL_REAR_BUMPER = 6;
+static constexpr int PANEL_STATE_MISSING = 3;
+
+static int GetPanelStatus(const CDamageManager& damageManager, int panel)
+{
+    return (damageManager.m_nPanelsStatus >> (panel * 4)) & 0xF;
+}
+
+// one part at a time and only what changed: SetupDamageAfterLoad called every setter with the effects on, so each
+// packet threw all the missing parts off the car again and slammed the bashed doors shut. bEffects: the part breaks
+// off now (a flying part, the windscreen glass), not when the clone is created or after a repair
+static void ApplyAutomobileDamage(CAutomobile* pAutomobile, const CDamageManager& next, bool bEffects)
+{
+    CDamageManager previous = pAutomobile->m_damageManager;
+    pAutomobile->m_damageManager = next;
+
+    for (int i = 0; i < 6; i++)
+    {
+        if (!bEffects || previous.m_anDoorsStatus[i] != next.m_anDoorsStatus[i])
+        {
+            pAutomobile->SetDoorDamage((eDoors)i, !bEffects);
+        }
+    }
+
+    for (int panel : {PANEL_FRONT_BUMPER, PANEL_REAR_BUMPER})
+    {
+        if (!bEffects || GetPanelStatus(previous, panel) != GetPanelStatus(next, panel))
+        {
+            pAutomobile->SetBumperDamage((ePanels)panel, !bEffects);
+        }
+    }
+
+    // the wings fly off with createWindowGlass false, the windscreen shatters with it true
+    for (int panel : {0, 1, PANEL_WINDSCREEN})
+    {
+        if (bEffects && GetPanelStatus(previous, panel) == GetPanelStatus(next, panel))
+        {
+            continue;
+        }
+
+        if (panel == PANEL_WINDSCREEN && !bEffects && GetPanelStatus(next, panel) == PANEL_STATE_MISSING)
+        {
+            if (RwFrame* pFrame = pAutomobile->m_aCarNodes[CAR_WINDSCREEN])
+            {
+                pAutomobile->SetComponentVisibility(pFrame, 0);  // ATOMIC_NONE, what the setter does without the glass
+            }
+            continue;
+        }
+        pAutomobile->SetPanelDamage((ePanels)panel, panel == PANEL_WINDSCREEN || !bEffects);
+    }
+}
+
 void CNetworkVehicle::ApplyDamage(const Packets::Vehicles::VehicleDamage& damage)
 {
     if (!m_pVehicle || !m_pVehicle->IsVTableValid())
@@ -435,15 +489,17 @@ void CNetworkVehicle::ApplyDamage(const Packets::Vehicles::VehicleDamage& damage
     {
         CAutomobile* pAutomobile = static_cast<CAutomobile*>(m_pVehicle);
 
-        // SetupDamageAfterLoad only breaks parts, it never puts a fixed one back: start from a whole car
+        // the damage setters only break parts, they never put a fixed one back: start from a whole car
+        bool bEffects = m_bDamageApplied;
         if (IsRepaired(pAutomobile->m_damageManager, damage.damageManager))
         {
             pAutomobile->Fix();
+            bEffects = false;
         }
 
-        pAutomobile->m_damageManager = damage.damageManager;
-        pAutomobile->SetupDamageAfterLoad();
+        ApplyAutomobileDamage(pAutomobile, damage.damageManager, bEffects);
         m_oldDamageState = pAutomobile->m_damageManager;
+        m_bDamageApplied = true;
     }
     else if (m_pVehicle->m_nVehicleType == VEHICLE_BIKE)
     {
