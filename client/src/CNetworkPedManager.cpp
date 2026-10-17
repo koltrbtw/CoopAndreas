@@ -122,6 +122,8 @@ void CNetworkPedManager::Update()
                 }
                 packet.locked = pVehicle->m_eDoorLock;
                 packet.trailerid = CNetworkVehicle::GetTrailerId(pVehicle);
+                packet.hasRotorSpeed = CNetworkVehicle::GetRotorSpeed(pVehicle, &packet.rotorSpeed);
+                packet.onRails = pVehicle->m_nStatus == STATUS_SIMPLE;
                 packet.gasPedal = pVehicle->m_fGasPedal;
                 packet.breakPedal = pVehicle->m_fBreakPedal;
                 packet.steerAngle = pVehicle->m_fSteerAngle;

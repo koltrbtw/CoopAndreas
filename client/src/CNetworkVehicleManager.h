@@ -14,6 +14,8 @@ public:
     static void UpdateIdle();
     // every frame before the vehicle's ProcessControl: a car woken up from hanging in the air keeps its physics
     static void KeepAwake(CVehicle* pVehicle);
+    // every frame after the vehicle's ProcessControl: a clone moves to the synced transform, keeps its rotor
+    static void AfterProcessControl(CVehicle* pVehicle);
     static void UpdatePassenger(CVehicle* pVehicle, CPlayerPed* pPlayerPed);
     static vehicleid_t AllocateVehicleId();
     static void ResetIdAllocator();

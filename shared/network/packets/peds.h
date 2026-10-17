@@ -235,6 +235,10 @@ public:
     float planeGearState{};         // plane
     uint16_t miscComponentAngle{};  // automobile/mtruck/plane
 
+    bool onRails = false;  // STATUS_SIMPLE: CCarCtrl::UpdateCarOnRails moves it at a steady speed, no physics
+    bool hasRotorSpeed = false;  // helis, planes, boats: the clone's own ai doesn't spin them
+    float rotorSpeed = 0.0f;
+
 private:
     template <typename Stream>
     bool Serialize(Stream& stream)
@@ -362,6 +366,13 @@ private:
             }
         }
 #pragma endregion
+
+        serialize_bool(stream, onRails);
+        serialize_bool(stream, hasRotorSpeed);
+        if (hasRotorSpeed)
+        {
+            serialize_float(stream, rotorSpeed);
+        }
 
         return true;
     }

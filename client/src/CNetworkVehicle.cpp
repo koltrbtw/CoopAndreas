@@ -195,6 +195,9 @@ void CNetworkVehicle::BecomeSyncer(const Packets::Vehicles::VehicleHandoff* pHan
 {
     m_bSyncing = true;
     m_nOwnershipChangeTime = CTimer::m_snTimeInMilliseconds;
+    m_bHasTarget = false;
+    m_bHasRotorSpeed = false;
+    m_bKeepSpeed = false;
 
     if (!m_pVehicle)
     {
@@ -506,5 +509,187 @@ void CNetworkVehicle::ApplyDamage(const Packets::Vehicles::VehicleDamage& damage
         CBike* pBike = static_cast<CBike*>(m_pVehicle);
         memcpy(pBike->m_anWheelDamageState, damage.bikeWheelStatus, sizeof(m_aOldBikeWheelStatus));
         memcpy(m_aOldBikeWheelStatus, damage.bikeWheelStatus, sizeof(m_aOldBikeWheelStatus));
+    }
+}
+
+// the error correction of MTA (CClientVehicle::SetTargetPosition / UpdateTargetPosition): a part of the position
+// error is added over the time to the next update, while the physics moves the clone with the syncer's speed. Setting
+// the update's position outright pulled the clone back to where the syncer's vehicle was a moment ago, 10 cm a packet
+// on average and up to 2 m: it stuttered at speed
+static constexpr float TARGET_POS_FACTOR_MIN = 0.25f;  // of the error, for an update interval of 100 ms or less
+static constexpr float TARGET_ROT_FACTOR_MIN = 0.4f;
+static constexpr float TARGET_MAX_ALPHA = 1.5f;        // may overshoot by half, the clone lags behind anyway
+static constexpr float WARP_DISTANCE = 15.0f;          // a teleport, per 100 ms of the interval
+static constexpr float WARP_DISTANCE_FOR_SPEED = 10.0f;
+static constexpr unsigned int MIN_TARGET_DELAY = 50;
+static constexpr unsigned int MAX_TARGET_DELAY = 400;
+
+static float GetErrorFactor(float fMin, unsigned int nDelay)
+{
+    float t = std::clamp((static_cast<float>(nDelay) - 100.0f) / 300.0f, 0.0f, 1.0f);
+    return fMin + (1.0f - fMin) * t;
+}
+
+// the world keeps a boat as it was added, MTA's FixBoatOrientation does this after every SetMatrix
+static void UpdateVehicleMatrix(CVehicle* pVehicle, bool bRotated)
+{
+    if (bRotated && pVehicle->m_nVehicleType == VEHICLE_BOAT)
+    {
+        CWorld::Remove(pVehicle);
+        pVehicle->UpdateRwMatrix();
+        pVehicle->UpdateRwFrame();
+        CWorld::Add(pVehicle);
+        return;
+    }
+    pVehicle->UpdateRwMatrix();
+    pVehicle->UpdateRwFrame();
+}
+
+static void SetVehicleAxes(CVehicle* pVehicle, CVector right, CVector forward)
+{
+    right.Normalise();
+    float fDot = forward.x * right.x + forward.y * right.y + forward.z * right.z;
+    forward = forward - right * fDot;
+    forward.Normalise();
+    pVehicle->m_matrix->right = right;
+    pVehicle->m_matrix->up = forward;  // plugin-sdk: up is the forward axis, at the up one
+    CVector up;
+    up.Cross(right, forward);
+    pVehicle->m_matrix->at = up;
+}
+
+void CNetworkVehicle::SetTargetTransform(const CVector& pos, const CVector& right, const CVector& forward,
+    const CVector& moveSpeed, const CVector& turnSpeed)
+{
+    if (!m_pVehicle || !m_pVehicle->m_matrix)
+    {
+        return;
+    }
+
+    m_pVehicle->m_vecMoveSpeed = moveSpeed;
+    m_pVehicle->m_vecTurnSpeed = turnSpeed;
+
+    unsigned int nNow = CTimer::m_snTimeInMilliseconds;
+    unsigned int nDelay = std::clamp(m_nLastTargetTime ? nNow - m_nLastTargetTime : MIN_TARGET_DELAY, MIN_TARGET_DELAY,
+        MAX_TARGET_DELAY);
+    m_nLastTargetTime = nNow;
+
+    // a towed trailer follows its tractor, the interpolation would only fight the tow link
+    if (m_pVehicle->m_pTractor)
+    {
+        m_bHasTarget = false;
+        return;
+    }
+
+    CVector current = m_pVehicle->GetPosition();
+
+    // stuck in the ground here while the syncer's one stands above it (MTA's UpdateUnderFloorFix): two updates in a
+    // row and it goes up at once
+    bool bAircraft = m_pVehicle->m_nVehicleSubType == VEHICLE_HELI || m_pVehicle->m_nVehicleSubType == VEHICLE_PLANE;
+    float fUnder = pos.z - current.z;
+    if (!bAircraft && fUnder > 0.4f && fUnder < 10.0f && std::fabs(moveSpeed.z) < 0.01f)
+    {
+        if (++m_nUnderFloorCount >= 2)
+        {
+            current.z = pos.z;
+            m_pVehicle->m_matrix->pos.z = pos.z;
+            m_nUnderFloorCount = 0;
+        }
+    }
+    else
+    {
+        m_nUnderFloorCount = 0;
+    }
+
+    float fWarp = (WARP_DISTANCE + WARP_DISTANCE_FOR_SPEED * CVector(moveSpeed).Magnitude()) * nDelay / 100.0f;
+    if (!(DistanceBetweenPoints(current, pos) <= fWarp))  // NaN snaps too
+    {
+        m_pVehicle->m_matrix->pos = pos;
+        SetVehicleAxes(m_pVehicle, right, forward);
+        UpdateVehicleMatrix(m_pVehicle, true);
+        m_pVehicle->RemoveAndAdd();
+        m_bHasTarget = false;
+        return;
+    }
+
+    m_vecTargetPosError = (pos - current) * GetErrorFactor(TARGET_POS_FACTOR_MIN, nDelay);
+    m_vecTargetRight = right;
+    m_vecTargetForward = forward;
+    m_fTargetRotFactor = GetErrorFactor(TARGET_ROT_FACTOR_MIN, nDelay);
+    m_nTargetStart = nNow;
+    m_nTargetFinish = nNow + nDelay;
+    m_fTargetLastAlpha = 0.0f;
+    m_bHasTarget = true;
+}
+
+void CNetworkVehicle::ProcessTargetTransform()
+{
+    if (!m_bHasTarget || !m_pVehicle || !m_pVehicle->m_matrix)
+    {
+        return;
+    }
+
+    float fAlpha = static_cast<float>(CTimer::m_snTimeInMilliseconds - m_nTargetStart) /
+                   static_cast<float>(std::max(m_nTargetFinish - m_nTargetStart, 1u));
+    fAlpha = std::clamp(fAlpha, 0.0f, TARGET_MAX_ALPHA);
+    float fDelta = fAlpha - m_fTargetLastAlpha;
+
+    // the rotation never overshoots: its share of the error goes in until alpha 1
+    float fRotDelta = std::min(fAlpha, 1.0f) - std::min(m_fTargetLastAlpha, 1.0f);
+    m_fTargetLastAlpha = fAlpha;
+    if (fDelta <= 0.0f)
+    {
+        return;
+    }
+
+    m_pVehicle->m_matrix->pos += m_vecTargetPosError * fDelta;
+
+    bool bRotated = false;
+    if (fRotDelta > 0.0f)
+    {
+        float k = m_fTargetRotFactor * fRotDelta;
+        CVector right = m_pVehicle->m_matrix->right;
+        CVector forward = m_pVehicle->m_matrix->up;
+        SetVehicleAxes(m_pVehicle, right + (m_vecTargetRight - right) * k, forward + (m_vecTargetForward - forward) * k);
+        bRotated = true;
+    }
+    UpdateVehicleMatrix(m_pVehicle, bRotated);
+
+    if (fAlpha >= TARGET_MAX_ALPHA)
+    {
+        m_bHasTarget = false;
+    }
+}
+
+bool CNetworkVehicle::GetRotorSpeed(CVehicle* pVehicle, float* pfSpeed)
+{
+    switch (pVehicle->m_nVehicleSubType)
+    {
+    case VEHICLE_HELI:
+        *pfSpeed = static_cast<CAutomobile*>(pVehicle)->m_fWheelSpeed[1];  // m_fHeliRotorSpeed (0x84C)
+        return true;
+    case VEHICLE_PLANE:
+        *pfSpeed = *reinterpret_cast<float*>(reinterpret_cast<uintptr_t>(pVehicle) + 0x9C4);  // CPlane::m_fPropSpeed
+        return true;
+    case VEHICLE_BOAT:
+        *pfSpeed = static_cast<CBoat*>(pVehicle)->m_fPropSpeed;
+        return true;
+    }
+    return false;
+}
+
+void CNetworkVehicle::SetRotorSpeed(CVehicle* pVehicle, float fSpeed)
+{
+    switch (pVehicle->m_nVehicleSubType)
+    {
+    case VEHICLE_HELI:
+        static_cast<CAutomobile*>(pVehicle)->m_fWheelSpeed[1] = fSpeed;
+        break;
+    case VEHICLE_PLANE:
+        *reinterpret_cast<float*>(reinterpret_cast<uintptr_t>(pVehicle) + 0x9C4) = fSpeed;
+        break;
+    case VEHICLE_BOAT:
+        static_cast<CBoat*>(pVehicle)->m_fPropSpeed = fSpeed;
+        break;
     }
 }
