@@ -66,6 +66,9 @@ public:
     }
 };
 
+// mission vehicles get more than the default 1000 (SET_CAR_HEALTH), a clamp to 1000 made them weaker after a handoff
+inline constexpr float MAX_VEHICLE_HEALTH = 10000.0f;
+
 struct MoveSpeedCompressed : public CVector
 {
 private:

@@ -89,6 +89,7 @@ void CRelevanceManager::SendVehicleSpawn(CNetworkVehicle* pNetworkVehicle, CNetw
     Packets::Vehicles::VehicleDamage vehicleDamagePacket{};
     vehicleDamagePacket.vehicleid = pNetworkVehicle->m_vehicleId;
     vehicleDamagePacket.damageManager = pNetworkVehicle->m_damageManager;
+    memcpy(vehicleDamagePacket.bikeWheelStatus, pNetworkVehicle->m_aBikeWheelStatus, sizeof(pNetworkVehicle->m_aBikeWheelStatus));
     GetPacketFactory().Send(vehicleDamagePacket, pNetworkPlayer);
 
     for (int component : pNetworkVehicle->m_pComponents)

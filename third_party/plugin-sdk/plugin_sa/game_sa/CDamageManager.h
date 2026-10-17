@@ -277,16 +277,17 @@ public:
     union
     {
         unsigned int m_nPanelsStatus = 0;
+        // 4 bits a panel (CDamageManager::GetPanelStatus 0x6C2180), lights take 2 bits
 
         struct
         {
-            unsigned int m_nLeftFrontWingStatus : 2;
-            unsigned int m_nRightFrontWingStatus : 2;
-            unsigned int m_nLeftRearWingStatus : 2;
-            unsigned int m_nRightRearWingStatus : 2;
-            unsigned int m_nWindscreenStatus : 2;
-            unsigned int m_nFrontBumperStatus : 2;
-            unsigned int m_nRearBumperStatus : 2;
+            unsigned int m_nLeftFrontWingStatus : 4;
+            unsigned int m_nRightFrontWingStatus : 4;
+            unsigned int m_nLeftRearWingStatus : 4;
+            unsigned int m_nRightRearWingStatus : 4;
+            unsigned int m_nWindscreenStatus : 4;
+            unsigned int m_nFrontBumperStatus : 4;
+            unsigned int m_nRearBumperStatus : 4;
         };
     };
 

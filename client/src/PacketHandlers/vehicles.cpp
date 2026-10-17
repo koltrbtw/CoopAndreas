@@ -271,13 +271,7 @@ PACKET_HANDLER(ePacketType::VEHICLE_DAMAGE, Packets::Vehicles::VehicleDamage* pV
         {
             if (pVehicle->IsVTableValid())
             {
-                if (pVehicle->m_nVehicleType == VEHICLE_AUTOMOBILE)
-                {
-                    CAutomobile* pAutomobile = (CAutomobile*)pVehicle;
-                    pAutomobile->m_damageManager = pVehicleDamage->damageManager;
-                    pAutomobile->SetupDamageAfterLoad();
-                    pNetworkVehicle->m_oldDamageState = pAutomobile->m_damageManager;
-                }
+                pNetworkVehicle->ApplyDamage(*pVehicleDamage);
             }
         }
     }

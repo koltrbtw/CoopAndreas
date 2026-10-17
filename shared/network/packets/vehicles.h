@@ -107,9 +107,9 @@ public:
 
         if (Stream::IsWriting)
         {
-            health = std::clamp(health, 0.0f, 1000.0f);
+            health = std::clamp(health, 0.0f, MAX_VEHICLE_HEALTH);
         }
-        serialize_compressed_float(stream, health, 0.0f, 1000.0f, 1.0f);
+        serialize_compressed_float(stream, health, 0.0f, MAX_VEHICLE_HEALTH, 1.0f);
 
         if (Stream::IsWriting)
         {
@@ -212,9 +212,9 @@ private:
 
         if (Stream::IsWriting)
         {
-            health = std::clamp(health, 0.0f, 1000.0f);
+            health = std::clamp(health, 0.0f, MAX_VEHICLE_HEALTH);
         }
-        serialize_compressed_float(stream, health, 0.0f, 1000.0f, 1.0f);
+        serialize_compressed_float(stream, health, 0.0f, MAX_VEHICLE_HEALTH, 1.0f);
 
         serialize_object(stream, playerHealth);
         serialize_object(stream, playerWeapon);
@@ -324,7 +324,8 @@ class VehicleDamage : public Packet
 
 public:
     vehicleid_t vehicleid{};
-    CDamageManager damageManager{};
+    CDamageManager damageManager{};  // CAutomobile and the classes built on it
+    uint8_t bikeWheelStatus[2]{};    // CBike::m_anWheelDamageState, eCarWheelStatus: front, rear
 
 private:
     template <typename Stream>
@@ -332,6 +333,10 @@ private:
     {
         serialize_vehicleid(stream, vehicleid);
         serialize_object(stream, damageManager);
+        for (uint8_t& status : bikeWheelStatus)
+        {
+            serialize_int(stream, status, 0, 2);
+        }
         return true;
     }
 };
