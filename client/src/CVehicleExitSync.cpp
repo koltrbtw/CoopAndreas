@@ -23,7 +23,8 @@ static T TaskField(CTask* pTask, unsigned int nOffset)
     return *reinterpret_cast<T*>(reinterpret_cast<uint8_t*>(pTask) + nOffset);
 }
 
-static void SetFallAnim(VehicleExit& packet, int nGroup, int nAnimId, int nDownTime)
+template <typename TPacket>
+static void SetFallAnim(TPacket& packet, int nGroup, int nAnimId, int nDownTime)
 {
     packet.fall = VEHICLE_EXIT_FALL_ANIM;
     packet.animGroup = static_cast<uint8_t>(nGroup);
@@ -31,14 +32,18 @@ static void SetFallAnim(VehicleExit& packet, int nGroup, int nAnimId, int nDownT
     packet.downTime = static_cast<uint16_t>(std::clamp(nDownTime, 0, 0xFFFF));
 }
 
-// the tasks the frame the vehicle let the ped go: the event responses are set by then
-static void CollectReason(CPlayerPed* pPlayerPed, bool bLeaveSent, VehicleExit& packet)
+// the tasks the frame the vehicle let the ped go (VEHICLE_EXIT, PED_VEHICLE_EXIT): the event responses are set by then
+template <typename TPacket>
+static void CollectReason(CPed* pPlayerPed, bool bLeaveSent, TPacket& packet)
 {
     auto& taskManager = pPlayerPed->m_pIntelligence->m_TaskMgr;
 
     if (CTask* pFall = taskManager.FindActiveTaskByType(TASK_COMPLEX_FALL_AND_GET_UP))
     {
-        CPlayerFallSync::OnFallSent(pFall);
+        if (pPlayerPed == FindPlayerPed(0))
+        {
+            CPlayerFallSync::OnFallSent(pFall);
+        }
         SetFallAnim(packet, TaskField<int>(pFall, FALL_AND_GET_UP_ANIM_GROUP), TaskField<int>(pFall, FALL_AND_GET_UP_ANIM_ID),
             TaskField<int>(pFall, FALL_AND_GET_UP_DOWN_TIME));
     }
@@ -50,7 +55,7 @@ static void CollectReason(CPlayerPed* pPlayerPed, bool bLeaveSent, VehicleExit& 
     if (pPlayerPed->m_fHealth < 1.0f || !pPlayerPed->IsAlive())
     {
         packet.reason = VEHICLE_EXIT_DIED;
-        packet.fall = VEHICLE_EXIT_FALL_NONE;  // the death itself is not synced yet, a get up would revive the clone
+        packet.fall = VEHICLE_EXIT_FALL_NONE;  // PED_DIED brings the death, a get up would revive the clone
     }
     else if (CTask* pJumpOut = taskManager.FindActiveTaskByType(TASK_SIMPLE_CAR_JUMP_OUT))
     {
@@ -152,10 +157,11 @@ void CVehicleExitSync::ApplyFall(CPed* pPed, uint8_t fall, int nGroup, int nAnim
 {
     auto& taskManager = pPed->m_pIntelligence->m_TaskMgr;
 
-    // its own jump out task got it out the same way
+    // its own jump out task got it out the same way, a jacker here dragged it out and it gets up
     if (taskManager.FindActiveTaskByType(TASK_COMPLEX_FALL_AND_GET_UP) ||
         taskManager.FindActiveTaskByType(TASK_COMPLEX_IN_AIR_AND_LAND) ||
-        taskManager.FindActiveTaskByType(TASK_SIMPLE_CAR_JUMP_OUT))
+        taskManager.FindActiveTaskByType(TASK_SIMPLE_CAR_JUMP_OUT) || taskManager.FindActiveTaskByType(TASK_SIMPLE_GET_UP) ||
+        taskManager.FindActiveTaskByType(TASK_COMPLEX_CAR_SLOW_BE_DRAGGED_OUT_AND_STAND_UP))
     {
         return;
     }
@@ -246,6 +252,26 @@ static bool IsBeingJackedHere(CNetworkPlayer* pNetworkPlayer)
 
 void CVehicleExitSync::ProcessClones()
 {
+    // ped clones: their exit waited for our copy of their leave, or of a player jacking them
+    for (CNetworkPed* pNetworkPed : CNetworkPedManager::m_pPeds)
+    {
+        CPed* pPed = pNetworkPed->m_pPed;
+        if (pNetworkPed->m_bSyncing || !pPed || !pNetworkPed->m_pendingExit)
+        {
+            continue;
+        }
+
+        CVehicle* pVehicle = pPed->m_nPedFlags.bInVehicle ? pPed->m_pVehicle : nullptr;
+        if (!pVehicle)
+        {
+            pNetworkPed->m_pendingExit.reset();
+        }
+        else if (!pNetworkPed->IsLeavingVehicle(pVehicle))
+        {
+            ApplyPendingPedExit(pNetworkPed);
+        }
+    }
+
     for (CNetworkPlayer* pNetworkPlayer : CNetworkPlayerManager::m_pPlayers)
     {
         CPlayerPed* pPlayerPed = pNetworkPlayer->m_pPed;
@@ -330,4 +356,128 @@ void CVehicleExitSync::HandlePacket(const VehicleExit& packet)
     }
 
     ApplyExit(pNetworkPlayer, packet);
+}
+
+// out: from the syncer's frame the vehicle let its ped go
+static void ApplyPedExit(CNetworkPed* pNetworkPed, const Packets::Peds::PedVehicleExit& packet)
+{
+    CPed* pPed = pNetworkPed->m_pPed;
+    CVehicle* pVehicle = pPed->m_nPedFlags.bInVehicle ? pPed->m_pVehicle : nullptr;
+    logger::info("ped %s out of %s (reason %d fall %d): %s", to_string(packet.pedid).c_str(),
+        to_string(packet.vehicleid).c_str(), packet.reason, packet.fall, pVehicle ? "warped out" : "already out");
+
+    pNetworkPed->m_nLeaveVehicleTime = 0;
+    pNetworkPed->m_pendingExit.reset();
+
+    // an on foot update that came first may have got it out already
+    if (pVehicle)
+    {
+        pNetworkPed->RemoveFromVehicle(pVehicle, packet.fall != VEHICLE_EXIT_FALL_NONE);
+    }
+
+    // CNetworkPedManager::Process turns the clone to these every frame
+    pNetworkPed->m_fCurrentRotation = pNetworkPed->m_fAimingRotation = packet.heading.m_angle;
+    pPed->m_fCurrentRotation = pPed->m_fAimingRotation = packet.heading.m_angle;
+    pPed->SetHeading(packet.heading.m_angle);
+    pNetworkPed->m_bHasTargetPos = false;
+    pNetworkPed->SetTargetPosition(packet.pos, packet.moveSpeed);
+    pPed->m_vecMoveSpeed = packet.moveSpeed;
+
+    CVehicleExitSync::ApplyFall(pPed, packet.fall, packet.animGroup, packet.animId, packet.downTime);
+}
+
+bool CVehicleExitSync::ApplyPendingPedExit(CNetworkPed* pNetworkPed)
+{
+    if (!pNetworkPed->m_pendingExit || !pNetworkPed->m_pPed)
+    {
+        return false;
+    }
+
+    Packets::Peds::PedVehicleExit packet = *pNetworkPed->m_pendingExit;
+    ApplyPedExit(pNetworkPed, packet);
+    return true;
+}
+
+void CVehicleExitSync::ProcessPed(CNetworkPed* pNetworkPed)
+{
+    CPed* pPed = pNetworkPed->m_pPed;
+    CVehicle* pVehicle = pPed->m_nPedFlags.bInVehicle ? pPed->m_pVehicle : nullptr;
+    CNetworkVehicle* pNetworkVehicle = pVehicle ? CNetworkVehicleManager::GetVehicle(pVehicle) : nullptr;
+    vehicleid_t vehicleid = pNetworkVehicle ? pNetworkVehicle->m_vehicleId : vehicleid_t();
+
+    // before this update's on foot one: the clone has to know how it got out before it is moved
+    if (pNetworkPed->m_exitWatchVehicleId.valid() && pNetworkPed->m_exitWatchVehicleId != vehicleid)
+    {
+        Packets::Peds::PedVehicleExit packet{};
+        packet.pedid = pNetworkPed->m_pedId;
+        packet.vehicleid = pNetworkPed->m_exitWatchVehicleId;
+        packet.pos = pPed->GetPosition();
+        packet.moveSpeed = pPed->m_vecMoveSpeed;
+        packet.heading = pPed->m_fCurrentRotation;
+        CollectReason(pPed, pNetworkPed->m_bExitLeaveSent, packet);
+        GetPacketFactory().Send(packet);
+        logger::info("ped %s out of %s: reason %d fall %d anim %d/%d", to_string(packet.pedid).c_str(),
+            to_string(packet.vehicleid).c_str(), packet.reason, packet.fall, packet.animGroup, packet.animId);
+    }
+    if (pNetworkPed->m_exitWatchVehicleId != vehicleid)
+    {
+        pNetworkPed->m_bExitLeaveSent = false;
+    }
+    pNetworkPed->m_exitWatchVehicleId = vehicleid;
+
+    // its leave task started (its ai: a car on fire, upside down, someone got in, a script): the clones leave too.
+    // Not a dead one: DieInCar may leave the car with the body, PED_DIED brings the death
+    if (vehicleid.valid() && !pNetworkPed->m_bExitLeaveSent && pPed->IsAlive())
+    {
+        auto pLeave = static_cast<CTaskComplexLeaveCar*>(
+            pPed->m_pIntelligence->m_TaskMgr.FindActiveTaskByType(TASK_COMPLEX_LEAVE_CAR));
+        if (pLeave && pLeave->m_pTargetVehicle == pVehicle)
+        {
+            Packets::Peds::PedVehicleExit packet{};
+            packet.pedid = pNetworkPed->m_pedId;
+            packet.vehicleid = vehicleid;
+            packet.reason = VEHICLE_EXIT_LEAVE;
+            GetPacketFactory().Send(packet);
+            pNetworkPed->m_bExitLeaveSent = true;
+        }
+    }
+}
+
+void CVehicleExitSync::HandlePedPacket(const Packets::Peds::PedVehicleExit& packet)
+{
+    CNetworkPed* pNetworkPed = CNetworkPedManager::GetPed(packet.pedid);
+    CPed* pPed = pNetworkPed ? pNetworkPed->m_pPed : nullptr;
+    if (!pPed || pNetworkPed->m_bSyncing || !pPed->IsVTableValid())
+    {
+        return;
+    }
+
+    CVehicle* pVehicle = pPed->m_nPedFlags.bInVehicle ? pPed->m_pVehicle : nullptr;
+    if (pVehicle && !pVehicle->IsVTableValid())
+    {
+        return;
+    }
+
+    if (packet.reason == VEHICLE_EXIT_LEAVE)
+    {
+        if (pVehicle && pPed->IsAlive())
+        {
+            pNetworkPed->LeaveVehicle(pVehicle);
+        }
+        return;
+    }
+
+    pNetworkPed->m_exitVehicleId = packet.vehicleid;
+    pNetworkPed->m_nExitVehicleTime = CTimer::m_snTimeInMilliseconds;
+
+    // our copy of the leave task or of a jacker gets it out on its own, it waits until that is over (ProcessClones);
+    // a thrown out ped is out at once, our leave task would take seconds more
+    if (pVehicle && pNetworkPed->IsLeavingVehicle(pVehicle) &&
+        (packet.fall == VEHICLE_EXIT_FALL_NONE || packet.reason == VEHICLE_EXIT_DRAGGED))
+    {
+        pNetworkPed->m_pendingExit = packet;
+        return;
+    }
+
+    ApplyPedExit(pNetworkPed, packet);
 }

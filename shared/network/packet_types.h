@@ -90,6 +90,7 @@ enum class ePacketType : uint16_t
     PLAYER_FALL,
     PED_DIED,
     PED_STEALTH_KILL,
+    PED_VEHICLE_EXIT,
     PACKET_ID_MAX
 };
 
@@ -115,7 +116,7 @@ extern inline const char* ePacketType_ToString(ePacketType packetType)
         "VEHICLE_REQUEST_OWNERSHIP", "VEHICLE_HANDOFF", "PED_REQUEST_OWNERSHIP", "PED_HANDOFF", "WORLD_GRID", "PLAYER_CHEAT",
         "TRAIN_SPAWN", "TRAIN_UPDATE", "GANG_ZONES_UPDATE", "GANG_WARS_SETTINGS", "GANG_WAR_STATE",
         "WORLD_OBJECT_STATES", "WORLD_OBJECT_MOTION", "PED_VEHICLE_ENTER", "PLAYER_FALL", "PED_DIED",
-        "PED_STEALTH_KILL"};
+        "PED_STEALTH_KILL", "PED_VEHICLE_EXIT"};
     
     return array[(int)packetType];
 }
