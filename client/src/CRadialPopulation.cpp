@@ -15,6 +15,11 @@ void CRadialPopulation::InjectHooks()
     // CCarCtrl::PossiblyRemoveVehicle: off screen the removal range was 45 instead of 170
     patch::RedirectCall(0x425057, CEntity__GetIsOnScreen_Always_Hook);
 
+    // CCarCtrl::PossiblyRemoveVehicle: with the camera looking almost straight down (front z < -0.9, meant for
+    // a helicopter) the removal range was 70 instead of 170, so a glance at the ground wiped the traffic around
+    // the sector owner for every player. jp -> jmp, the range never shrinks
+    patch::SetUChar(0x425109, 0xEB);
+
     // CCarCtrl::PossiblyRemoveVehicle: an off screen simple car (all distant traffic), or a physics one without
     // a mission, was removed as soon as it was 22 units away (2D). Looking at the ground for a moment wiped the
     // traffic around the sector owner, and every other player lost it with him
