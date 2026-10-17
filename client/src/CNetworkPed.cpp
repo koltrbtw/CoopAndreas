@@ -6,6 +6,9 @@
 #include <CTaskSimpleCarSetPedOut.h>
 #include <Hooks/PedHooks.h>
 #include "CPedAnimSync.h"
+#include <CTaskComplexEnterCar.h>
+#include <CTaskComplexEnterCarAsDriver.h>
+#include <CTaskComplexEnterCarAsPassenger.h>
 
 CNetworkPed::CNetworkPed(pedid_t pedid, int modelId, ePedType pedType, CVector pos, unsigned char createdBy, char specialModelName[])
 {
@@ -155,6 +158,12 @@ void CNetworkPed::WarpIntoVehicleDriver(CVehicle* vehicle)
         return;
     }
 
+    // the warp would throw a player out (ours too): its own game takes it out, then the next update gets us in
+    if (CNetworkVehicle::IsSeatHeldByPlayer(vehicle, -1, m_pPed))
+    {
+        return;
+    }
+
     if (m_pPed->m_nPedFlags.bInVehicle && m_pPed->m_pVehicle)
     {
         RemoveFromVehicle(m_pPed->m_pVehicle);
@@ -177,6 +186,11 @@ void CNetworkPed::WarpIntoVehiclePassenger(CVehicle* vehicle, int seatid)
     assert(m_pPed != nullptr);
 
     if (!vehicle->IsVTableValid() || !m_pPed->IsVTableValid())
+    {
+        return;
+    }
+
+    if (CNetworkVehicle::IsSeatHeldByPlayer(vehicle, seatid, m_pPed))
     {
         return;
     }
@@ -220,6 +234,127 @@ void CNetworkPed::RemoveFromVehicle(CVehicle* vehicle)
     task.ProcessPed(m_pPed);
 
     m_pPed->m_pIntelligence->FlushImmediately(true); // create a default primary task (fix bug)
+}
+
+// the walk to the door and the get in (or a jacking) take seconds; past that the updates of the syncer win
+static constexpr unsigned int ENTER_VEHICLE_TIMEOUT = 10000;
+
+void CNetworkPed::EnterVehicle(CVehicle* vehicle, bool bPassenger, int seat, playerid_t syncer)
+{
+    assert(m_pPed != nullptr);
+
+    if (!vehicle->IsVTableValid() || !m_pPed->IsVTableValid() || m_pPed->m_nPedFlags.bInVehicle)
+    {
+        return;
+    }
+
+    CNetworkVehicle* pNetworkVehicle = CNetworkVehicleManager::GetVehicle(vehicle);
+    if (!pNetworkVehicle)
+    {
+        return;
+    }
+
+    m_enterVehicleId = pNetworkVehicle->m_vehicleId;
+    m_nEnterVehicleTime = CTimer::m_snTimeInMilliseconds;
+    m_bHasTargetPos = false;
+    m_pPed->m_nPedFlags.CantBeKnockedOffBike = 1;  // 1 - never
+
+    // a remote player sitting there is jacked by its own game too when the syncer of the jacker is that player:
+    // let our copy drag its clone out (CNetworkPlayer::AllowJack)
+    CPed* apOccupants[1 + 8] = {vehicle->m_pDriver};
+    std::copy(std::begin(vehicle->m_apPassengers), std::end(vehicle->m_apPassengers), apOccupants + 1);
+    for (CPed* pOccupant : apOccupants)
+    {
+        CNetworkPlayer* pNetworkPlayer = pOccupant ? CNetworkPlayerManager::GetPlayer(pOccupant) : nullptr;
+        if (pNetworkPlayer && pNetworkPlayer->m_playerId == syncer)
+        {
+            pNetworkPlayer->AllowJack(ENTER_VEHICLE_TIMEOUT);
+        }
+    }
+    CNetworkPlayer* pDriverPlayer = vehicle->m_pDriver ? CNetworkPlayerManager::GetPlayer(vehicle->m_pDriver) : nullptr;
+    logger::info("ped %s of %s gets into %s, driver %s (can't be dragged %d)", to_string(m_pedId).c_str(),
+        to_string(syncer).c_str(), to_string(m_enterVehicleId).c_str(),
+        pDriverPlayer ? to_string(pDriverPlayer->m_playerId).c_str() : vehicle->m_pDriver ? "a ped" : "none",
+        vehicle->m_pDriver ? vehicle->m_pDriver->m_nPedFlags.bDontDragMeOutCar : -1);
+
+    CTask* pTask = bPassenger ? static_cast<CTask*>(new CTaskComplexEnterCarAsPassenger(vehicle, seat, false))
+                              : static_cast<CTask*>(new CTaskComplexEnterCarAsDriver(vehicle));
+    m_pPed->m_pIntelligence->m_TaskMgr.SetTask(pTask, TASK_PRIMARY_PRIMARY, false);
+}
+
+bool CNetworkPed::IsEnteringVehicle(CVehicle* vehicle)
+{
+    if (m_pPed == nullptr || m_nEnterVehicleTime == 0 ||
+        CTimer::m_snTimeInMilliseconds - m_nEnterVehicleTime > ENTER_VEHICLE_TIMEOUT)
+    {
+        return false;
+    }
+
+    auto& taskManager = m_pPed->m_pIntelligence->m_TaskMgr;
+    for (int taskType : {TASK_COMPLEX_ENTER_CAR_AS_PASSENGER, TASK_COMPLEX_ENTER_CAR_AS_DRIVER})
+    {
+        auto pTask = static_cast<CTaskComplexEnterCar*>(taskManager.FindActiveTaskByType(taskType));
+        if (pTask && pTask->m_pTargetVehicle == vehicle)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool CNetworkPed::HasJustEnteredVehicle()
+{
+    if (m_pPed == nullptr || m_nEnterVehicleTime == 0 ||
+        CTimer::m_snTimeInMilliseconds - m_nEnterVehicleTime > ENTER_VEHICLE_TIMEOUT)
+    {
+        return false;
+    }
+
+    CNetworkVehicle* pNetworkVehicle = CNetworkVehicleManager::GetVehicle(m_enterVehicleId);
+    return pNetworkVehicle && m_pPed->m_nPedFlags.bInVehicle && m_pPed->m_pVehicle == pNetworkVehicle->m_pVehicle;
+}
+
+static CTaskComplexEnterCar* FindEnterTask(CPed* pPed)
+{
+    auto& taskManager = pPed->m_pIntelligence->m_TaskMgr;
+    for (int taskType : {TASK_COMPLEX_ENTER_CAR_AS_PASSENGER, TASK_COMPLEX_ENTER_CAR_AS_DRIVER})
+    {
+        if (auto pTask = static_cast<CTaskComplexEnterCar*>(taskManager.FindActiveTaskByType(taskType)))
+        {
+            return pTask;
+        }
+    }
+    return nullptr;
+}
+
+bool CNetworkPed::IsGettingIntoVehicle()
+{
+    return m_pPed && !m_pPed->m_nPedFlags.bInVehicle && FindEnterTask(m_pPed);
+}
+
+void CNetworkPed::CollectVehicleEnter()
+{
+    CTaskComplexEnterCar* pTask = FindEnterTask(m_pPed);
+
+    CVehicle* pVehicle = pTask && !m_pPed->m_nPedFlags.bInVehicle ? pTask->m_pTargetVehicle : nullptr;
+    if (pVehicle == m_pEnterSentVehicle)
+    {
+        return;
+    }
+    m_pEnterSentVehicle = pVehicle;
+
+    CNetworkVehicle* pNetworkVehicle = pVehicle ? CNetworkVehicleManager::GetVehicle(pVehicle) : nullptr;
+    if (!pNetworkVehicle)
+    {
+        return;
+    }
+
+    Packets::Peds::PedVehicleEnter packet{};
+    packet.pedid = m_pedId;
+    packet.vehicleid = pNetworkVehicle->m_vehicleId;
+    packet.passenger = pTask->GetTaskType() == TASK_COMPLEX_ENTER_CAR_AS_PASSENGER;
+    packet.seat = static_cast<int8_t>(std::clamp(pTask->m_nTargetSeat, 0, 7));
+    GetPacketFactory().Send(packet);
 }
 
 void CNetworkPed::ClaimOnRelease()

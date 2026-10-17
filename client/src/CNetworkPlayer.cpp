@@ -49,6 +49,10 @@ void CNetworkPlayer::CreatePed(CVector position)
 
     CClothes::RebuildPlayer(m_pPed, false);
 
+    // a jacker of this game would drag it out here only, the sender keeps driving; a player jacking it is let
+    // through by CPlayerPed__ProcessControl_Hook, the sender plays our enter task too
+    m_pPed->m_nPedFlags.bDontDragMeOutCar = 1;
+
     // THIS IS AN EXPERIMENTAL SOLUTION FOR THE 0x4D68BA CRASH
     m_pPed->m_bStreamingDontDelete = true;
 }
@@ -137,6 +141,12 @@ void CNetworkPlayer::WarpIntoVehicleDriver(CVehicle* vehicle)
         return;
     }
 
+    // the warp would throw the player out, it says itself when it got out (VEHICLE_EXIT)
+    if (CNetworkVehicle::IsSeatHeldByPlayer(vehicle, -1, m_pPed))
+    {
+        return;
+    }
+
     if (m_pPed->m_nPedFlags.bInVehicle && m_pPed->m_pVehicle)
     {
         RemoveFromVehicle(m_pPed->m_pVehicle);
@@ -156,6 +166,11 @@ void CNetworkPlayer::WarpIntoVehiclePassenger(CVehicle* vehicle, int seatid)
     assert(m_pPed != nullptr);
 
     if (!vehicle->IsVTableValid() || !m_pPed->IsVTableValid())
+    {
+        return;
+    }
+
+    if (CNetworkVehicle::IsSeatHeldByPlayer(vehicle, seatid, m_pPed))
     {
         return;
     }
@@ -205,6 +220,31 @@ void CNetworkPlayer::OnEnterVehicle(vehicleid_t vehicleid)
 {
     m_enterVehicleId = vehicleid;
     m_nEnterVehicleTime = CTimer::m_snTimeInMilliseconds;
+    m_nExitVehicleTime = 0;
+    m_nJackAllowedUntil = 0;  // its own enter now, whatever jack was on the way
+    m_pendingExit.reset();
+}
+
+void CNetworkPlayer::AllowJack(unsigned int nTime)
+{
+    m_nJackAllowedUntil = CTimer::m_snTimeInMilliseconds + nTime;
+    if (m_pPed)
+    {
+        m_pPed->m_nPedFlags.bDontDragMeOutCar = 0;
+    }
+}
+
+bool CNetworkPlayer::IsJackAllowed()
+{
+    return CTimer::m_snTimeInMilliseconds < m_nJackAllowedUntil;
+}
+
+bool CNetworkPlayer::HasJustLeftVehicle(vehicleid_t vehicleid)
+{
+    // longer than a vehicle update can lag behind an event
+    constexpr unsigned int LATE_UPDATE_TIME = 1000;
+    return m_nExitVehicleTime != 0 && m_exitVehicleId == vehicleid &&
+           CTimer::m_snTimeInMilliseconds - m_nExitVehicleTime < LATE_UPDATE_TIME;
 }
 
 bool CNetworkPlayer::IsEnteringVehicle(CVehicle* vehicle)
@@ -240,7 +280,7 @@ bool CNetworkPlayer::HasJustEnteredVehicle()
     return pNetworkVehicle && m_pPed->m_nPedFlags.bInVehicle && m_pPed->m_pVehicle == pNetworkVehicle->m_pVehicle;
 }
 
-void CNetworkPlayer::RemoveFromVehicle(CVehicle* vehicle)
+void CNetworkPlayer::RemoveFromVehicle(CVehicle* vehicle, bool bKnockedOff)
 {
     assert(m_pPed != nullptr);
 
@@ -255,7 +295,61 @@ void CNetworkPlayer::RemoveFromVehicle(CVehicle* vehicle)
 
     auto task = CTaskSimpleCarSetPedOut(vehicle, 1, false);
     task.m_bWarpingOutOfCar = true;
+    task.m_bKnockedOffBike = bKnockedOff;
     task.ProcessPed(m_pPed);
+}
+
+// a leave takes a few seconds (slowing down, the get out anim, the door); past that the updates of the sender win
+static constexpr unsigned int LEAVE_VEHICLE_TIMEOUT = 6000;
+
+void CNetworkPlayer::LeaveVehicle(CVehicle* vehicle)
+{
+    assert(m_pPed != nullptr);
+
+    if (!vehicle->IsVTableValid() || !m_pPed->IsVTableValid())
+    {
+        return;
+    }
+
+    m_pPed->m_nPedFlags.CantBeKnockedOffBike = 2;  // 2 - normal
+    m_nLeaveVehicleTime = CTimer::m_snTimeInMilliseconds;
+
+    auto* task = new CTaskComplexLeaveCar(vehicle, 0, 0, true, false);
+    m_pPed->m_pIntelligence->m_TaskMgr.SetTask(task, TASK_PRIMARY_PRIMARY, false);
+}
+
+bool CNetworkPlayer::IsLeavingVehicle(CVehicle* vehicle)
+{
+    if (m_pPed == nullptr)
+    {
+        return false;
+    }
+
+    // a player jacking it here plays the same jack on the sender's game (VEHICLE_ENTER), the drag out ends by itself
+    auto& taskManager = m_pPed->m_pIntelligence->m_TaskMgr;
+    for (int taskType : {TASK_COMPLEX_CAR_SLOW_BE_DRAGGED_OUT_AND_STAND_UP, TASK_COMPLEX_CAR_SLOW_BE_DRAGGED_OUT,
+             TASK_COMPLEX_CAR_QUICK_BE_DRAGGED_OUT, TASK_SIMPLE_BIKE_JACKED})
+    {
+        if (taskManager.FindActiveTaskByType(taskType))
+        {
+            return true;
+        }
+    }
+
+    // our copy of the jacker is still on its way to the door, it lags behind the sender's jacker: the sender is out
+    // already, its clone waits for our drag out
+    if (IsJackAllowed() && m_pPed->m_nPedFlags.bInVehicle && m_pPed->m_pVehicle == vehicle)
+    {
+        return true;
+    }
+
+    if (m_nLeaveVehicleTime == 0 || CTimer::m_snTimeInMilliseconds - m_nLeaveVehicleTime > LEAVE_VEHICLE_TIMEOUT)
+    {
+        return false;
+    }
+
+    auto pTask = static_cast<CTaskComplexLeaveCar*>(taskManager.FindActiveTaskByType(TASK_COMPLEX_LEAVE_CAR));
+    return pTask && pTask->m_pTargetVehicle == vehicle;
 }
 
 void CNetworkPlayer::HandleTask(Packets::Players::SetPlayerTask& packet)

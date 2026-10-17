@@ -156,7 +156,7 @@ static void LogPlayerAnims()
 {
     static std::unordered_map<CPed*, std::string> lastState;
 
-    auto log = [](CPlayerPed* pPed, const char* name)
+    auto log = [](CPed* pPed, const char* name)
     {
         if (pPed == nullptr || pPed->m_pRwClump == nullptr)
         {
@@ -164,8 +164,13 @@ static void LogPlayerAnims()
         }
 
         CTask* pTask = pPed->m_pIntelligence->m_TaskMgr.GetSimplestActiveTask();
+        int nSlot = 0;  // the primary slot of the active task: 0 physical response, 1-2 event responses, 3 primary
+        while (nSlot < 5 && !pPed->m_pIntelligence->m_TaskMgr.m_aPrimaryTasks[nSlot])
+        {
+            nSlot++;
+        }
         char szState[256];
-        int n = sprintf_s(szState, "task %d in %d seat %d anims", pTask ? pTask->GetTaskType() : -1,
+        int n = sprintf_s(szState, "slot %d task %d in %d seat %d anims", nSlot, pTask ? pTask->GetTaskType() : -1,
             pPed->m_nPedFlags.bInVehicle, pPed->m_pVehicle && pPed->m_pVehicle->m_pDriver == pPed ? 0 : 1);
         for (auto pAssoc = RpAnimBlendClumpGetFirstAssociation(pPed->m_pRwClump); pAssoc && n < 240;
              pAssoc = RpAnimBlendGetNextAssociation(pAssoc))
@@ -193,8 +198,11 @@ static void LogPlayerAnims()
     {
         auto pAutomobile = static_cast<CAutomobile*>(pVehicle);
         CNetworkVehicle* pNetworkVehicle = CNetworkVehicleManager::GetVehicle(pVehicle);
-        char szDoors[128];
-        sprintf_s(szDoors, "clone %d lf %.1f rf %.1f lr %.1f rr %.1f in %x out %x",
+        // who drives: 0 nobody, 1 we, 2 a remote player, 3 a ped
+        CPed* pDriver = pVehicle->m_pDriver;
+        int nDriver = !pDriver ? 0 : pDriver == pPlayer ? 1 : CNetworkPlayerManager::GetPlayer(pDriver) ? 2 : 3;
+        char szDoors[160];
+        sprintf_s(szDoors, "driver %d clone %d lf %.1f rf %.1f lr %.1f rr %.1f in %x out %x", nDriver,
             pNetworkVehicle && !pNetworkVehicle->m_bSyncing, pAutomobile->m_doors[DOOR_FRONT_LEFT].GetAngleOpenRatio(),
             pAutomobile->m_doors[DOOR_FRONT_RIGHT].GetAngleOpenRatio(), pAutomobile->m_doors[DOOR_REAR_LEFT].GetAngleOpenRatio(),
             pAutomobile->m_doors[DOOR_REAR_RIGHT].GetAngleOpenRatio(), pVehicle->m_nGettingInFlags, pVehicle->m_nGettingOutFlags);
@@ -207,6 +215,20 @@ static void LogPlayerAnims()
     for (auto pNetworkPlayer : CNetworkPlayerManager::m_pPlayers)
     {
         log(pNetworkPlayer->m_pPed, pNetworkPlayer->GetName().c_str());
+    }
+
+    // a ped clone playing the enter task of its syncer (PED_VEHICLE_ENTER), a jacker
+    for (auto pNetworkPed : CNetworkPedManager::m_pPeds)
+    {
+        if (!pNetworkPed->m_bSyncing && pNetworkPed->m_nEnterVehicleTime != 0 &&
+            CTimer::m_snTimeInMilliseconds - pNetworkPed->m_nEnterVehicleTime < 15000)
+        {
+            CNetworkVehicle* pEnterVehicle = CNetworkVehicleManager::GetVehicle(pNetworkPed->m_enterVehicleId);
+            char szName[64];
+            sprintf_s(szName, "ped %s (lock %d)", to_string(pNetworkPed->m_pedId).c_str(),
+                pEnterVehicle && pEnterVehicle->m_pVehicle ? pEnterVehicle->m_pVehicle->m_eDoorLock : -1);
+            log(pNetworkPed->m_pPed, szName);
+        }
     }
 }
 
@@ -513,6 +535,61 @@ void CDebugCommands::RunCommand(const std::string& line)
             {
                 pNetworkPlayer->WarpIntoVehiclePassenger(pVehicle, 0);
             }
+        }
+    }
+    else if (command == "knock-off")
+    {
+        // as CBike::DamageKnockOffRider (0x6B5A10) does on a crash: the event, the response throws the rider
+        CVehicle* pVehicle = pPlayer->m_nPedFlags.bInVehicle ? pPlayer->m_pVehicle : nullptr;
+        if (pVehicle)
+        {
+            alignas(4) uint8_t event[0x3C];
+            CVector moveSpeed = pVehicle->m_vecMoveSpeed;
+            CVector impact = moveSpeed;
+            // CEventKnockOffBike::CEventKnockOffBike, KNOCK_OFF_TYPE_SKIDBACKFRONT, forced
+            plugin::CallMethod<0x4AFCF0, void*, CVehicle*, CVector*, CVector*, float, float, uint8_t, uint8_t, int, CPed*,
+                bool, bool>(event, pVehicle, &moveSpeed, &impact, 100.0f, 0.0f, 49, 0, 0, nullptr, true, true);
+            // CEventGroup::Add (a copy), the group is CPedIntelligence + 0x68
+            plugin::CallMethod<0x4AB420, void*, void*, bool>(reinterpret_cast<uint8_t*>(pPlayer->m_pIntelligence) + 0x68,
+                event, false);
+            using Dtor = void(__thiscall*)(void*, int);
+            (*reinterpret_cast<Dtor**>(event))[0](event, 0);  // the virtual destructor, not freed (on the stack)
+        }
+    }
+    else if (command == "leave")
+    {
+        // as the exit key, at any speed (a fast vehicle: CTaskSimpleCarJumpOut)
+        float speed = 0.0f;
+        stream >> speed;
+        CVehicle* pVehicle = pPlayer->m_nPedFlags.bInVehicle ? pPlayer->m_pVehicle : nullptr;
+        if (pVehicle)
+        {
+            if (speed > 0.0f)
+            {
+                pVehicle->m_vecMoveSpeed = pVehicle->GetForward() * speed;
+            }
+            CVehicleExitSync::SendLeave(pVehicle);
+            pPlayer->m_pIntelligence->m_TaskMgr.SetTask(new CTaskComplexLeaveCar(pVehicle, 0, 0, true, false),
+                TASK_PRIMARY_PRIMARY, false);
+        }
+    }
+    else if (command == "flush")
+    {
+        // CLEAR_CHAR_TASKS_IMMEDIATELY: CTaskSimpleCarDrive::MakeAbortable sets the ped out at once
+        pPlayer->m_pIntelligence->FlushImmediately(true);
+    }
+    else if (command == "jack-me")
+    {
+        // a random ped next to our vehicle drags us out
+        CVehicle* pVehicle = pPlayer->m_nPedFlags.bInVehicle ? pPlayer->m_pVehicle : nullptr;
+        if (pVehicle)
+        {
+            pVehicle->m_vecMoveSpeed = CVector(0.0f, 0.0f, 0.0f);
+            CVector pos = pVehicle->GetPosition() - pVehicle->GetRight() * 3.0f;
+            int ped = 0;
+            plugin::Command<Commands::CREATE_RANDOM_CHAR>(pos.x, pos.y, pos.z, &ped);
+            plugin::Command<Commands::TASK_ENTER_CAR_AS_DRIVER>(ped, CPools::GetVehicleRef(pVehicle), 20000);
+            logger::info("stand debug: jacker %d", ped);
         }
     }
     else if (command == "g")

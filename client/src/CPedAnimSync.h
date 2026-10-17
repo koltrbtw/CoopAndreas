@@ -11,4 +11,6 @@ public:
     static void Apply(CPed* pPed, const SPedAnim* pAnims, int nCount, int nOnlyGroup = -1);
     // the ped became ours: fade out what the packets kept on it, its own tasks play their anims now
     static void Release(CPed* pPed);
+    // false: its anim block is still streaming, it is requested now
+    static bool IsGroupLoaded(int nGroup);
 };

@@ -211,6 +211,19 @@ PACKET_HANDLER(ePacketType::PED_SHOT_SYNC, Packets::Peds::PedShotSync* pPedShotS
     CRelevanceManager::SendToRelevant(*pPedShotSync, pNetworkPed->m_vRelevantTo, pNetworkPlayer);
 }
 
+PACKET_HANDLER(
+    ePacketType::PED_VEHICLE_ENTER, Packets::Peds::PedVehicleEnter* pPedVehicleEnter, CNetworkPlayer* pNetworkPlayer)
+{
+    CNetworkPed* pNetworkPed = CNetworkPedManager::GetPed(pPedVehicleEnter->pedid);
+    if (pNetworkPed == nullptr || pNetworkPed->m_pSyncer != pNetworkPlayer)
+    {
+        return;
+    }
+
+    pPedVehicleEnter->senderPlayerid = pNetworkPlayer->m_playerId;
+    CRelevanceManager::SendToRelevant(*pPedVehicleEnter, pNetworkPed->m_vRelevantTo, pNetworkPlayer);
+}
+
 PACKET_HANDLER(ePacketType::PED_SAY, Packets::Peds::PedSay* pPedSay, CNetworkPlayer* pNetworkPlayer)
 {
     if (pPedSay->entity.entityType == NETWORK_ENTITY_TYPE_PLAYER)

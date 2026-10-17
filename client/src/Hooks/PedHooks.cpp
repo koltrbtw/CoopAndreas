@@ -25,7 +25,9 @@ static void __declspec(naked) CPed__SetMoveState_Hook()
     if (CNetwork::m_bAuthenticated && !pPed->IsPlayer())
     {
         _pNetworkPed = CNetworkPedManager::GetPed(pPed);
-        if (_pNetworkPed && !_pNetworkPed->m_bSyncing)
+        // our copy of the syncer's enter task walks it to the door itself (PED_VEHICLE_ENTER), the syncer's ped may
+        // already sit and stand still
+        if (_pNetworkPed && !_pNetworkPed->m_bSyncing && !_pNetworkPed->IsGettingIntoVehicle())
         {
 
             pPed->m_nMoveState = _pNetworkPed->m_nMoveState;

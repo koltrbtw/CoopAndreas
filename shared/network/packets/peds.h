@@ -373,6 +373,35 @@ private:
     }
 };
 
+// the syncer's ped started to get into a vehicle (CTaskComplexEnterCarAs*): its clones play the same task, the
+// walk to the door and a jacking included, instead of a warp in at the first driver / passenger update
+class PedVehicleEnter : public Packet
+{
+    DEFINE_PACKET_TYPE(PedVehicleEnter, ePacketType::PED_VEHICLE_ENTER, ePacketChannel::EVENT);
+
+public:
+    SenderPlayerId senderPlayerid{};  // the syncer, set by the server
+    pedid_t pedid{};
+    vehicleid_t vehicleid{};
+    bool passenger = false;
+    int8_t seat = 0;  // CTaskComplexEnterCar::m_nTargetSeat of a passenger
+
+private:
+    template <typename Stream>
+    bool Serialize(Stream& stream)
+    {
+        serialize_object(stream, senderPlayerid);
+        serialize_pedid(stream, pedid);
+        serialize_vehicleid(stream, vehicleid);
+        serialize_bool(stream, passenger);
+        if (passenger)
+        {
+            serialize_int(stream, seat, 0, 7);
+        }
+        return true;
+    }
+};
+
 class PedPassengerSync : public Packet
 {
     DEFINE_PACKET_TYPE(PedPassengerSync, ePacketType::PED_PASSENGER_UPDATE, ePacketChannel::SYNC);

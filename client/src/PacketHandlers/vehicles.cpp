@@ -140,10 +140,19 @@ PACKET_HANDLER(ePacketType::VEHICLE_DRIVER_UPDATE, Packets::Vehicles::VehicleDri
     if (!pVehicle->IsVTableValid())
         return;
 
-    // our enter task may lag behind the sender's, a warp would cut its get in anim
-    if ((pNetworkPlayer->m_pPed->m_pVehicle != pVehicle || !pNetworkPlayer->m_pPed->m_nPedFlags.bInVehicle) &&
-        !pNetworkPlayer->IsEnteringVehicle(pVehicle))
+    // sent before the sender got out; or the sender is still being dragged out while our copy of the jacker is done
+    if (pNetworkPlayer->HasJustLeftVehicle(pVehicleDriverUpdate->vehicleid) ||
+        (pNetworkPlayer->IsJackAllowed() && !pNetworkPlayer->m_pPed->m_nPedFlags.bInVehicle))
+        return;
+
+    if (pNetworkPlayer->m_pPed->m_pVehicle != pVehicle || !pNetworkPlayer->m_pPed->m_nPedFlags.bInVehicle)
     {
+        // our enter task lags behind the sender's, a warp would cut its get in (or jacking) anim; the vehicle waits
+        // for it too, the sender may drive off already and our copy would walk after a moving door
+        if (pNetworkPlayer->IsEnteringVehicle(pVehicle))
+        {
+            return;
+        }
         pNetworkPlayer->WarpIntoVehicleDriver(pVehicle);
     }
 
@@ -269,44 +278,12 @@ PACKET_HANDLER(ePacketType::VEHICLE_ENTER, Packets::Vehicles::VehicleEnter* pVeh
 
 PACKET_HANDLER(ePacketType::VEHICLE_EXIT, Packets::Vehicles::VehicleExit* pVehicleExit)
 {
-    CNetworkPlayer* pNetworkPlayer = CNetworkPlayerManager::GetPlayer(pVehicleExit->senderPlayerid);
-
-    if (pNetworkPlayer == nullptr)
-    {
-        return;
-    }
-
-    pNetworkPlayer->m_nEnterVehicleTime = 0;
-
-    CPlayerPed* pPlayerPed = pNetworkPlayer->m_pPed;
-    if (pPlayerPed->m_pVehicle == nullptr || !pPlayerPed->m_nPedFlags.bInVehicle)
-    {
-        return;
-    }
-
-    CVehicle* pVehicle = pPlayerPed->m_pVehicle;
-
-    if (!pVehicle->IsVTableValid() || !pPlayerPed->IsVTableValid())
-        return;
-
 #ifdef PACKET_DEBUG_MESSAGES
-    CChat::AddMessage("player %s exited from vehicle", to_string(pVehicleExit->senderPlayerid.value).c_str());
+    CChat::AddMessage("player %s exited from vehicle, reason %d", to_string(pVehicleExit->senderPlayerid.value).c_str(),
+        pVehicleExit->reason);
 #endif
 
-    if (pVehicleExit->bForce)
-    {
-        pPlayerPed->m_nPedFlags.CantBeKnockedOffBike = 2;  // 2 - normal
-        CVector doorPos{};
-        int door = CCarEnterExit::ComputeTargetDoorToExit(pVehicle, pPlayerPed);
-        auto task = CTaskSimpleCarSetPedOut(pVehicle, door, false);
-        task.ProcessPed(pPlayerPed);
-    }
-    else
-    {
-        pPlayerPed->m_nPedFlags.CantBeKnockedOffBike = 2;  // 2 - normal
-        auto* task = new CTaskComplexLeaveCar(pVehicle, 0, 0, true, false);
-        pPlayerPed->m_pIntelligence->m_TaskMgr.SetTask(task, TASK_PRIMARY_PRIMARY, false);
-    }
+    CVehicleExitSync::HandlePacket(*pVehicleExit);
 }
 
 PACKET_HANDLER(ePacketType::VEHICLE_DAMAGE, Packets::Vehicles::VehicleDamage* pVehicleDamage)
@@ -394,6 +371,13 @@ PACKET_HANDLER(
     }
 
     if (!pVehicle->IsVTableValid() || !pPlayerPed->IsVTableValid())
+    {
+        return;
+    }
+
+    // sent before the sender got out; or the sender is still being dragged out while our copy of the jacker is done
+    if (pNetworkPlayer->HasJustLeftVehicle(pVehiclePassengerUpdate->vehicleid) ||
+        (pNetworkPlayer->IsJackAllowed() && !pPlayerPed->m_nPedFlags.bInVehicle))
     {
         return;
     }
