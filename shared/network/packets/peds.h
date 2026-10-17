@@ -56,12 +56,60 @@ class AssignPedSyncer : public Packet
 
 public:
     pedid_t pedid{};
+    bool isSyncer = false;
 
 private:
     template <typename Stream>
     bool Serialize(Stream& stream)
     {
         serialize_pedid(stream, pedid);
+        serialize_bool(stream, isSyncer);
+        return true;
+    }
+};
+
+// client -> server: "give me this ped"; server -> current syncer: "release it to whoever asked"
+class PedRequestOwnership : public Packet
+{
+    DEFINE_PACKET_TYPE(PedRequestOwnership, ePacketType::PED_REQUEST_OWNERSHIP, ePacketChannel::EVENT);
+
+public:
+    pedid_t pedid{};
+
+private:
+    template <typename Stream>
+    bool Serialize(Stream& stream)
+    {
+        serialize_pedid(stream, pedid);
+        return true;
+    }
+};
+
+// old syncer -> server -> new syncer: the on foot ped state the new syncer needs to continue simulating it
+class PedHandoff : public Packet
+{
+    DEFINE_PACKET_TYPE(PedHandoff, ePacketType::PED_HANDOFF, ePacketChannel::EVENT);
+
+public:
+    pedid_t pedid{};
+    bool released = false;  // false: the syncer refused, nothing changes
+
+    WorldPositionCompressed pos{};
+    float heading{};
+
+private:
+    template <typename Stream>
+    bool Serialize(Stream& stream)
+    {
+        serialize_pedid(stream, pedid);
+        serialize_bool(stream, released);
+        if (!released)
+        {
+            return true;
+        }
+
+        serialize_object(stream, pos);
+        serialize_float(stream, heading);
         return true;
     }
 };

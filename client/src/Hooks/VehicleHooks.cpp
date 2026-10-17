@@ -347,23 +347,6 @@ void __fastcall CFireManager__StartFire_Hook(
     }
 }
 
-static void CCarAI__UpdateCarAI_Hook(CVehicle* pVehicle)
-{
-    if (pVehicle->m_pDriver)
-    {
-        CNetworkPed* networkPed = CNetworkPedManager::GetPed(pVehicle->m_pDriver);
-        if (networkPed && !networkPed->m_bSyncing)
-        {
-            pVehicle->m_fGasPedal = networkPed->m_fGasPedal;
-            pVehicle->m_fBreakPedal = networkPed->m_fBreakPedal;
-            pVehicle->m_fSteerAngle = networkPed->m_fSteerAngle;
-            return;
-        }
-    }
-
-    CCarAI::UpdateCarAI(pVehicle);
-}
-
 static void CCarCtrl__SteerAICarWithPhysics_Hook(CVehicle* pVehicle)
 {
     if (pVehicle->m_pDriver)
@@ -443,14 +426,6 @@ void VehicleHooks::InjectHooks()
 
     // patch::SetPointer(0x871228, CAutomobile__ProcessAI_Hook); // CAutomobile
     
-    patch::RedirectCall(0x6B51CD, CCarAI__UpdateCarAI_Hook);
-    patch::RedirectCall(0x6B52A2, CCarAI__UpdateCarAI_Hook);
-    patch::RedirectCall(0x6BCC64, CCarAI__UpdateCarAI_Hook);
-    patch::RedirectCall(0x6BCD7B, CCarAI__UpdateCarAI_Hook);
-    patch::RedirectCall(0x6C1B72, CCarAI__UpdateCarAI_Hook);
-    patch::RedirectCall(0x6C1C5B, CCarAI__UpdateCarAI_Hook);
-    patch::RedirectCall(0x6F1925, CCarAI__UpdateCarAI_Hook);
-
     patch::RedirectCall(0x6B52A8, CCarCtrl__SteerAICarWithPhysics_Hook);
     patch::RedirectCall(0x6BCD81, CCarCtrl__SteerAICarWithPhysics_Hook);
     patch::RedirectCall(0x6C1C61, CCarCtrl__SteerAICarWithPhysics_Hook);

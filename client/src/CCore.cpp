@@ -101,6 +101,19 @@ void CCore::Init()
         CNetwork::Disconnect();
     };
     semver_parse(COOPANDREAS_VERSION, &CCore::Version);
+
+    if (ms_bDebug)
+    {
+        // release builds have no console: keep the log of each local debug instance in a file.
+        // Done last, a redirect made before the init above stays silent
+        char szLogPath[32];
+        sprintf_s(szLogPath, "CoopAndreas\\client%d.log", ms_nRunIndex);
+        if (freopen(szLogPath, "w", stdout))
+        {
+            setvbuf(stdout, nullptr, _IONBF, 0);
+        }
+        logger::info("debug instance %d log", ms_nRunIndex);
+    }
 }
 
 void CCore::AllocateConsole()

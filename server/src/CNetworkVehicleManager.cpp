@@ -36,6 +36,11 @@ void CNetworkVehicleManager::RemoveAllHostedAndNotify(CNetworkPlayer* player)
 {
     for (auto it = CNetworkVehicleManager::m_pVehicles.begin(); it != CNetworkVehicleManager::m_pVehicles.end();)
     {
+        if ((*it)->m_pPendingSyncer == player)
+        {
+            (*it)->m_pPendingSyncer = nullptr;
+        }
+
         if ((*it)->m_pSyncer == player)
         {
             Packets::Vehicles::VehicleRemove packet{};
