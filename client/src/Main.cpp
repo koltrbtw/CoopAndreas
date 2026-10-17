@@ -15,7 +15,7 @@
 #include <CMoneySync.h>
 #include <CWantedSync.h>
 #include <Debug/CDebugOwnership.h>
-#include <Debug/CDebugTrains.h>
+#include <Debug/CDebugCommands.h>
 #include <CPopulationHandover.h>
 #include <CTrainSync.h>
 #include <CEntryExitTransitionSync.h>
@@ -95,7 +95,7 @@ public:
                 CMoneySync::Process();
                 CWantedSync::Process();
                 CDebugOwnership::Process();
-                CDebugTrains::Process();
+                CDebugCommands::Process();
                 CPopulationHandover::Process();
 
                 // TODO: refactor
