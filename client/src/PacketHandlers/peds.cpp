@@ -35,36 +35,64 @@ PACKET_HANDLER(ePacketType::ASSIGN_PED, Packets::Peds::AssignPedSyncer* pAssignP
 {
     CNetworkPed* pNetworkPed = CNetworkPedManager::GetPed(pAssignPedSyncer->pedid);
 
+    if (!pNetworkPed || pNetworkPed->m_bSyncing == pAssignPedSyncer->isSyncer)
+    {
+        return;
+    }
+
+#ifdef PACKET_DEBUG_MESSAGES
+    CChat::AddMessage("%s PED %s", pAssignPedSyncer->isSyncer ? "SYNCING" : "NOT SYNCING",
+        to_string(pAssignPedSyncer->pedid).c_str());
+#endif
+
+    if (pAssignPedSyncer->isSyncer)
+    {
+        pNetworkPed->BecomeSyncer(false);
+    }
+    else
+    {
+        pNetworkPed->BecomeClone(false);
+    }
+}
+
+PACKET_HANDLER(ePacketType::PED_REQUEST_OWNERSHIP, Packets::Peds::PedRequestOwnership* pRequest)
+{
+    // someone asked the server for our ped
+    Packets::Peds::PedHandoff handoff{};
+    handoff.pedid = pRequest->pedid;
+
+    CNetworkPed* pNetworkPed = CNetworkPedManager::GetPed(pRequest->pedid);
+
+    // peds in vehicles go together with the vehicle, see VEHICLE_REQUEST_OWNERSHIP
+    if (pNetworkPed && pNetworkPed->m_bSyncing && pNetworkPed->m_pPed && !pNetworkPed->m_pPed->m_nPedFlags.bInVehicle)
+    {
+        handoff.released = true;
+        handoff.pos = pNetworkPed->m_pPed->GetPosition();
+        handoff.heading = pNetworkPed->m_pPed->m_fCurrentRotation;
+        pNetworkPed->BecomeClone(true);
+        logger::info("ped %s released", to_string(handoff.pedid).c_str());
+    }
+
+    GetPacketFactory().Send(handoff);
+}
+
+PACKET_HANDLER(ePacketType::PED_HANDOFF, Packets::Peds::PedHandoff* pHandoff)
+{
+    CNetworkPed* pNetworkPed = CNetworkPedManager::GetPed(pHandoff->pedid);
     if (!pNetworkPed)
     {
         return;
     }
 
-    if (pNetworkPed->m_bSyncing)
+    if (CPed* pPed = pNetworkPed->m_pPed)
     {
-#ifdef PACKET_DEBUG_MESSAGES
-        CChat::AddMessage("NOT SYNCING PED %s ANYMORE", to_string(pAssignPedSyncer->pedid).c_str());
-#endif
-        pNetworkPed->m_bSyncing = false;
-
-        if (auto pPed = pNetworkPed->m_pPed)
-        {
-            pPed->SetCharCreatedBy(MISSION_CHAR);
-        }
+        pPed->SetPosn(pHandoff->pos);
+        pPed->m_fCurrentRotation = pPed->m_fAimingRotation = pHandoff->heading;
+        pPed->SetHeading(pHandoff->heading);
     }
-    else
-    {
-#ifdef PACKET_DEBUG_MESSAGES
-        CChat::AddMessage("SYNCING PED %s", to_string(pAssignPedSyncer->pedid).c_str());
-#endif
-        pNetworkPed->m_bSyncing = true;
-        pNetworkPed->m_bClaimOnRelease = false;
 
-        if (auto pPed = pNetworkPed->m_pPed)
-        {
-            pPed->SetCharCreatedBy(pNetworkPed->m_nCreatedBy);
-        }
-    }
+    pNetworkPed->BecomeSyncer(true);
+    logger::info("ped %s taken over", to_string(pHandoff->pedid).c_str());
 }
 
 PACKET_HANDLER(ePacketType::PED_ONFOOT, Packets::Peds::PedOnFoot* pPedOnFoot)

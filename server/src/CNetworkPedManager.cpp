@@ -39,6 +39,11 @@ void CNetworkPedManager::RemoveAllHostedAndNotify(CNetworkPlayer* player)
 
     for (auto it = CNetworkPedManager::m_pPeds.begin(); it != CNetworkPedManager::m_pPeds.end();)
     {
+        if ((*it)->m_pPendingSyncer == player)
+        {
+            (*it)->m_pPendingSyncer = nullptr;
+        }
+
         if ((*it)->m_pSyncer == player)
         {
             packet.pedid = (*it)->m_pedId;

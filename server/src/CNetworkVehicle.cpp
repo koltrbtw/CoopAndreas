@@ -19,13 +19,16 @@ void CNetworkVehicle::ReassignSyncer(CNetworkPlayer* newSyncer)
         // send to the old vehicle syncer
         if (m_pSyncer)
         {
+            packet.isSyncer = false;
             GetPacketFactory().Send(packet, m_pSyncer);
         }
 
         // send to the new
+        packet.isSyncer = true;
         GetPacketFactory().Send(packet, newSyncer);
 
         m_pSyncer = newSyncer;
+        m_pPendingSyncer = nullptr;  // a handoff from the old syncer would be ignored anyway
     }
 }
 

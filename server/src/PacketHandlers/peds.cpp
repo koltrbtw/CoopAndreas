@@ -75,10 +75,12 @@ PACKET_HANDLER(ePacketType::PED_REMOVE, Packets::Peds::PedRemove* pPedRemove, CN
         {
             // assign ped's syncer to this player
             pNetworkPed->m_pSyncer = p;
+            pNetworkPed->m_pPendingSyncer = nullptr;
 
             // send ASSIGN_PED packet to the new host player to notify them they now own the ped
             Packets::Peds::AssignPedSyncer assignPedPacket{};
             assignPedPacket.pedid = pNetworkPed->m_pedId;
+            assignPedPacket.isSyncer = true;
             GetPacketFactory().Send(assignPedPacket, p);
 
             // send PED_SPAWN packet to the old syncer (peer) so it can respawn the ped locally
@@ -260,10 +262,13 @@ PACKET_HANDLER(ePacketType::PED_RESET_ALL_CLAIMS, Packets::Peds::PedResetAllClai
 
                 Packets::Peds::AssignPedSyncer assignPedPacket{};
                 assignPedPacket.pedid = pPedResetAllClaims->pedid;
+                assignPedPacket.isSyncer = true;
                 GetPacketFactory().Send(assignPedPacket, pNetworkPlayer);
+                assignPedPacket.isSyncer = false;
                 GetPacketFactory().Send(assignPedPacket, pNetworkPed->m_pSyncer);  // unassign old
 
                 pNetworkPed->m_pSyncer = pNetworkPlayer;
+                pNetworkPed->m_pPendingSyncer = nullptr;
             }
 
             for (auto p : CNetworkPlayerManager::m_pPlayers)
@@ -289,6 +294,7 @@ PACKET_HANDLER(ePacketType::PED_TAKE_HOST, Packets::Peds::PedTakeHost* pPedTakeH
         {
             Packets::Peds::AssignPedSyncer assignPedPacket{};
             assignPedPacket.pedid = pPedTakeHost->pedid;
+            assignPedPacket.isSyncer = true;
             GetPacketFactory().Send(assignPedPacket, pNetworkPlayer);
 
             auto it = std::find(pNetworkPlayer->m_vPedClaims.begin(), pNetworkPlayer->m_vPedClaims.end(), pNetworkPed);
@@ -297,6 +303,7 @@ PACKET_HANDLER(ePacketType::PED_TAKE_HOST, Packets::Peds::PedTakeHost* pPedTakeH
                 pNetworkPlayer->m_vPedClaims.erase(it);
             }
 
+            assignPedPacket.isSyncer = false;
             GetPacketFactory().Send(assignPedPacket, pNetworkPed->m_pSyncer);
 
             if (pPedTakeHost->allowReturnToPreviousHost)
@@ -309,6 +316,52 @@ PACKET_HANDLER(ePacketType::PED_TAKE_HOST, Packets::Peds::PedTakeHost* pPedTakeH
             }
 
             pNetworkPed->m_pSyncer = pNetworkPlayer;
+            pNetworkPed->m_pPendingSyncer = nullptr;
         }
     }
+}
+
+PACKET_HANDLER(ePacketType::PED_REQUEST_OWNERSHIP, Packets::Peds::PedRequestOwnership* pRequest, CNetworkPlayer* pNetworkPlayer)
+{
+    CNetworkPed* pNetworkPed = CNetworkPedManager::GetPed(pRequest->pedid);
+    if (!pNetworkPed || !pNetworkPed->m_pSyncer || pNetworkPed->m_pSyncer == pNetworkPlayer ||
+        pNetworkPed->m_pPendingSyncer)
+    {
+        return;
+    }
+
+    // mission peds belong to the scripts, see PED_CLAIM_ON_RELEASE and PED_TAKE_HOST for them
+    if (pNetworkPed->m_nCreatedBy == MISSION_CHAR)
+    {
+        return;
+    }
+
+    pNetworkPed->m_pPendingSyncer = pNetworkPlayer;
+    GetPacketFactory().Send(*pRequest, pNetworkPed->m_pSyncer);
+}
+
+PACKET_HANDLER(ePacketType::PED_HANDOFF, Packets::Peds::PedHandoff* pHandoff, CNetworkPlayer* pNetworkPlayer)
+{
+    CNetworkPed* pNetworkPed = CNetworkPedManager::GetPed(pHandoff->pedid);
+    if (!pNetworkPed || pNetworkPed->m_pSyncer != pNetworkPlayer)
+    {
+        return;
+    }
+
+    CNetworkPlayer* pNewSyncer = pNetworkPed->m_pPendingSyncer;
+    pNetworkPed->m_pPendingSyncer = nullptr;
+
+    if (!pHandoff->released)
+    {
+        return;
+    }
+
+    // whoever asked has left meanwhile, the old syncer has to take it back
+    if (!pNewSyncer)
+    {
+        pNewSyncer = pNetworkPlayer;
+    }
+
+    pNetworkPed->m_pSyncer = pNewSyncer;
+    GetPacketFactory().Send(*pHandoff, pNewSyncer);
 }

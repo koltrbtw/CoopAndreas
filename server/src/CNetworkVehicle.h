@@ -15,6 +15,8 @@ public:
 
     vehicleid_t m_vehicleId;
     CNetworkPlayer* m_pSyncer = nullptr;
+    // asked for the vehicle, waits for the handoff from m_pSyncer, see VEHICLE_REQUEST_OWNERSHIP
+    CNetworkPlayer* m_pPendingSyncer = nullptr;
     unsigned short m_nModelId;
     CVector m_vecPosition;
     CVector m_vecRotation;

@@ -2,6 +2,7 @@
 #include "stdafx.h"
 #include "network/packet_handler.h"
 #include "network/packets/vehicles.h"
+#include "network/packets/peds.h"
 
 PACKET_HANDLER(
     ePacketType::VEHICLE_SPAWN, Packets::Vehicles::VehicleSpawn* pVehicleSpawn, CNetworkPlayer* pNetworkPlayer)
@@ -222,4 +223,64 @@ PACKET_HANDLER(ePacketType::SET_VEHICLE_CREATED_BY, Packets::Vehicles::SetVehicl
             GetPacketFactory().SendToAll(*pSetVehicleCreatedBy, pNetworkPlayer);
         }
     }
+}
+
+PACKET_HANDLER(ePacketType::VEHICLE_REQUEST_OWNERSHIP, Packets::Vehicles::VehicleRequestOwnership* pRequest,
+    CNetworkPlayer* pNetworkPlayer)
+{
+    CNetworkVehicle* pNetworkVehicle = CNetworkVehicleManager::GetVehicle(pRequest->vehicleid);
+    if (!pNetworkVehicle || !pNetworkVehicle->m_pSyncer || pNetworkVehicle->m_pSyncer == pNetworkPlayer ||
+        pNetworkVehicle->m_pPendingSyncer)
+    {
+        return;
+    }
+
+    // mission vehicles belong to the scripts, vehicles with players inside to their driver
+    if (pNetworkVehicle->m_nCreatedBy == MISSION_VEHICLE ||
+        std::any_of(std::begin(pNetworkVehicle->m_pPlayers), std::end(pNetworkVehicle->m_pPlayers),
+            [](CNetworkPlayer* p) { return p != nullptr; }))
+    {
+        return;
+    }
+
+    pNetworkVehicle->m_pPendingSyncer = pNetworkPlayer;
+    GetPacketFactory().Send(*pRequest, pNetworkVehicle->m_pSyncer);
+}
+
+PACKET_HANDLER(ePacketType::VEHICLE_HANDOFF, Packets::Vehicles::VehicleHandoff* pHandoff, CNetworkPlayer* pNetworkPlayer)
+{
+    CNetworkVehicle* pNetworkVehicle = CNetworkVehicleManager::GetVehicle(pHandoff->vehicleid);
+    if (!pNetworkVehicle || pNetworkVehicle->m_pSyncer != pNetworkPlayer)
+    {
+        return;
+    }
+
+    CNetworkPlayer* pNewSyncer = pNetworkVehicle->m_pPendingSyncer;
+    pNetworkVehicle->m_pPendingSyncer = nullptr;
+
+    if (!pHandoff->released)
+    {
+        return;
+    }
+
+    // whoever asked has left meanwhile, the old syncer has to take it back
+    if (!pNewSyncer)
+    {
+        pNewSyncer = pNetworkPlayer;
+    }
+
+    pNetworkVehicle->m_pSyncer = pNewSyncer;
+
+    // npc peds inside go together with the vehicle
+    for (int i = 0; i < pHandoff->occupantCount; i++)
+    {
+        CNetworkPed* pNetworkPed = CNetworkPedManager::GetPed(pHandoff->occupants[i].pedid);
+        if (pNetworkPed && pNetworkPed->m_pSyncer == pNetworkPlayer)
+        {
+            pNetworkPed->m_pSyncer = pNewSyncer;
+            pNetworkPed->m_pPendingSyncer = nullptr;
+        }
+    }
+
+    GetPacketFactory().Send(*pHandoff, pNewSyncer);
 }

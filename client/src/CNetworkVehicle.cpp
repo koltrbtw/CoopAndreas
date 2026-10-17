@@ -125,7 +125,9 @@ bool CNetworkVehicle::HasDriver()
 
 CNetworkVehicle* CNetworkVehicle::CreateHosted(CVehicle* pVehicle)
 {
-    pVehicle->m_nTimeTillWeNeedThisCar += 5000;
+    // an absolute time, keep the new vehicle for at least 5 seconds
+    pVehicle->m_nTimeTillWeNeedThisCar =
+        std::max<unsigned int>(pVehicle->m_nTimeTillWeNeedThisCar, CTimer::m_snTimeInMilliseconds + 5000);
 
     CNetworkVehicle* networkVehicle = new CNetworkVehicle();
 
@@ -151,4 +153,93 @@ CNetworkVehicle* CNetworkVehicle::CreateHosted(CVehicle* pVehicle)
     GetPacketFactory().Send(vehicleSpawnPacket);
 
     return networkVehicle;
+}
+
+void CNetworkVehicle::BecomeSyncer(const Packets::Vehicles::VehicleHandoff* pHandoff)
+{
+    m_bSyncing = true;
+
+    if (!m_pVehicle)
+    {
+        return;
+    }
+
+    m_pVehicle->SetVehicleCreatedBy(m_nCreatedBy);
+
+    if (!pHandoff)
+    {
+        return;
+    }
+
+    m_pVehicle->m_matrix->pos = pHandoff->pos;
+    m_pVehicle->m_matrix->right = pHandoff->roll;
+    m_pVehicle->m_matrix->up = pHandoff->rot;
+    m_pVehicle->m_vecMoveSpeed = pHandoff->velocity;
+
+    // the population code may remove it again, but not in the same frame
+    m_pVehicle->m_nTimeTillWeNeedThisCar = CTimer::m_snTimeInMilliseconds + 5000;
+
+    if (m_nCreatedBy == MISSION_VEHICLE)
+    {
+        return;
+    }
+
+    CPed* pDriver = m_pVehicle->m_pDriver;
+    CNetworkPed* pNetworkDriver = pDriver ? CNetworkPedManager::GetPed(pDriver) : nullptr;
+    if (!pNetworkDriver || !pNetworkDriver->m_bSyncing)
+    {
+        return;
+    }
+
+    // the same task the game gives to ambient drivers (CPopulation::AddPedInCar); its SetUpCar (0x63CB60) joins
+    // the road network from the current position and sets the cruise mission, the clone autopilot is garbage
+    auto pTask = new CTaskComplexCarDriveWander(
+        m_pVehicle, pHandoff->drivingStyle, static_cast<float>(pHandoff->cruiseSpeed ? pHandoff->cruiseSpeed : 10));
+    pDriver->m_pIntelligence->m_TaskMgr.SetTask(pTask, TASK_PRIMARY_PRIMARY, false);
+}
+
+void CNetworkVehicle::BecomeClone(Packets::Vehicles::VehicleHandoff* pHandoff)
+{
+    pHandoff->vehicleid = m_vehicleId;
+    pHandoff->released = true;
+
+    if (m_pVehicle)
+    {
+        pHandoff->pos = m_pVehicle->m_matrix->pos;
+        pHandoff->rot = m_pVehicle->m_matrix->up;
+        pHandoff->roll = m_pVehicle->m_matrix->right;
+        pHandoff->velocity = m_pVehicle->m_vecMoveSpeed;
+        pHandoff->carMission = m_pVehicle->m_autoPilot.m_nCarMission;
+        pHandoff->drivingStyle = m_pVehicle->m_autoPilot.m_nCarDrivingStyle;
+        pHandoff->cruiseSpeed = static_cast<uint8_t>(m_pVehicle->m_autoPilot.m_nCruiseSpeed);
+
+        // our npc peds inside go together with the vehicle
+        CPed* apOccupants[1 + 8] = {m_pVehicle->m_pDriver};
+        std::copy(std::begin(m_pVehicle->m_apPassengers), std::end(m_pVehicle->m_apPassengers), apOccupants + 1);
+
+        for (int i = 0; i < 1 + 8; i++)
+        {
+            CNetworkPed* pNetworkPed = apOccupants[i] ? CNetworkPedManager::GetPed(apOccupants[i]) : nullptr;
+            if (!pNetworkPed || !pNetworkPed->m_bSyncing)
+            {
+                continue;
+            }
+
+            auto& occupant = pHandoff->occupants[pHandoff->occupantCount++];
+            occupant.pedid = pNetworkPed->m_pedId;
+            occupant.seatid = static_cast<int8_t>(i - 1);
+            pNetworkPed->BecomeClone(true);
+        }
+
+        // otherwise after the vehicle comes back to us it would follow a stale route
+        m_pVehicle->m_autoPilot.m_nCarMission = MISSION_NONE;
+        m_pVehicle->m_autoPilot.m_nTempAction = 0;
+    }
+
+    m_bSyncing = false;
+
+    if (m_pVehicle)
+    {
+        m_pVehicle->SetVehicleCreatedBy(MISSION_VEHICLE);
+    }
 }

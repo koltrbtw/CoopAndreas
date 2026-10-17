@@ -113,7 +113,8 @@ CNetworkPed::~CNetworkPed()
 
 CNetworkPed* CNetworkPed::CreateHosted(CPed* ped)
 {
-    ped->field_54C += 5000; // m_nTimeTillWeNeedThisPed
+    // m_nTimeTillWeNeedThisPed is an absolute time, keep the new ped for at least 5 seconds
+    ped->field_54C = std::max<int>(ped->field_54C, static_cast<int>(CTimer::m_snTimeInMilliseconds + 5000));
 
     CNetworkPed* networkPed = new CNetworkPed();
 
@@ -253,4 +254,78 @@ void CNetworkPed::ApplyWeaponSnapshot(Packets::Players::SWeaponSnapshot& weaponS
     // TODO refactor CUtil
     CUtil::GiveWeaponByPacket(this, weaponSnapshot.iWeaponType, weaponSnapshot.nAmmo);
     m_pPed->m_aWeapons[m_pPed->m_nActiveWeaponSlot].m_nState = static_cast<eWeaponState>(weaponSnapshot.iWeaponState);
+}
+
+void CNetworkPed::BecomeSyncer(bool bResumeAmbientLife)
+{
+    m_bSyncing = true;
+    m_bClaimOnRelease = false;
+
+    if (!m_pPed)
+    {
+        return;
+    }
+
+    m_pPed->SetCharCreatedBy(m_nCreatedBy);
+
+    if (!bResumeAmbientLife || m_nCreatedBy != RANDOM_CHAR)
+    {
+        return;
+    }
+
+    // the clone constructor cut the perception, SetCharCreatedBy doesn't restore it
+    // (defaults from the CPedIntelligence constructor 0x607140)
+    bool bGang = m_pPed->m_nPedType >= PED_TYPE_GANG1 && m_pPed->m_nPedType <= PED_TYPE_GANG10;
+    m_pPed->m_pIntelligence->SetSeeingRange(bGang ? 40.0f : 15.0f);
+    m_pPed->m_pIntelligence->SetHearingRange(bGang ? 40.0f : 15.0f);
+    m_pPed->m_pIntelligence->m_fDmRadius = 15.0f;
+    m_pPed->m_pIntelligence->m_nDmNumPedsToScan = 3;
+
+    // the population code may remove it again, but not in the same frame (m_nTimeTillWeNeedThisPed)
+    m_pPed->field_54C = static_cast<int>(CTimer::m_snTimeInMilliseconds + 5000);
+
+    // drivers get their task from the vehicle handoff, see CNetworkVehicle::BecomeSyncer
+    if (!m_pPed->m_nPedFlags.bInVehicle)
+    {
+        // CTaskComplexWander::GetWanderTaskByPedType, the same task CPopulation::AddPed gives
+        CTask* pWanderTask = plugin::CallAndReturn<CTask*, 0x673D00, CPed*>(m_pPed);
+        m_pPed->m_pIntelligence->m_TaskMgr.SetTask(pWanderTask, TASK_PRIMARY_DEFAULT, false);
+    }
+}
+
+void CNetworkPed::BecomeClone(bool bStopAmbientLife)
+{
+    m_bSyncing = false;
+
+    if (!m_pPed)
+    {
+        return;
+    }
+
+    m_pPed->SetCharCreatedBy(MISSION_CHAR);
+
+    if (!bStopAmbientLife)
+    {
+        return;
+    }
+
+    // start from where the ped is now, not from the last packet received before we owned it
+    m_vecVelocity = m_pPed->m_vecMoveSpeed;
+    m_fCurrentRotation = m_pPed->m_fCurrentRotation;
+    m_fAimingRotation = m_pPed->m_fAimingRotation;
+    m_fHealth = m_pPed->m_fHealth;
+
+    if (m_pPed->m_nPedFlags.bInVehicle)
+    {
+        // flushing the driver tasks would throw it out, the vehicle ai hooks stop it for clones anyway
+        if (CVehicle* pVehicle = m_pPed->m_pVehicle)
+        {
+            m_fGasPedal = pVehicle->m_fGasPedal;
+            m_fBreakPedal = pVehicle->m_fBreakPedal;
+            m_fSteerAngle = pVehicle->m_fSteerAngle;
+        }
+        return;
+    }
+
+    m_pPed->m_pIntelligence->FlushImmediately(false);
 }

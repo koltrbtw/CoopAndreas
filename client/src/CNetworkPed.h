@@ -30,6 +30,11 @@ public:
 	void ClaimOnRelease();
 	void CancelClaim();
 
+	// bResumeAmbientLife: the ped was a clone of someone else's ambient ped, give it back its own ai
+	void BecomeSyncer(bool bResumeAmbientLife);
+	// bStopAmbientLife: our ambient ped goes to someone else, stop its own ai
+	void BecomeClone(bool bStopAmbientLife);
+
 	void ApplyWeaponSnapshot(Packets::Players::SWeaponSnapshot& weaponSnapshot);
 
 	CNetworkPed(pedid_t pedid, int modelId, ePedType pedType, CVector pos, unsigned char createdBy, char specialModelName[]);

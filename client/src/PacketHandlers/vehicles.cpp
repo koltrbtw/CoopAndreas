@@ -3,6 +3,7 @@
 #include "stdafx.h"
 #include <CCarEnterExit.h>
 #include <CTaskSimpleCarSetPedOut.h>
+#include <Debug/CDebugOwnership.h>
 
 PACKET_HANDLER(ePacketType::VEHICLE_SPAWN, Packets::Vehicles::VehicleSpawn* pVehicleSpawn)
 {
@@ -356,35 +357,75 @@ PACKET_HANDLER(ePacketType::ASSIGN_VEHICLE, Packets::Vehicles::AssignVehicleSync
 {
     CNetworkVehicle* pNetworkVehicle = CNetworkVehicleManager::GetVehicle(pAssignVehicleSyncer->vehicleid);
 
-    if (!pNetworkVehicle)
+    if (!pNetworkVehicle || pNetworkVehicle->m_bSyncing == pAssignVehicleSyncer->isSyncer)
     {
         return;
     }
 
-    if (pNetworkVehicle->m_bSyncing)
-    {
 #ifdef PACKET_DEBUG_MESSAGES
-        CChat::AddMessage("NOT SYNCING VEHICLE %s ANYMORE", to_string(pAssignVehicleSyncer->vehicleid).c_str());
+    CChat::AddMessage("%s VEHICLE %s", pAssignVehicleSyncer->isSyncer ? "SYNCING" : "NOT SYNCING",
+        to_string(pAssignVehicleSyncer->vehicleid).c_str());
 #endif
-        pNetworkVehicle->m_bSyncing = false;
 
+    // a player drives it or rides in it, no ai to resume or stop
+    if (pAssignVehicleSyncer->isSyncer)
+    {
+        pNetworkVehicle->BecomeSyncer(nullptr);
+    }
+    else
+    {
+        pNetworkVehicle->m_bSyncing = false;
         if (auto pVehicle = pNetworkVehicle->m_pVehicle)
         {
             pVehicle->SetVehicleCreatedBy(eVehicleCreatedBy::MISSION_VEHICLE);
         }
     }
-    else
-    {
-#ifdef PACKET_DEBUG_MESSAGES
-        CChat::AddMessage("SYNCING VEHICLE %s", to_string(pAssignVehicleSyncer->vehicleid).c_str());
-#endif
-        pNetworkVehicle->m_bSyncing = true;
+}
 
-        if (auto pVehicle = pNetworkVehicle->m_pVehicle)
+PACKET_HANDLER(ePacketType::VEHICLE_REQUEST_OWNERSHIP, Packets::Vehicles::VehicleRequestOwnership* pRequest)
+{
+    // someone asked the server for our vehicle
+    Packets::Vehicles::VehicleHandoff handoff{};
+    handoff.vehicleid = pRequest->vehicleid;
+
+    CNetworkVehicle* pNetworkVehicle = CNetworkVehicleManager::GetVehicle(pRequest->vehicleid);
+    CPlayerPed* pLocalPlayer = FindPlayerPed(0);
+
+    bool bLocalPlayerInside = pNetworkVehicle && pNetworkVehicle->m_pVehicle && pLocalPlayer &&
+                              pLocalPlayer->m_nPedFlags.bInVehicle && pLocalPlayer->m_pVehicle == pNetworkVehicle->m_pVehicle;
+
+    if (pNetworkVehicle && pNetworkVehicle->m_bSyncing && pNetworkVehicle->m_pVehicle && !bLocalPlayerInside &&
+        pNetworkVehicle->m_nCreatedBy != MISSION_VEHICLE)
+    {
+        pNetworkVehicle->BecomeClone(&handoff);
+        logger::info("vehicle %s released with %d npc peds", to_string(handoff.vehicleid).c_str(), handoff.occupantCount);
+    }
+
+    GetPacketFactory().Send(handoff);
+}
+
+PACKET_HANDLER(ePacketType::VEHICLE_HANDOFF, Packets::Vehicles::VehicleHandoff* pHandoff)
+{
+    CNetworkVehicle* pNetworkVehicle = CNetworkVehicleManager::GetVehicle(pHandoff->vehicleid);
+    if (!pNetworkVehicle)
+    {
+        return;
+    }
+
+    // peds first: the driver has to be ours before the vehicle gives it the driving task
+    for (int i = 0; i < pHandoff->occupantCount; i++)
+    {
+        if (CNetworkPed* pNetworkPed = CNetworkPedManager::GetPed(pHandoff->occupants[i].pedid))
         {
-            pVehicle->SetVehicleCreatedBy(pNetworkVehicle->m_nCreatedBy);
+            pNetworkPed->BecomeSyncer(true);
         }
     }
+
+    pNetworkVehicle->BecomeSyncer(pHandoff);
+    CDebugOwnership::WatchVehicle(pHandoff->vehicleid);
+    logger::info("vehicle %s taken over with %d npc peds, mission %d style %d speed %d",
+        to_string(pHandoff->vehicleid).c_str(), pHandoff->occupantCount, pHandoff->carMission, pHandoff->drivingStyle,
+        pHandoff->cruiseSpeed);
 }
 
 

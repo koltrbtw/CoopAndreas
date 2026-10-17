@@ -397,13 +397,92 @@ class AssignVehicleSyncer : public Packet
 
 public:
     vehicleid_t vehicleid{};
+    bool isSyncer = false;
 
 private:
     template <typename Stream>
     bool Serialize(Stream& stream)
     {
         serialize_vehicleid(stream, vehicleid);
+        serialize_bool(stream, isSyncer);
 
+        return true;
+    }
+};
+
+// client -> server: "give me this vehicle"; server -> current syncer: "release it to whoever asked"
+class VehicleRequestOwnership : public Packet
+{
+    DEFINE_PACKET_TYPE(VehicleRequestOwnership, ePacketType::VEHICLE_REQUEST_OWNERSHIP, ePacketChannel::EVENT);
+
+public:
+    vehicleid_t vehicleid{};
+
+private:
+    template <typename Stream>
+    bool Serialize(Stream& stream)
+    {
+        serialize_vehicleid(stream, vehicleid);
+        return true;
+    }
+};
+
+// old syncer -> server -> new syncer: the vehicle state the new syncer needs to continue simulating it.
+// Npc peds inside that the old syncer owned move together with the vehicle
+class VehicleHandoff : public Packet
+{
+    DEFINE_PACKET_TYPE(VehicleHandoff, ePacketType::VEHICLE_HANDOFF, ePacketChannel::EVENT);
+
+public:
+    static constexpr int MAX_OCCUPANTS = 9;  // driver + 8 passengers
+
+    struct Occupant
+    {
+        pedid_t pedid{};
+        int8_t seatid = -1;  // -1 is the driver
+    };
+
+    vehicleid_t vehicleid{};
+    bool released = false;  // false: the syncer refused, nothing changes
+
+    WorldPositionCompressed pos{};
+    NormalizedVector rot{};
+    NormalizedVector roll{};
+    MoveSpeedCompressed velocity{};
+
+    uint8_t carMission{};
+    uint8_t drivingStyle{};
+    uint8_t cruiseSpeed{};
+
+    uint8_t occupantCount{};
+    Occupant occupants[MAX_OCCUPANTS]{};
+
+private:
+    template <typename Stream>
+    bool Serialize(Stream& stream)
+    {
+        serialize_vehicleid(stream, vehicleid);
+        serialize_bool(stream, released);
+        if (!released)
+        {
+            return true;
+        }
+
+        serialize_object(stream, pos);
+        serialize_object(stream, rot);
+        serialize_object(stream, roll);
+        serialize_object(stream, velocity);
+
+        serialize_uint8(stream, carMission);
+        serialize_uint8(stream, drivingStyle);
+        serialize_uint8(stream, cruiseSpeed);
+
+        serialize_int(stream, occupantCount, 0, MAX_OCCUPANTS);
+        for (int i = 0; i < occupantCount; i++)
+        {
+            serialize_pedid(stream, occupants[i].pedid);
+            serialize_int(stream, occupants[i].seatid, -1, 7);
+        }
         return true;
     }
 };
