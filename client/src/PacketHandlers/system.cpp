@@ -110,11 +110,10 @@ PACKET_HANDLER(ePacketType::PLAYER_ASSIGN_HOST, Packets::System::PlayerAssignHos
 {
     if (pPlayerAssignHost->playerid == CNetworkPlayerManager::m_localPlayerId)
     {
+        // the host runs the missions and the world state (weather, tags); the ambient population is spawned by
+        // every player in its own sectors, see CWorldGridSync
         CLocalPlayer::m_bIsHost = true;
 
-        CPatch::RevertTemporaryPatchesForHost();  // TODO is this needed?
-
-        CNetworkPedManager::AssignHost();
         CWeatherSync::SyncCurrentState();
         CTagSync::SyncCurrentState();
         CChat::AddMessage("{c7a6ff}[Player] {d6dce8}You are the host now");

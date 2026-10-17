@@ -12,7 +12,6 @@ public:
 	static void Remove(CNetworkPed* ped);
 	static void Update();
 	static void Process();
-	static void AssignHost();
 	static pedid_t AllocatePedId();
 	static void ResetIdAllocator();
 	static void RemoveHostedUnused();
