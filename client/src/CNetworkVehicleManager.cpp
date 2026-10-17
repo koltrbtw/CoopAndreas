@@ -233,6 +233,29 @@ static void WakeFloatingVehicle(CNetworkVehicle* pNetworkVehicle)
 	logger::info("vehicle %s woke up from hanging above the ground", to_string(pNetworkVehicle->m_vehicleId).c_str());
 }
 
+// MTA's CUnoccupiedVehicleSync sends an unoccupied vehicle only when it moved or changed; every 150 ms for every
+// parked car around was most of the vehicle traffic. A keepalive covers a lost update (SYNC is unreliable)
+static constexpr unsigned int IDLE_KEEPALIVE = 1000;  // ms
+
+static bool IsIdleUpdateNeeded(CNetworkVehicle* pNetworkVehicle, const Packets::Vehicles::VehicleIdleUpdate& now)
+{
+	const Packets::Vehicles::VehicleIdleUpdate& last = pNetworkVehicle->m_lastIdleUpdate;
+	if (!pNetworkVehicle->m_nLastIdleUpdateTime ||
+		CTimer::m_snTimeInMilliseconds - pNetworkVehicle->m_nLastIdleUpdateTime >= IDLE_KEEPALIVE)
+	{
+		return true;
+	}
+
+	auto Differs = [](const CVector& a, const CVector& b, float fLimit) { return (a - b).Magnitude() > fLimit; };
+	return Differs(now.pos, last.pos, 0.05f) || Differs(now.rot, last.rot, 0.01f) || Differs(now.roll, last.roll, 0.01f) ||
+		   Differs(now.velocity, last.velocity, 0.0005f) || Differs(now.turnSpeed, last.turnSpeed, 0.0005f) ||
+		   std::fabs(now.health - last.health) >= 1.0f || now.color1 != last.color1 || now.color2 != last.color2 ||
+		   now.paintjob != last.paintjob || now.locked != last.locked ||
+		   (now.planeGearState > 0.0f) != (last.planeGearState > 0.0f) || now.hasRotorSpeed != last.hasRotorSpeed ||
+		   std::fabs(now.rotorSpeed - last.rotorSpeed) > 0.001f ||
+		   !(now.extras == last.extras);
+}
+
 void CNetworkVehicleManager::UpdateIdle()
 {
 	CNetworkVehicleManager::RemoveHostedUnused();
@@ -271,6 +294,13 @@ void CNetworkVehicleManager::UpdateIdle()
 			packet.hasRotorSpeed = CNetworkVehicle::GetRotorSpeed(pVehicle, &packet.rotorSpeed);
 			packet.sendTime = g_serverTime;
 			CNetworkVehicle::CollectExtras(pVehicle, packet.extras);
+
+			if (!IsIdleUpdateNeeded(pNetworkVehicle, packet))
+			{
+				continue;
+			}
+			pNetworkVehicle->m_lastIdleUpdate = packet;
+			pNetworkVehicle->m_nLastIdleUpdateTime = CTimer::m_snTimeInMilliseconds;
 			GetPacketFactory().Send(packet);
 		}
 	}
