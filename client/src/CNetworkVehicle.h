@@ -18,6 +18,7 @@ public:
 	unsigned int m_nOwnershipChangeTime = 0;  // when it became ours or someone else's, CTimer time
 	Packets::Vehicles::VehicleDriverUpdate m_playerDriverSnapshot{};
 	CDamageManager m_oldDamageState{};
+	uint8_t m_aOldBikeWheelStatus[2]{};
 	// the front carriage of a train, see CTrainSync; the other carriages have no network id
 	bool m_bTrain = false;
 	TrainState m_trainState{};  // ours: what we last sent, a clone: what the syncer last sent
@@ -37,6 +38,11 @@ public:
 	void ApplyTrailer(vehicleid_t trailerid);
 	// fills pHandoff with what the new syncer needs and turns the vehicle and our npc peds inside into clones
 	void BecomeClone(Packets::Vehicles::VehicleHandoff* pHandoff);
+
+	// ours: the damage changed since the last VEHICLE_DAMAGE, fills pPacket
+	bool CollectDamage(Packets::Vehicles::VehicleDamage* pPacket);
+	// a clone: the damage state of the syncer, repairs included
+	void ApplyDamage(const Packets::Vehicles::VehicleDamage& damage);
 	
 	static CNetworkVehicle* CreateHosted(CVehicle* vehicle);
 

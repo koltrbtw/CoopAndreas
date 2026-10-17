@@ -342,3 +342,113 @@ void CNetworkVehicle::ApplyTrailer(vehicleid_t trailerid)
         pWanted->SetTowLink(m_pVehicle, true);
     }
 }
+
+bool CNetworkVehicle::CollectDamage(Packets::Vehicles::VehicleDamage* pPacket)
+{
+    if (!m_pVehicle)
+    {
+        return false;
+    }
+
+    // the classes built on CAutomobile (quads, monster trucks, helis, planes, trailers) keep this type too
+    if (m_pVehicle->m_nVehicleType == VEHICLE_AUTOMOBILE)
+    {
+        CAutomobile* pAutomobile = static_cast<CAutomobile*>(m_pVehicle);
+        if (m_oldDamageState == pAutomobile->m_damageManager)
+        {
+            return false;
+        }
+        m_oldDamageState = pAutomobile->m_damageManager;
+        pPacket->damageManager = pAutomobile->m_damageManager;
+    }
+    else if (m_pVehicle->m_nVehicleType == VEHICLE_BIKE)
+    {
+        CBike* pBike = static_cast<CBike*>(m_pVehicle);
+        if (memcmp(m_aOldBikeWheelStatus, pBike->m_anWheelDamageState, sizeof(m_aOldBikeWheelStatus)) == 0)
+        {
+            return false;
+        }
+        memcpy(m_aOldBikeWheelStatus, pBike->m_anWheelDamageState, sizeof(m_aOldBikeWheelStatus));
+        memcpy(pPacket->bikeWheelStatus, pBike->m_anWheelDamageState, sizeof(m_aOldBikeWheelStatus));
+    }
+    else
+    {
+        return false;
+    }
+
+    pPacket->vehicleid = m_vehicleId;
+    return true;
+}
+
+// how broken a part is, a door that only swings open is not
+static int GetDoorDamageLevel(uint8_t status)
+{
+    if (status == DT_DOOR_MISSING)
+    {
+        return 2;
+    }
+    return status >= DT_DOOR_BASHED ? 1 : 0;
+}
+
+// something got less damaged: Pay 'n' Spray, a cheat, FIX_CAR of a mission
+static bool IsRepaired(const CDamageManager& current, const CDamageManager& next)
+{
+    for (int i = 0; i < 4; i++)
+    {
+        if (next.m_anWheelsStatus[i] < current.m_anWheelsStatus[i])
+        {
+            return true;
+        }
+    }
+    for (int i = 0; i < 6; i++)
+    {
+        if (GetDoorDamageLevel(next.m_anDoorsStatus[i]) < GetDoorDamageLevel(current.m_anDoorsStatus[i]))
+        {
+            return true;
+        }
+    }
+    for (int i = 0; i < 4; i++)
+    {
+        if (((next.m_nLightsStatus >> (i * 2)) & 3) < ((current.m_nLightsStatus >> (i * 2)) & 3))
+        {
+            return true;
+        }
+    }
+    for (int i = 0; i < 7; i++)
+    {
+        if (((next.m_nPanelsStatus >> (i * 4)) & 0xF) < ((current.m_nPanelsStatus >> (i * 4)) & 0xF))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+void CNetworkVehicle::ApplyDamage(const Packets::Vehicles::VehicleDamage& damage)
+{
+    if (!m_pVehicle || !m_pVehicle->IsVTableValid())
+    {
+        return;
+    }
+
+    if (m_pVehicle->m_nVehicleType == VEHICLE_AUTOMOBILE)
+    {
+        CAutomobile* pAutomobile = static_cast<CAutomobile*>(m_pVehicle);
+
+        // SetupDamageAfterLoad only breaks parts, it never puts a fixed one back: start from a whole car
+        if (IsRepaired(pAutomobile->m_damageManager, damage.damageManager))
+        {
+            pAutomobile->Fix();
+        }
+
+        pAutomobile->m_damageManager = damage.damageManager;
+        pAutomobile->SetupDamageAfterLoad();
+        m_oldDamageState = pAutomobile->m_damageManager;
+    }
+    else if (m_pVehicle->m_nVehicleType == VEHICLE_BIKE)
+    {
+        CBike* pBike = static_cast<CBike*>(m_pVehicle);
+        memcpy(pBike->m_anWheelDamageState, damage.bikeWheelStatus, sizeof(m_aOldBikeWheelStatus));
+        memcpy(m_aOldBikeWheelStatus, damage.bikeWheelStatus, sizeof(m_aOldBikeWheelStatus));
+    }
+}

@@ -202,21 +202,10 @@ void CNetworkVehicleManager::UpdateDamageSync()
 {
 	for (auto pNetworkVehicle : m_pVehicles)
 	{
-		if (pNetworkVehicle->m_bSyncing)
+		Packets::Vehicles::VehicleDamage packet{};
+		if (pNetworkVehicle->m_bSyncing && pNetworkVehicle->CollectDamage(&packet))
 		{
-			CVehicle* pVehicle = pNetworkVehicle->m_pVehicle;
-			if (pVehicle && pVehicle->m_nVehicleType == VEHICLE_AUTOMOBILE)
-			{
-				CAutomobile* pAutomobile = (CAutomobile*)pVehicle;
-				if (pNetworkVehicle->m_oldDamageState != pAutomobile->m_damageManager)
-				{
-					pNetworkVehicle->m_oldDamageState = pAutomobile->m_damageManager;
-					Packets::Vehicles::VehicleDamage packet{};
-					packet.vehicleid = pNetworkVehicle->m_vehicleId;
-					packet.damageManager = pAutomobile->m_damageManager;
-					GetPacketFactory().Send(packet);
-				}
-			}
+			GetPacketFactory().Send(packet);
 		}
 	}
 }

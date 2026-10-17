@@ -179,9 +179,16 @@ PACKET_HANDLER(
 {
     if (auto pNetworkVehicle = CNetworkVehicleManager::GetVehicle(pVehicleDamage->vehicleid))
     {
-        pNetworkVehicle->m_damageManager = pVehicleDamage->damageManager;
+        // the previous syncer may still send its last state after a handoff, it would undo the new one's
+        if (pNetworkVehicle->m_pSyncer != pNetworkPlayer)
+        {
+            return;
+        }
 
-        GetPacketFactory().SendToAll(*pVehicleDamage, pNetworkPlayer);
+        pNetworkVehicle->m_damageManager = pVehicleDamage->damageManager;
+        memcpy(pNetworkVehicle->m_aBikeWheelStatus, pVehicleDamage->bikeWheelStatus, sizeof(pNetworkVehicle->m_aBikeWheelStatus));
+
+        CRelevanceManager::SendToRelevant(*pVehicleDamage, pNetworkVehicle->m_vRelevantTo, pNetworkPlayer);
     }
     else
     {
