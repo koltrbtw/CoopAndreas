@@ -26,25 +26,39 @@ CNetworkPlayer* CPopulationHandover::FindNearestRemotePlayer(const CVector& posi
     return pNearest;
 }
 
-bool CPopulationHandover::TryHandOverPed(CPed* pPed)
+// our ambient on foot ped that could go to someone else
+static CNetworkPed* GetOwnedAmbientPed(CPed* pPed)
 {
-    if (!CNetwork::m_bAuthenticated)
-    {
-        return false;
-    }
-
     CNetworkPed* pNetworkPed = CNetworkPedManager::GetPed(pPed);
     if (!pNetworkPed || !pNetworkPed->m_bSyncing || pNetworkPed->m_nCreatedBy != RANDOM_CHAR ||
         pPed->m_nPedFlags.bInVehicle || pPed->m_fHealth <= 0.0f)
     {
-        return false;
+        return nullptr;
+    }
+    return pNetworkPed;
+}
+
+// our ambient vehicle that could go to someone else (not the one we sit in)
+static CNetworkVehicle* GetOwnedAmbientVehicle(CVehicle* pVehicle)
+{
+    CNetworkVehicle* pNetworkVehicle = CNetworkVehicleManager::GetVehicle(pVehicle);
+    if (!pNetworkVehicle || !pNetworkVehicle->m_bSyncing || pNetworkVehicle->m_nCreatedBy == MISSION_VEHICLE ||
+        pVehicle->m_nStatus == STATUS_WRECKED)
+    {
+        return nullptr;
     }
 
-    CNetworkPlayer* pTarget = FindNearestRemotePlayer(pPed->GetPosition(), PED_HANDOVER_DISTANCE);
-    if (!pTarget)
+    CPlayerPed* pLocalPlayer = FindPlayerPed(0);
+    if (pLocalPlayer && pLocalPlayer->m_pVehicle == pVehicle)
     {
-        return false;
+        return nullptr;
     }
+    return pNetworkVehicle;
+}
+
+void CPopulationHandover::HandOverPed(CNetworkPed* pNetworkPed, CNetworkPlayer* pTarget)
+{
+    CPed* pPed = pNetworkPed->m_pPed;
 
     Packets::Peds::PedHandoff handoff{};
     handoff.pedid = pNetworkPed->m_pedId;
@@ -62,37 +76,11 @@ bool CPopulationHandover::TryHandOverPed(CPed* pPed)
     {
         CVisibilityPlugins::SetClumpAlpha(pPed->m_pRwClump, 255);
     }
-
-    logger::info("ped %s handed over to %s instead of removing", to_string(handoff.pedid).c_str(),
-        to_string(handoff.target).c_str());
-    return true;
 }
 
-bool CPopulationHandover::TryHandOverVehicle(CVehicle* pVehicle)
+void CPopulationHandover::HandOverVehicle(CNetworkVehicle* pNetworkVehicle, CNetworkPlayer* pTarget)
 {
-    if (!CNetwork::m_bAuthenticated)
-    {
-        return false;
-    }
-
-    CNetworkVehicle* pNetworkVehicle = CNetworkVehicleManager::GetVehicle(pVehicle);
-    if (!pNetworkVehicle || !pNetworkVehicle->m_bSyncing || pNetworkVehicle->m_nCreatedBy == MISSION_VEHICLE ||
-        pVehicle->m_nStatus == STATUS_WRECKED)
-    {
-        return false;
-    }
-
-    CPlayerPed* pLocalPlayer = FindPlayerPed(0);
-    if (pLocalPlayer && pLocalPlayer->m_pVehicle == pVehicle)
-    {
-        return false;
-    }
-
-    CNetworkPlayer* pTarget = FindNearestRemotePlayer(pVehicle->GetPosition(), VEHICLE_HANDOVER_DISTANCE);
-    if (!pTarget)
-    {
-        return false;
-    }
+    CVehicle* pVehicle = pNetworkVehicle->m_pVehicle;
 
     Packets::Vehicles::VehicleHandoff handoff{};
     pNetworkVehicle->BecomeClone(&handoff);
@@ -104,10 +92,145 @@ bool CPopulationHandover::TryHandOverVehicle(CVehicle* pVehicle)
     {
         CVisibilityPlugins::SetClumpAlpha(pVehicle->m_pRwClump, 255);
     }
+}
 
-    logger::info("vehicle %s handed over to %s instead of removing, with %d npc peds",
-        to_string(handoff.vehicleid).c_str(), to_string(handoff.target).c_str(), handoff.occupantCount);
+// the player to give an entity our population code is about to remove: one that needs it more than we do
+static CNetworkPlayer* FindRemovalTarget(const CVector& position, float fMaxDistance, unsigned int nOwnershipChangeTime)
+{
+    constexpr float CLOSER_FACTOR_SQ = 0.8f;
+
+    CPlayerPed* pLocalPlayer = FindPlayerPed(0);
+    if (!pLocalPlayer ||
+        CTimer::m_snTimeInMilliseconds - nOwnershipChangeTime < CPopulationHandover::REMOVAL_HANDOVER_HOLD_TIME)
+    {
+        return nullptr;
+    }
+
+    CNetworkPlayer* pTarget = CPopulationHandover::FindNearestRemotePlayer(position, fMaxDistance);
+    if (!pTarget)
+    {
+        return nullptr;
+    }
+
+    float fOwnerDistance = (pLocalPlayer->GetPosition() - position).Magnitude();
+    float fTargetDistance = (pTarget->m_pPed->GetPosition() - position).Magnitude();
+    return fTargetDistance * fTargetDistance < fOwnerDistance * fOwnerDistance * CLOSER_FACTOR_SQ ? pTarget : nullptr;
+}
+
+bool CPopulationHandover::TryHandOverPed(CPed* pPed)
+{
+    if (!CNetwork::m_bAuthenticated)
+    {
+        return false;
+    }
+
+    CNetworkPed* pNetworkPed = GetOwnedAmbientPed(pPed);
+    CNetworkPlayer* pTarget =
+        pNetworkPed ? FindRemovalTarget(pPed->GetPosition(), PED_HANDOVER_DISTANCE, pNetworkPed->m_nOwnershipChangeTime)
+                    : nullptr;
+    if (!pTarget)
+    {
+        return false;
+    }
+
+    HandOverPed(pNetworkPed, pTarget);
+    logger::info("ped %s handed over to %s instead of removing", to_string(pNetworkPed->m_pedId).c_str(),
+        to_string(pTarget->m_playerId).c_str());
     return true;
+}
+
+bool CPopulationHandover::TryHandOverVehicle(CVehicle* pVehicle)
+{
+    if (!CNetwork::m_bAuthenticated)
+    {
+        return false;
+    }
+
+    CNetworkVehicle* pNetworkVehicle = GetOwnedAmbientVehicle(pVehicle);
+    CNetworkPlayer* pTarget = pNetworkVehicle ? FindRemovalTarget(pVehicle->GetPosition(), VEHICLE_HANDOVER_DISTANCE,
+                                                    pNetworkVehicle->m_nOwnershipChangeTime)
+                                              : nullptr;
+    if (!pTarget)
+    {
+        return false;
+    }
+
+    HandOverVehicle(pNetworkVehicle, pTarget);
+    logger::info("vehicle %s handed over to %s instead of removing", to_string(pNetworkVehicle->m_vehicleId).c_str(),
+        to_string(pTarget->m_playerId).c_str());
+    return true;
+}
+
+// a remote player to give the entity to, if it is clearly closer to it than we are (rules of
+// NetObjProximityMigrateable::TryToPassControlProximity in GTA V, see .claude/features/zone-streaming/DESIGN.md)
+static CNetworkPlayer* FindMigrationTarget(const CVector& position, unsigned int nOwnershipChangeTime)
+{
+    constexpr unsigned int HOLD_TIME = 3000;  // no ping-pong right after a change
+    constexpr float MAX_TARGET_DISTANCE = 50.0f;
+    constexpr float MIN_OWNER_DISTANCE = 4.0f;
+    constexpr float CLOSER_FACTOR_SQ = 0.8f;
+
+    CPlayerPed* pLocalPlayer = FindPlayerPed(0);
+    if (!pLocalPlayer || CTimer::m_snTimeInMilliseconds - nOwnershipChangeTime < HOLD_TIME)
+    {
+        return nullptr;
+    }
+
+    float fOwnerDistance = (pLocalPlayer->GetPosition() - position).Magnitude();
+    if (fOwnerDistance < MIN_OWNER_DISTANCE)
+    {
+        return nullptr;
+    }
+
+    CNetworkPlayer* pTarget = CPopulationHandover::FindNearestRemotePlayer(position, MAX_TARGET_DISTANCE);
+    if (!pTarget)
+    {
+        return nullptr;
+    }
+
+    float fTargetDistance = (pTarget->m_pPed->GetPosition() - position).Magnitude();
+    return fTargetDistance * fTargetDistance < fOwnerDistance * fOwnerDistance * CLOSER_FACTOR_SQ ? pTarget : nullptr;
+}
+
+void CPopulationHandover::Process()
+{
+    static unsigned int nLastCheck = 0;
+    if (CTimer::m_snTimeInMilliseconds - nLastCheck < 500 || CNetworkPlayerManager::m_pPlayers.empty())
+    {
+        return;
+    }
+    nLastCheck = CTimer::m_snTimeInMilliseconds;
+
+    // the copies: a handoff turns our entity into a clone, the lists don't change
+    for (auto pNetworkVehicle : std::vector<CNetworkVehicle*>(CNetworkVehicleManager::m_pVehicles))
+    {
+        if (!pNetworkVehicle->m_pVehicle || !GetOwnedAmbientVehicle(pNetworkVehicle->m_pVehicle))
+        {
+            continue;
+        }
+
+        if (auto pTarget = FindMigrationTarget(pNetworkVehicle->m_pVehicle->GetPosition(), pNetworkVehicle->m_nOwnershipChangeTime))
+        {
+            HandOverVehicle(pNetworkVehicle, pTarget);
+            logger::info("vehicle %s migrated to the nearer %s", to_string(pNetworkVehicle->m_vehicleId).c_str(),
+                to_string(pTarget->m_playerId).c_str());
+        }
+    }
+
+    for (auto pNetworkPed : std::vector<CNetworkPed*>(CNetworkPedManager::m_pPeds))
+    {
+        if (!pNetworkPed->m_pPed || !GetOwnedAmbientPed(pNetworkPed->m_pPed))
+        {
+            continue;
+        }
+
+        if (auto pTarget = FindMigrationTarget(pNetworkPed->m_pPed->GetPosition(), pNetworkPed->m_nOwnershipChangeTime))
+        {
+            HandOverPed(pNetworkPed, pTarget);
+            logger::info("ped %s migrated to the nearer %s", to_string(pNetworkPed->m_pedId).c_str(),
+                to_string(pTarget->m_playerId).c_str());
+        }
+    }
 }
 
 // the only removal in CPopulation::ManagePed: far away, the timer ran out, or the end of a fade out

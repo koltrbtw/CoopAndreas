@@ -158,6 +158,7 @@ CNetworkVehicle* CNetworkVehicle::CreateHosted(CVehicle* pVehicle)
 void CNetworkVehicle::BecomeSyncer(const Packets::Vehicles::VehicleHandoff* pHandoff)
 {
     m_bSyncing = true;
+    m_nOwnershipChangeTime = CTimer::m_snTimeInMilliseconds;
 
     if (!m_pVehicle)
     {
@@ -248,6 +249,7 @@ void CNetworkVehicle::BecomeClone(Packets::Vehicles::VehicleHandoff* pHandoff)
     }
 
     m_bSyncing = false;
+    m_nOwnershipChangeTime = CTimer::m_snTimeInMilliseconds;
 
     if (m_pVehicle)
     {

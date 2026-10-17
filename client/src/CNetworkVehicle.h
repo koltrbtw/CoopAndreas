@@ -13,6 +13,7 @@ public:
 	uint8_t m_autoPilotStyle = 0;        // from the last handoff
 	uint8_t m_autoPilotCruiseSpeed = 0;  // from the last handoff, 0: default
 	int m_nBlipHandle = -1;
+	unsigned int m_nOwnershipChangeTime = 0;  // when it became ours or someone else's, CTimer time
 	Packets::Vehicles::VehicleDriverUpdate m_playerDriverSnapshot{};
 	CDamageManager m_oldDamageState{};
 

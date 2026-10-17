@@ -15,6 +15,7 @@
 #include <CMoneySync.h>
 #include <CWantedSync.h>
 #include <Debug/CDebugOwnership.h>
+#include <CPopulationHandover.h>
 #include <CEntryExitTransitionSync.h>
 #include <CFireManager.h>
 #include <CGeneral.h>
@@ -92,6 +93,7 @@ public:
                 CMoneySync::Process();
                 CWantedSync::Process();
                 CDebugOwnership::Process();
+                CPopulationHandover::Process();
 
                 // TODO: refactor
                 if (COpCodeSync::ms_bLoadingCutscene && !CLocalPlayer::m_bIsHost && CCutsceneMgr::ms_cutsceneName[0] &&
