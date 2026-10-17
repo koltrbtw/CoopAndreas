@@ -13,6 +13,9 @@
 //   script-speed <speed>        SET_TRAIN_SPEED / SET_TRAIN_CRUISE_SPEED of the nearest train, as a mission script
 //   script-cruise <speed>
 //   teleport <x> <y> <z>        the player (out of the vehicle), the scene loaded first
+//   turn [degrees]              turn the camera around (180 by default)
+//   pitch [radians]             the camera vertical angle (-1.4 by default, at the ground)
+//   vehicles                    log the vehicles by the distance (22/45/100/170 units), total / on screen
 //   gang-wars on|off            CGangWars::SetGangWarsActive, as GROVE2 does
 //   forget-vehicle              our nearest vehicle deleted here without VEHICLE_REMOVE (a leaked clone for the others)
 //   flash-vehicle [n]           n vehicles created and removed at once here, like a car generator (10 by default)
