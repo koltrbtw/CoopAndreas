@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include <CPedGroups.h>
 #include "CPopulationHandover.h"
 #include "Hooks/WorldHooks.h"
 #include <CVisibilityPlugins.h>
@@ -27,11 +28,20 @@ CNetworkPlayer* CPopulationHandover::FindNearestRemotePlayer(const CVector& posi
 }
 
 // our ambient on foot ped that could go to someone else
+// a follower in a player's group (recruited homies): it goes where its leader goes, a handoff to someone else would
+// leave it in a group of the old owner's game only
+static bool IsInPlayerGroup(CPed* pPed)
+{
+    CPedGroup* pGroup = CPedGroups::GetPedsGroup(pPed);
+    CPed* pLeader = pGroup ? pGroup->m_groupMembership.GetLeader() : nullptr;
+    return pLeader && pLeader != pPed && pLeader->IsPlayer();
+}
+
 static CNetworkPed* GetOwnedAmbientPed(CPed* pPed)
 {
     CNetworkPed* pNetworkPed = CNetworkPedManager::GetPed(pPed);
     if (!pNetworkPed || !pNetworkPed->m_bSyncing || pNetworkPed->m_nCreatedBy != RANDOM_CHAR ||
-        pPed->m_nPedFlags.bInVehicle || pPed->m_fHealth <= 0.0f)
+        pPed->m_nPedFlags.bInVehicle || pPed->m_fHealth <= 0.0f || IsInPlayerGroup(pPed))
     {
         return nullptr;
     }
@@ -222,6 +232,29 @@ static CNetworkPlayer* FindMigrationTarget(const CVector& position, unsigned int
     return fTargetDistance * fTargetDistance < fOwnerDistance * fOwnerDistance * CLOSER_FACTOR_SQ ? pTarget : nullptr;
 }
 
+// someone else's ped that ended up in our player's group follows our player only if its ai runs here
+static void ClaimLocalGroup()
+{
+    CPlayerPed* pPlayer = FindPlayerPed(0);
+    if (!pPlayer || !pPlayer->m_pPlayerData)
+    {
+        return;
+    }
+
+    CPedGroupMembership& membership = CPedGroups::ms_groups[pPlayer->m_pPlayerData->m_nPlayerGroup].m_groupMembership;
+    for (int i = 0; i < 7; i++)  // 7 is the leader
+    {
+        CPed* pMember = membership.m_apMembers[i];
+        CNetworkPed* pNetworkPed = pMember ? CNetworkPedManager::GetPed(pMember) : nullptr;
+        if (pNetworkPed && !pNetworkPed->m_bSyncing && pNetworkPed->m_nCreatedBy == RANDOM_CHAR)
+        {
+            Packets::Peds::PedRequestOwnership packet{};
+            packet.pedid = pNetworkPed->m_pedId;
+            GetPacketFactory().Send(packet);
+        }
+    }
+}
+
 void CPopulationHandover::Process()
 {
     static unsigned int nLastCheck = 0;
@@ -246,6 +279,8 @@ void CPopulationHandover::Process()
                 to_string(pTarget->m_playerId).c_str());
         }
     }
+
+    ClaimLocalGroup();
 
     for (auto pNetworkPed : std::vector<CNetworkPed*>(CNetworkPedManager::m_pPeds))
     {

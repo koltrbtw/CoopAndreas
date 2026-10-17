@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include <CPedGroups.h>
 #include "CNetworkPed.h"
 #include <CTaskSimpleCarSetPedInAsPassenger.h>
 #include <CCarEnterExit.h>
@@ -295,6 +296,15 @@ void CNetworkPed::BecomeSyncer(bool bResumeAmbientLife)
         {
             pNetworkVehicle->ResumeDriving();
         }
+    }
+    else if (CPedGroup* pGroup = CPedGroups::GetPedsGroup(m_pPed); pGroup && pGroup->m_groupMembership.GetLeader() &&
+                                                                pGroup->m_groupMembership.GetLeader()->IsPlayer())
+    {
+        // a follower of our player (CPopulationHandover claims them): the group gives its tasks through the primary
+        // CTaskComplexBeInGroup, what a ped joining a group gets (see CPedIntelligence::FlushImmediately)
+        CTask* pBeInGroup = static_cast<CTask*>(CTask::operator new(0x28));
+        plugin::CallMethod<0x632E50, CTask*, int, bool>(pBeInGroup, CPedGroups::GetGroupId(pGroup), false);
+        m_pPed->m_pIntelligence->m_TaskMgr.SetTask(pBeInGroup, TASK_PRIMARY_PRIMARY, false);
     }
     else
     {
