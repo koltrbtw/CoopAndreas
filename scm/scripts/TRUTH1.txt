@@ -3,6 +3,8 @@
 
 :TRUTH1
 script_name 'TRUTH1'
+Coop.EnableSyncingThisScript()
+
 gosub @TRUTH1_47
 if 
   has_deatharrest_been_executed 
@@ -15,6 +17,27 @@ terminate_this_script
 
 :TRUTH1_47
 Stat.RegisterMissionGiven
+$NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2] = Coop.CollectNetworkPlayersForTheMission()
+147@ = 1 // all the network players are around the host's stop (the farm, the truth's farm)
+148@ = 0 // the combine's blip is shown to the network players
+149@ = 0.0 // a point
+150@ = 0.0
+151@ = 0.0
+152@ = 0 // a network player was taken out of a car
+for $temp_int = 0 to 2
+    153@($temp_int,3i) = -1 // the spare car of each network player
+    156@($temp_int,3i) = 0 // spare_car_blip_removed
+    159@($temp_int,3i) = 0 // the checkpoint shown to each network player: 0 none, 1 the farm, 2 the truth's farm
+end
+162@ = 0 // the checkpoint of the current network player
+163@ = -1 // the car the network players are kept out of
+164@ = 0.0 // the heading of a road node
+165@ = 0 // the number of a road node
+166@ = 0.0 // the distance from a road node to a spot
+167@ = 0 // a slot
+168@ = 0.0 // the position of a spare car, a point
+169@ = 0.0
+170@ = 0.0
 Text.LoadMissionText('TRU1')
 $onmission = 1
 wait 0
@@ -110,6 +133,10 @@ Game.SetRelationship(RelationshipType.Respect, PedType.Mission1, PedType.Mission
 Char.SetCoordinates($scplayer, -2195.9, -2258.029, 30.0)
 Char.SetHeading($scplayer, 141.0)
 Streaming.LoadSceneInDirection(-2196.46, -2256.96, 31.43, 141.0)
+// the host is put by the truth's door after the cut scene (the screen is faded out), bring the network players to him
+gosub @TRUTH1_COOP_BRING_TO_HOST
+// the farm is a long way off and the combine has a single seat, a car for each network player to follow the host in
+gosub @TRUTH1_COOP_CREATE_CARS
 Camera.DoFade(1, 500)
 117@ = 0
 119@ = 0
@@ -142,6 +169,13 @@ Camera.DoFade(1, 500)
 145@ = 0
 146@ = 0
 Text.PrintNow('TRU1_1', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TRU1_1', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 if 
   122@ == 100
 goto_if_false @TRUTH1_888
@@ -162,6 +196,7 @@ Skip.SetUp(-1084.219, -1341.156, 128.365, 257.771)
 
 :TRUTH1_935
 wait 0
+gosub @TRUTH1_COOP_UPDATE
 if 
 is_ps2_keyboard_key_pressed 83
 goto_if_false @TRUTH1_961
@@ -176,6 +211,10 @@ if
 goto_if_false @TRUTH1_2275
 if 
   Char.LocateAnyMeans3D($scplayer, 1, -1047.593, -1347.254, 129.39, 4.0, 4.0, 4.0)
+goto_if_false @TRUTH1_2275
+// the host's stop at the farm waits for all the network players around it
+if
+  147@ == 1
 goto_if_false @TRUTH1_2275
 Hud.SwitchWidescreen(True)
 Player.SetControl($player1, False)
@@ -280,6 +319,13 @@ Char.SetDecisionMaker(55@, 97@)
 Char.SetHealth(55@, 50)
 Char.SetFollowNodeThresholdDistance(55@, 100.0)
 Text.PrintNow('TRU1_2', 7000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TRU1_2', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 wait 200
 51@ = Char.Create(24, 162, -1074.332, -1084.388, 128.244)
 Char.SetHeading(51@, 60.659)
@@ -330,6 +376,13 @@ Car.SetCruiseSpeed(34@, 7.0)
 
 :TRUTH1_2557
 Text.PrintNow('TRU1_3', 7000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TRU1_3', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 TIMERB = 0
 117@ = 3
 
@@ -343,6 +396,13 @@ goto_if_false @TRUTH1_2705
 Camera.SetFixedPosition(-1035.782, -1331.041, 134.0494, 0.0, 0.0, 0.0)
 Camera.PointAtPoint(-1036.184, -1330.134, 133.9223, SwitchType.JumpCut)
 Text.PrintNow('TRU1_4', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TRU1_4', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 TIMERB = 0
 117@ = 4
 
@@ -448,6 +508,13 @@ Camera.SetBehindPlayer
 Hud.SwitchWidescreen(False)
 Player.SetControl($player1, True)
 Text.PrintNow('TRU1_4', 7000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TRU1_4', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Car.Delete(34@)
 Char.Delete(38@)
 Char.Delete(39@)
@@ -1549,6 +1616,13 @@ goto_if_false @TRUTH1_11233
 Car.MarkAsNoLongerNeeded(90@)
 129@ = 1
 Text.PrintNow('TRU1_5', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TRU1_5', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Blip.Remove(116@)
 116@ = Blip.AddForCoord(-1114.25, -1619.96, 76.68)
 130@ = 1
@@ -1566,7 +1640,7 @@ goto_if_false @TRUTH1_11347
 if 
   129@ <= 1
 goto_if_false @TRUTH1_11347
-Text.PrintNow('TRU1_7', 5000, 1)
+Text.PrintNow('TRU1_7', 5000, 1) // the host got out of the combine, not forwarded to the network players
 Blip.Remove(116@)
 116@ = Blip.AddForCar(34@)
 Blip.SetAsFriendly(116@, True)
@@ -1587,6 +1661,10 @@ if
 goto_if_false @TRUTH1_11539
 if 
   Char.IsSittingInCar($scplayer, 34@)
+goto_if_false @TRUTH1_11539
+// the host's stop at the truth's farm waits for all the network players around it
+if
+  147@ == 1
 goto_if_false @TRUTH1_11539
 if 
   Char.IsSittingInAnyCar($scplayer)
@@ -1615,6 +1693,11 @@ goto_if_false @TRUTH1_12171
 if 
   not Car.IsDead(34@)
 goto_if_false @TRUTH1_12171
+// the tractors are deleted (56@ is reused for the truth's car), take the network players out of them first
+set_lvar_int_to_lvar_int 163@ = 56@
+gosub @TRUTH1_COOP_LEAVE_CAR
+set_lvar_int_to_lvar_int 163@ = 58@
+gosub @TRUTH1_COOP_LEAVE_CAR
 Car.MarkAsNoLongerNeeded(56@)
 Car.Delete(56@)
 Char.MarkAsNoLongerNeeded(57@)
@@ -1686,6 +1769,9 @@ Char.SetCoordinates($scplayer, -1098.84, -1623.997, 75.375)
 Char.SetHeading($scplayer, 264.123)
 
 :TRUTH1_12028
+// the host is taken out of the combine by the truth's farm for the scene (the screen is faded out), bring the network
+// players to him
+gosub @TRUTH1_COOP_BRING_TO_HOST
 Camera.SetFixedPosition(-1087.733, -1625.124, 76.7194, 0.0, 0.0, 0.0)
 Camera.PointAtPoint(-1088.662, -1624.758, 76.6608, SwitchType.JumpCut)
 Blip.Remove(116@)
@@ -1726,6 +1812,13 @@ if
   129@ == 4
 goto_if_false @TRUTH1_12455
 Text.PrintNow('TRU1_ZA', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TRU1_ZA', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 129@ = 5
 
@@ -1740,6 +1833,13 @@ Text.ClearPrints
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(41042, 1)
 Text.PrintNow('TRU1_ZB', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TRU1_ZB', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot2)
 129@ = 6
 
@@ -1754,6 +1854,13 @@ if
   Audio.HasMissionAudioLoaded(MissionAudioSlot.Slot1)
 goto_if_false @TRUTH1_12605
 Text.PrintNow('TRU1_ZC', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TRU1_ZC', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 129@ = 7
 
@@ -1811,6 +1918,8 @@ Char.Delete(89@)
 Hud.SwitchWidescreen(False)
 Char.SetCoordinates($scplayer, -1092.561, -1633.628, 75.37)
 Char.SetHeading($scplayer, 273.438)
+// the host is put by the farmhouse for the phone call (the screen is faded out), bring the network players to him
+gosub @TRUTH1_COOP_BRING_TO_HOST
 Camera.DoFade(1, 1000)
 Camera.SetBehindPlayer
 Camera.RestoreJumpcut
@@ -2074,6 +2183,13 @@ if
   8 > 129@
 goto_if_false @TRUTH1_14393
 Text.PrintNow('TRU1_16', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TRU1_16', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @TRUTH1_16379
 
 :TRUTH1_14393
@@ -2102,6 +2218,13 @@ if
 goto_if_false @TRUTH1_14548
 Char.ShutUp(49@, True)
 Text.PrintNow('TRU1_DF', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TRU1_DF', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 143@ = 3
 
@@ -2137,6 +2260,13 @@ if
   Audio.HasMissionAudioLoaded(MissionAudioSlot.Slot1)
 goto_if_false @TRUTH1_14727
 Text.PrintNow('TRU1_DG', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TRU1_DG', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.AttachMissionAudioToChar(MissionAudioSlot.Slot1, 49@)
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 143@ = 6
@@ -2179,6 +2309,13 @@ if
   Audio.HasMissionAudioLoaded(MissionAudioSlot.Slot1)
 goto_if_false @TRUTH1_14929
 Text.PrintNow('TRU1_FD', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TRU1_FD', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 Char.ShutUp(59@, True)
 143@ = 10
@@ -2224,6 +2361,13 @@ if
   Audio.HasMissionAudioLoaded(MissionAudioSlot.Slot1)
 goto_if_false @TRUTH1_15139
 Text.PrintNow('TRU1_FA', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TRU1_FA', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 143@ = 14
 
@@ -2260,6 +2404,13 @@ if
   Audio.HasMissionAudioLoaded(MissionAudioSlot.Slot1)
 goto_if_false @TRUTH1_15318
 Text.PrintNow('TRU1_AB', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TRU1_AB', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 143@ = 17
 
@@ -2295,6 +2446,13 @@ if
   Audio.HasMissionAudioLoaded(MissionAudioSlot.Slot1)
 goto_if_false @TRUTH1_15490
 Text.PrintNow('TRU1_AD', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TRU1_AD', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 143@ = 20
 
@@ -2337,6 +2495,13 @@ if
 goto_if_false @TRUTH1_15692
 Char.ShutUp(38@, True)
 Text.PrintNow('TRU1_DE', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TRU1_DE', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 143@ = 25
 
@@ -2379,6 +2544,13 @@ if
 goto_if_false @TRUTH1_15894
 Char.ShutUp(68@, True)
 Text.PrintNow('TRU1_AC', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TRU1_AC', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 143@ = 30
 
@@ -2420,6 +2592,13 @@ if
   Audio.HasMissionAudioLoaded(MissionAudioSlot.Slot1)
 goto_if_false @TRUTH1_16062
 Text.PrintNow(111@s, 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer(111@s, 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 145@ = 2
 
@@ -2511,6 +2690,311 @@ Blip.Remove(116@)
 Car.MarkAsNoLongerNeeded(56@)
 Game.SetWantedMultiplier(1.0)
 $timer_mobile_start = Clock.GetGameTimer()
+// the spare cars are not needed anymore, the network players lose their checkpoints and blips
+for $temp_int = 0 to 2
+    if
+        153@($temp_int,3i) <> -1
+    then
+        Car.MarkAsNoLongerNeeded(153@($temp_int,3i))
+        153@($temp_int,3i) = -1
+    end
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        Coop.ClearAllEntityBlipsForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+    end
+end
 Mission.Finish
 return 
+
+:TRUTH1_COOP_UPDATE
+// the spare car blip is not needed anymore when the player found a vehicle
+for $temp_int = 0 to 2
+    if
+        153@($temp_int,3i) <> -1
+    then
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                156@($temp_int,3i) == 0
+            then
+                if or
+                    Car.IsDead(153@($temp_int,3i))
+                    Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+                then
+                    156@($temp_int,3i) = 1
+                    Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 153@($temp_int,3i))
+                end
+            end
+        end
+    end
+end
+
+// the combine has a single seat, the host's, and the mission moves and deletes it at the truth's farm, keep the network
+// players out of it (the one of the farm scene as well)
+set_lvar_int_to_lvar_int 163@ = 34@
+gosub @TRUTH1_COOP_LEAVE_CAR
+
+// the tractor of the farm scene is deleted after it
+if
+    118@ == 0
+then
+    set_lvar_int_to_lvar_int 163@ = 35@
+    gosub @TRUTH1_COOP_LEAVE_CAR
+end
+
+// the tractors driven at the host are deleted when he reaches the truth's farm
+if and
+    118@ == 1
+    2 > 129@
+then
+    set_lvar_int_to_lvar_int 163@ = 56@
+    gosub @TRUTH1_COOP_LEAVE_CAR
+    set_lvar_int_to_lvar_int 163@ = 58@
+    gosub @TRUTH1_COOP_LEAVE_CAR
+end
+
+// the combine has a blip for the network players while the host has its blip (he is out of it) and it is not wrecked
+if and
+    118@ == 1
+    130@ == 0
+    2 > 129@
+    not Car.IsDead(34@)
+then
+    if
+        148@ == 0
+    then
+        148@ = 1
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 34@, true, BlipDisplay.Both, BlipColor.Blue, 3) // the combine
+            end
+        end
+    end
+else
+    if
+        148@ == 1
+    then
+        148@ = 0
+        if // a removed car takes its blip with it
+            Car.DoesExist(34@)
+        then
+            for $temp_int = 0 to 2
+                if
+                    Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                then
+                    Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 34@)
+                end
+            end
+        end
+    end
+end
+
+// each network player gets a checkpoint on the farm while the host has its blip, on the truth's farm while the host
+// drives the combine there
+for $temp_int = 0 to 2
+    162@ = 0
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if and
+            118@ == 0
+            117@ == 0
+        then
+            162@ = 1
+        end
+        if and
+            118@ == 1
+            129@ == 1
+            130@ == 1
+        then
+            162@ = 2
+        end
+        if
+            not is_int_lvar_equal_to_int_lvar 162@ == 159@($temp_int,3i)
+        then
+            set_lvar_int_to_lvar_int 159@($temp_int,3i) = 162@
+            Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+            if
+                162@ == 1
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(-1047.593, -1347.254, 129.216, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int]) // the farm
+            end
+            if
+                162@ == 2
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(-1100.007, -1620.949, 75.375, 5.0, 5.0, 5.0, $NETWORK_PLAYER[$temp_int]) // the truth's farm
+            end
+        end
+    end
+end
+
+// the host's stops at the farm and at the truth's farm wait for all the network players around them
+147@ = 1
+if and
+    118@ == 0
+    117@ == 0
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                not Char.LocateAnyMeans2D($NETWORK_PLAYER[$temp_int], 0, -1047.593, -1347.254, 20.0, 20.0)
+            then
+                147@ = 0
+            end
+        end
+    end
+end
+if and
+    118@ == 1
+    129@ == 1
+    130@ == 1
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                not Char.LocateAnyMeans2D($NETWORK_PLAYER[$temp_int], 0, -1100.007, -1620.949, 20.0, 20.0)
+            then
+                147@ = 0
+            end
+        end
+    end
+end
+return
+
+:TRUTH1_COOP_LEAVE_CAR
+// a network player in the car 163@ is taken out beside its left side
+if and
+    163@ <> 0
+    163@ <> -1
+then
+    if
+        Car.DoesExist(163@)
+    then
+        if
+            not Car.IsDead(163@)
+        then
+            for $temp_int = 0 to 2
+                if
+                    Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                then
+                    if
+                        Char.IsInCar($NETWORK_PLAYER[$temp_int], 163@)
+                    then
+                        149@, 150@, 151@ = Car.GetOffsetInWorldCoords(163@, -3.0, 0.0, 0.0)
+                        Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 149@, 150@, 151@)
+                    end
+                end
+            end
+        end
+    end
+end
+return
+
+:TRUTH1_COOP_CREATE_CARS
+// the cars stand on the road nodes nearest to the truth's door, facing along the road
+165@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if
+            153@($temp_int,3i) == -1
+        then
+            gosub @TRUTH1_COOP_WAIT_CAR
+            gosub @TRUTH1_COOP_GET_CAR_POINT
+            World.ClearArea(1, 149@, 150@, 151@, 4.0)
+            153@($temp_int,3i) = Car.Create(422, 149@, 150@, 151@)
+            Car.SetHeading(153@($temp_int,3i), 164@)
+            Car.SetHealth(153@($temp_int,3i), 1000)
+            156@($temp_int,3i) = 0 // spare_car_blip_removed
+            Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 153@($temp_int,3i), true, BlipDisplay.MarkerOnly, BlipColor.Blue, 3)
+        end
+    end
+end
+Streaming.MarkModelAsNoLongerNeeded(422)
+return
+
+:TRUTH1_COOP_GET_CAR_POINT
+// the next road node 149@-151@ (heading 164@) at least 12 m away from the host's spot and the start marker, 8 m from
+// the other spare cars (gives up after 20 nodes)
+165@ += 1
+149@, 150@, 151@, 164@ = Path.GetNthClosestCarNodeWithHeading(-2195.9, -2258.029, 30.0, 165@)
+if
+    20 > 165@
+then
+    166@ = Math.GetDistanceBetweenCoords2D(149@, 150@, -2195.9, -2258.029) // the host's spot
+    if
+        12.0 > 166@
+    then
+        goto @TRUTH1_COOP_GET_CAR_POINT
+    end
+    166@ = Math.GetDistanceBetweenCoords2D(149@, 150@, -2198.87, -2261.202) // the start marker
+    if
+        12.0 > 166@
+    then
+        goto @TRUTH1_COOP_GET_CAR_POINT
+    end
+    for 167@ = 0 to 2 // the spare cars already standing
+        if
+            153@(167@,3i) <> -1
+        then
+            168@, 169@, 170@ = Car.GetCoordinates(153@(167@,3i))
+            166@ = Math.GetDistanceBetweenCoords2D(149@, 150@, 168@, 169@)
+            if
+                8.0 > 166@
+            then
+                goto @TRUTH1_COOP_GET_CAR_POINT
+            end
+        end
+    end
+end
+return
+
+:TRUTH1_COOP_WAIT_CAR
+if
+    not Streaming.HasModelLoaded(422)
+then
+    Streaming.RequestModel(422)
+    wait 0
+    goto @TRUTH1_COOP_WAIT_CAR
+end
+return
+
+:TRUTH1_COOP_LEAVE_ANY_CAR
+// the network players in a car are taken out of it at the host's spot
+152@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if
+            Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+        then
+            149@, 150@, 151@ = Char.GetCoordinates($scplayer)
+            Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 149@, 150@, 151@)
+            152@ = 1
+        end
+    end
+end
+if
+    152@ == 1
+then
+    wait 500 // let the warp out of the car reach them before a teleport
+end
+return
+
+:TRUTH1_COOP_BRING_TO_HOST
+// the teleport moves the network players on foot, the ones in a car are taken out of it first
+gosub @TRUTH1_COOP_LEAVE_ANY_CAR
+Coop.TeleportPlayersToHostSafely($NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2])
+return
 
