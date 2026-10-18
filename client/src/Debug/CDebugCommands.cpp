@@ -344,6 +344,31 @@ void CDebugCommands::RunCommand(const std::string& line)
             logger::info("stand debug: on pickup at %.2f %.2f %.2f", target.x, target.y, target.z);
         }
     }
+    else if (command == "mission")
+    {
+        // as the Missions window (MissionRunner): the host only, outside, no mission running
+        int id = -1;
+        stream >> id;
+        if (!CLocalPlayer::m_bIsHost || CTheScripts::IsPlayerOnAMission() || CTheScripts::bAlreadyRunningAMissionScript ||
+            id < 0 || id >= CTheScripts::NumberOfMissionScripts)
+        {
+            logger::info("stand debug: can't launch mission %d (host %d, on a mission %d)", id, CLocalPlayer::m_bIsHost,
+                CTheScripts::IsPlayerOnAMission());
+        }
+        else
+        {
+            plugin::Command<Commands::LOAD_AND_LAUNCH_MISSION_INTERNAL>(id);
+            logger::info("stand debug: mission %d launched", id);
+        }
+    }
+    else if (command == "mission-state")
+    {
+        // on a mission, the player's position, health, the money, the wanted level
+        CVector pos = pPlayer->GetPosition();
+        logger::info("stand debug: on a mission %d at %.1f %.1f %.1f in vehicle %d health %.0f money %d",
+            CTheScripts::IsPlayerOnAMission(), pos.x, pos.y, pos.z, pPlayer->m_nPedFlags.bInVehicle, pPlayer->m_fHealth,
+            CWorld::Players[0].m_nMoney);
+    }
     else if (command == "pickup-script")
     {
         // as a mission does it, through the opcodes: create <model> <type> (CREATE_PICKUP), collected
@@ -461,6 +486,20 @@ void CDebugCommands::RunCommand(const std::string& line)
         else
         {
             plugin::Command<Commands::SET_CHAR_COORDINATES>(CPools::GetPedRef(pPlayer), pos.x, pos.y, pos.z);
+        }
+    }
+    else if (command == "teleport-car")
+    {
+        // the vehicle we drive with everyone inside (SET_CAR_COORDINATES), a mission's drive in a moment
+        CVector pos{};
+        float heading = 0.0f;
+        stream >> pos.x >> pos.y >> pos.z >> heading;
+        if (pPlayer->m_nPedFlags.bInVehicle && pPlayer->m_pVehicle)
+        {
+            CStreaming::LoadScene(&pos);
+            int car = CPools::GetVehicleRef(pPlayer->m_pVehicle);
+            plugin::Command<Commands::SET_CAR_COORDINATES>(car, pos.x, pos.y, pos.z);
+            plugin::Command<Commands::SET_CAR_HEADING>(car, heading);
         }
     }
     else if (command == "gang-wars")
