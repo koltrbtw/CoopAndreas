@@ -154,6 +154,7 @@ static CVehicle* FindNearestVehicle(const CVector& position, float fMaxDistance)
 }
 
 static std::string ms_watchedPed;  // to_string of a ped id watch-anims logs too (watch-ped, ram-ped)
+static int ms_nLastCar = -1;  // the script handle of the last `car`
 
 // what a player ped plays and does, a line on every change: the active task, in a vehicle, the car anims
 static void LogPlayerAnims()
@@ -527,6 +528,7 @@ void CDebugCommands::RunCommand(const std::string& line)
             plugin::Command<Commands::CAR_SET_IDLE>(car);
         }
         logger::info("stand debug: car %d with driver %d at %.2f %.2f %.2f", car, driver, pos.x, pos.y, pos.z);
+        ms_nLastCar = car;
     }
     else if (command == "enter-driver")
     {
@@ -671,6 +673,12 @@ void CDebugCommands::RunCommand(const std::string& line)
         float fNearest = 40.0f;
         for (auto pNetworkPed : CNetworkPedManager::m_pPeds)
         {
+            // the watched ped (watch-ped) first
+            if (!ms_watchedPed.empty() && to_string(pNetworkPed->m_pedId) == ms_watchedPed && pNetworkPed->m_pPed)
+            {
+                pTarget = pNetworkPed;
+                break;
+            }
             CPed* pPed = pNetworkPed->m_pPed;
             if (!pNetworkPed->m_bSyncing && pPed && !pPed->m_nPedFlags.bInVehicle &&
                 (pPed->GetPosition() - pPlayer->GetPosition()).Magnitude() < fNearest)
@@ -742,11 +750,30 @@ void CDebugCommands::RunCommand(const std::string& line)
                                                      : "?");
         }
     }
+    else if (command == "select-driver")
+    {
+        // the npc driver of the nearest vehicle becomes the watched ped (then npc-* acts on it, the other client watches it)
+        CVehicle* pVehicle = CPools::GetVehicle(ms_nLastCar);  // the one `car` made, else the nearest
+        if (!pVehicle || !pVehicle->m_pDriver)
+        {
+            pVehicle = FindNearestVehicle(pPlayer->GetPosition(), 30.0f);
+        }
+        CNetworkPed* pNetworkPed = pVehicle && pVehicle->m_pDriver ? CNetworkPedManager::GetPed(pVehicle->m_pDriver) : nullptr;
+        if (pNetworkPed)
+        {
+            ms_watchedPed = to_string(pNetworkPed->m_pedId);
+            logger::info("stand debug: driver %s", ms_watchedPed.c_str());
+        }
+    }
     else if (command == "npc-leave" || command == "npc-knock" || command == "npc-flush")
     {
         // the npc driver we sync of the nearest vehicle (car [model]): leaves it (pushed forward: rolls out), is
         // knocked off it, is set out at once
-        CVehicle* pVehicle = FindNearestVehicle(pPlayer->GetPosition(), 30.0f);
+        CVehicle* pVehicle = CPools::GetVehicle(ms_nLastCar);
+        if (!pVehicle || !pVehicle->m_pDriver)
+        {
+            pVehicle = FindNearestVehicle(pPlayer->GetPosition(), 30.0f);
+        }
         CPed* pDriver = pVehicle ? pVehicle->m_pDriver : nullptr;
         CNetworkPed* pNetworkPed = pDriver ? CNetworkPedManager::GetPed(pDriver) : nullptr;
         if (!pNetworkPed || !pNetworkPed->m_bSyncing)
@@ -785,6 +812,13 @@ void CDebugCommands::RunCommand(const std::string& line)
             ms_watchedPed = to_string(pNetworkPed->m_pedId);
             logger::info("stand debug: %s %s", command.c_str(), ms_watchedPed.c_str());
         }
+    }
+    else if (command == "ped-freeze")
+    {
+        // off: the clones keep their physics (the baseline to compare with)
+        std::string state;
+        stream >> state;
+        CNetworkPed::ms_bFreezeClones = state != "off";
     }
     else if (command == "position-sync")
     {
@@ -870,6 +904,57 @@ void CDebugCommands::RunCommand(const std::string& line)
             }
         }
     }
+    else if (command == "spawn-ped")
+    {
+        // a random ped 3 m ahead that stands still for a minute (a target that doesn't move by itself)
+        CVector pos = pPlayer->GetPosition() + pPlayer->GetForward() * 3.0f;
+        int ped = 0;
+        plugin::Command<Commands::CREATE_RANDOM_CHAR>(pos.x, pos.y, pos.z, &ped);
+        plugin::Command<Commands::TASK_STAND_STILL>(ped, 60000);
+        CNetworkPed* pNetworkPed = CNetworkPedManager::GetPed(CPools::GetPed(ped));
+        logger::info("stand debug: spawned ped %s", pNetworkPed ? to_string(pNetworkPed->m_pedId).c_str() : "?");
+    }
+    else if (command == "watch-error")
+    {
+        // how far the watched ped clone is from its owner's position, every frame
+        int ms = 6000;
+        stream >> ms;
+        ms_nWatchErrorUntil = CTimer::m_snTimeInMilliseconds + ms;
+        ms_errors.clear();
+    }
+    else if (command == "face-watched")
+    {
+        // the player and the camera behind it turn to the watched ped (for screenshots)
+        for (auto pNetworkPed : CNetworkPedManager::m_pPeds)
+        {
+            if (pNetworkPed->m_pPed && to_string(pNetworkPed->m_pedId) == ms_watchedPed)
+            {
+                CVector dir = pNetworkPed->m_pPed->GetPosition() - pPlayer->GetPosition();
+                float fHeading = atan2f(-dir.x, dir.y);
+                pPlayer->m_fCurrentRotation = pPlayer->m_fAimingRotation = fHeading;
+                pPlayer->SetHeading(fHeading);
+                TheCamera.SetCameraDirectlyBehindForFollowPed_CamOnAString();
+                TheCamera.RestoreWithJumpCut();
+            }
+        }
+    }
+    else if (command == "walk-into")
+    {
+        // the player runs through the watched ped (3 m past it)
+        for (auto pNetworkPed : CNetworkPedManager::m_pPeds)
+        {
+            if (pNetworkPed->m_pPed && to_string(pNetworkPed->m_pedId) == ms_watchedPed)
+            {
+                CVector target = pNetworkPed->m_pPed->GetPosition();
+                CVector dir = target - pPlayer->GetPosition();
+                dir.z = 0.0f;
+                dir.Normalise();
+                target += dir * 3.0f;
+                plugin::Command<Commands::TASK_GO_STRAIGHT_TO_COORD>(CPools::GetPedRef(pPlayer), target.x, target.y,
+                    target.z, PEDMOVE_SPRINT, 10000);
+            }
+        }
+    }
     else if (command == "watch-ped")
     {
         stream >> ms_watchedPed;
@@ -914,6 +999,33 @@ void CDebugCommands::Process()
     if (CTimer::m_snTimeInMilliseconds < ms_nWatchAnimsUntil)
     {
         LogPlayerAnims();
+    }
+
+    // watch-error: the watched ped clone's distance to the position of its last update
+    if (ms_nWatchErrorUntil != 0)
+    {
+        for (auto pNetworkPed : CNetworkPedManager::m_pPeds)
+        {
+            if (!pNetworkPed->m_bSyncing && pNetworkPed->m_pPed && pNetworkPed->m_bHasTargetPos &&
+                to_string(pNetworkPed->m_pedId) == ms_watchedPed)
+            {
+                ms_errors.push_back((pNetworkPed->m_pPed->GetPosition() - pNetworkPed->m_vecTargetPos).Magnitude());
+            }
+        }
+        if (CTimer::m_snTimeInMilliseconds >= ms_nWatchErrorUntil)
+        {
+            ms_nWatchErrorUntil = 0;
+            float fSum = 0.0f, fMax = 0.0f;
+            int nFar = 0;
+            for (float fError : ms_errors)
+            {
+                fSum += fError;
+                fMax = std::max(fMax, fError);
+                nFar += fError > 0.5f;
+            }
+            logger::info("stand debug: error of %s: %d frames mean %.3f max %.3f over 0.5 m %d", ms_watchedPed.c_str(),
+                static_cast<int>(ms_errors.size()), ms_errors.empty() ? 0.0f : fSum / ms_errors.size(), fMax, nFar);
+        }
     }
 
     // watch-moves: a frame's move of the first remote player's clone, and its distance to the vehicle under it

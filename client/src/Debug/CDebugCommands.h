@@ -37,7 +37,7 @@
 //   flush                       FlushImmediately on the player: out of the vehicle at once, as a script warp
 //   jack-me                     a random ped next to our vehicle drags us out
 //   ram-me [speed]              an empty car 12 m ahead rolls into the player (0.6 by default)
-//   ram-ped [speed]             an empty car rolls into the nearest ped someone else syncs, watched (watch-ped)
+//   ram-ped [speed]             an empty car rolls into the watched ped, else the nearest one someone else syncs
 //   watch-ped <id>              watch-anims logs that ped too (c1v12)
 //   kill-me                     a pistol shot that kills the player (CWeapon::GenerateDamageEvent)
 //   position-sync old|new       old: the remote player's position set as it comes (the baseline to compare with)
@@ -48,6 +48,12 @@
 //   burn-me                     set the player on fire (CFireManager::StartFire)
 //   gas-me                      the player chokes (CTaskSimpleChoking, as tear gas)
 //   climb                       turn round to a handhold near and climb it
+//   watch-error [ms]            every frame the watched ped clone's distance to its last update: mean, max, frames > 0.5 m
+//   spawn-ped                   a random ped 3 m ahead that stands still for a minute
+//   face-watched                the player and the camera turn to the watched ped (screenshots)
+//   walk-into                   the player runs through the watched ped
+//   ped-freeze on|off           off: ped clones keep their physics (the baseline to compare with)
+//   select-driver               the npc driver of the nearest vehicle becomes the watched ped
 //   npc-leave [speed]           the npc driver we sync of the nearest vehicle leaves it (pushed forward: rolls out)
 //   npc-knock                   CEventKnockOffBike on that driver
 //   npc-flush                   FlushImmediately on that driver: out at once
@@ -72,4 +78,6 @@ private:
     static inline unsigned int ms_nSnapsAtStart = 0;
     static inline CVector ms_vecLastVehicle{};
     static inline float ms_fVehicleMoves = 0.0f;
+    static inline unsigned int ms_nWatchErrorUntil = 0;
+    static inline std::vector<float> ms_errors;  // the watched ped clone's distance to its last update
 };
