@@ -46,6 +46,9 @@ public:
 	std::optional<Packets::Peds::PedVehicleExit> m_pendingExit;
 	unsigned int m_nNoHealthSince = 0;  // a clone: CTimer time its syncer said 0 health and it still lives here
 	uint8_t m_nLastStateFlags = 0;  // a clone: CPedStateSync flags of the last on foot update
+	// a clone on foot with no task of ours: its physics doesn't move it (bDontApplySpeed), see ProcessFreeze
+	bool m_bFrozen = false;
+	static inline bool ms_bFreezeClones = true;  // the stand's baseline: ped-freeze off
 
 	static CNetworkPed* CreateHosted(CPed* ped);
 	void WarpIntoVehicleDriver(CVehicle* vehicle);
@@ -82,6 +85,8 @@ public:
 	// on foot clone: the position from a packet, ProcessTargetPosition pulls the ped to it every frame
 	void SetTargetPosition(const CVector& pos, const CVector& velocity);
 	void ProcessTargetPosition();
+	// a clone, every frame: frozen or not
+	void ProcessFreeze();
 
 	CNetworkPed(pedid_t pedid, int modelId, ePedType pedType, CVector pos, unsigned char createdBy, char specialModelName[]);
 	~CNetworkPed();
