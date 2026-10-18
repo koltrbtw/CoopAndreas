@@ -64,6 +64,7 @@ public:
 	Packets::Vehicles::VehicleIdleUpdate m_lastIdleUpdate{};
 	unsigned int m_nLastIdleUpdateTime = 0;
 	unsigned int m_nWakeTime = 0;  // ours: last push of a car frozen above the ground, CTimer time
+	unsigned int m_nPushRequestTime = 0;  // a clone: when we hit it and asked for it, CTimer time (CVehiclePushSync)
 	bool m_bDamageApplied = false;  // the first VEHICLE_DAMAGE puts the parts without effects
 	// the front carriage of a train, see CTrainSync; the other carriages have no network id
 	bool m_bTrain = false;

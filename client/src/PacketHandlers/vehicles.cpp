@@ -104,6 +104,9 @@ PACKET_HANDLER(ePacketType::VEHICLE_IDLE_UPDATE, Packets::Vehicles::VehicleIdleU
     if (pNetworkVehicle->m_pVehicle->m_matrix == nullptr)
         return;
 
+    if (CVehiclePushSync::IsWaitingForHandoff(pNetworkVehicle))
+        return;
+
     CVehicle* pVehicle = pNetworkVehicle->m_pVehicle;
     pNetworkVehicle->m_bHasRotorSpeed = pVehicleIdleUpdate->hasRotorSpeed;
     pNetworkVehicle->ApplyExtras(pVehicleIdleUpdate->extras);
@@ -478,6 +481,7 @@ PACKET_HANDLER(ePacketType::VEHICLE_REQUEST_OWNERSHIP, Packets::Vehicles::Vehicl
         pNetworkVehicle->m_nCreatedBy != MISSION_VEHICLE)
     {
         pNetworkVehicle->BecomeClone(&handoff);
+        handoff.hasTransform = handoff.hasTransform && !pRequest->pushed;
         logger::info("vehicle %s released with %d npc peds", to_string(handoff.vehicleid).c_str(), handoff.occupantCount);
     }
 

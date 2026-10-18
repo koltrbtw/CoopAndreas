@@ -520,16 +520,29 @@ void CDebugCommands::RunCommand(const std::string& line)
         plugin::Command<Commands::REQUEST_MODEL>(model);
         plugin::Command<Commands::LOAD_ALL_MODELS_NOW>();
         int car = 0;
-        plugin::Command<Commands::CREATE_CAR>(model, pos.x, pos.y, pos.z, &car);
-        // a parked car with a driver, as a jacking needs
-        int driver = 0;
-        if (driverless != "empty")
+        if (driverless == "random")
         {
-            plugin::Command<Commands::CREATE_RANDOM_CHAR_AS_DRIVER>(car, &driver);
-            plugin::Command<Commands::CAR_SET_IDLE>(car);
+            // not a script's one (CREATE_CAR makes a mission vehicle): as a parked car of the traffic
+            CVehicle* pVehicle = new CAutomobile(model, RANDOM_VEHICLE, true);
+            pVehicle->SetPosn(pos);
+            CNetworkVehicle::CreateHosted(pVehicle);  // our CWorld::Add call is not one the world hook takes
+            CWorld::Add(pVehicle);
+            ms_nLastCar = CPools::GetVehicleRef(pVehicle);
+            logger::info("stand debug: random car %d at %.2f %.2f %.2f", ms_nLastCar, pos.x, pos.y, pos.z);
         }
-        logger::info("stand debug: car %d with driver %d at %.2f %.2f %.2f", car, driver, pos.x, pos.y, pos.z);
-        ms_nLastCar = car;
+        else
+        {
+            plugin::Command<Commands::CREATE_CAR>(model, pos.x, pos.y, pos.z, &car);
+            // a parked car with a driver, as a jacking needs
+            int driver = 0;
+            if (driverless != "empty")
+            {
+                plugin::Command<Commands::CREATE_RANDOM_CHAR_AS_DRIVER>(car, &driver);
+                plugin::Command<Commands::CAR_SET_IDLE>(car);
+            }
+            logger::info("stand debug: car %d with driver %d at %.2f %.2f %.2f", car, driver, pos.x, pos.y, pos.z);
+            ms_nLastCar = car;
+        }
     }
     else if (command == "enter-driver")
     {
@@ -634,8 +647,32 @@ void CDebugCommands::RunCommand(const std::string& line)
         }
         if (pNetworkVehicle)
         {
-            logger::info("stand debug: vehicle %s syncing %d status %d health %.0f", to_string(pNetworkVehicle->m_vehicleId).c_str(),
-                pNetworkVehicle->m_bSyncing, pVehicle->m_nStatus, pVehicle->m_fHealth);
+            CVector pos = pVehicle->GetPosition();
+            logger::info("stand debug: vehicle %s syncing %d status %d health %.0f at %.2f %.2f %.2f",
+                to_string(pNetworkVehicle->m_vehicleId).c_str(), pNetworkVehicle->m_bSyncing, pVehicle->m_nStatus,
+                pVehicle->m_fHealth, pos.x, pos.y, pos.z);
+        }
+    }
+    else if (command == "push-vehicle")
+    {
+        // the last `car` (ours, empty) is thrown at the watched vehicle, speed in units per frame (0.2: 36 km/h)
+        float speed = 0.2f;
+        stream >> speed;
+        CVehicle* pOurs = CPools::GetVehicle(ms_nLastCar);
+        CVehicle* pTarget = nullptr;
+        for (CNetworkVehicle* pWatched : CNetworkVehicleManager::m_pVehicles)
+        {
+            if (to_string(pWatched->m_vehicleId) == ms_watchedVehicle)
+            {
+                pTarget = pWatched->m_pVehicle;
+            }
+        }
+        if (pOurs && pTarget && pOurs != pTarget)
+        {
+            CVector direction = pTarget->GetPosition() - pOurs->GetPosition();
+            direction.z = 0.0f;
+            direction.Normalise();
+            pOurs->m_vecMoveSpeed = direction * speed;
         }
     }
     else if (command == "knock-off")
