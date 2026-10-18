@@ -255,7 +255,7 @@ bool COpCodeSync::IsOpcodeSyncable(int opcode, int* opcodeIdx, bool ignoreOpCode
         {
             if (strnicmp(ms_aszSyncedScripts[i], lastProcessedScript->m_szName, 7) == 0)
             {
-                bScriptSynced = true;
+                bScriptSynced = !ms_abSyncedScriptPaused[i];
                 break;
             }
         }

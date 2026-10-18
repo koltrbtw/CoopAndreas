@@ -79,6 +79,9 @@ public:
 	static inline bool ms_abLoadingMissionAudio[4];
 	
     static inline uint32_t ms_iFreeSyncedScript = 0;
+    // Coop.PauseSyncingThisScript: a part of the host's own (a help scene with his camera), EnableSyncingThisScript
+    // resumes it on the next run
+    static inline bool ms_abSyncedScriptPaused[256]{};
     static inline char ms_aszSyncedScripts[256][8];
 
     static inline OpcodeParameter scriptParamsBuffer[NUM_SYNCED_PARAMS];
