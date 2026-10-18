@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 // debug instances only (--coopd<N>): commands for the stand, run without the window focus. A line in
 // <game>\CoopAndreas\debug-cmd<N>.txt is run once and the file removed (start-coop.ps1 writes it before the start, it
@@ -39,6 +40,11 @@
 //   ram-ped [speed]             an empty car rolls into the nearest ped someone else syncs, watched (watch-ped)
 //   watch-ped <id>              watch-anims logs that ped too (c1v12)
 //   kill-me                     a pistol shot that kills the player (CWeapon::GenerateDamageEvent)
+//   position-sync old|new       old: the remote player's position set as it comes (the baseline to compare with)
+//   walk-to <dx> <dy> [run]     the player walks (runs) straight by that much (TASK_GO_STRAIGHT_TO_COORD)
+//   watch-moves [ms]            per frame moves of the remote player's clone: mean, max, jerks, snaps, distance to
+//                               the vehicle it stands on
+//   ride [model]                a wandering car with an npc driver (455 flatbed), the player on its roof
 //   npc-leave [speed]           the npc driver we sync of the nearest vehicle leaves it (pushed forward: rolls out)
 //   npc-knock                   CEventKnockOffBike on that driver
 //   npc-flush                   FlushImmediately on that driver: out at once
@@ -56,4 +62,11 @@ private:
     static inline bool ms_bPoliceOff = false;
     static inline unsigned int ms_nWatchAnimsUntil = 0;
     static inline bool ms_bPressG = false;
+    static inline unsigned int ms_nWatchMovesUntil = 0;
+    static inline std::vector<std::pair<float, float>> ms_moves;  // a frame's move, the distance to the vehicle
+    static inline CVector ms_vecLastMove{};
+    static inline bool ms_bHasLastMove = false;
+    static inline unsigned int ms_nSnapsAtStart = 0;
+    static inline CVector ms_vecLastVehicle{};
+    static inline float ms_fVehicleMoves = 0.0f;
 };

@@ -783,6 +783,52 @@ void CDebugCommands::RunCommand(const std::string& line)
             logger::info("stand debug: %s %s", command.c_str(), ms_watchedPed.c_str());
         }
     }
+    else if (command == "position-sync")
+    {
+        std::string way;
+        stream >> way;
+        CPlayerPositionSync::ms_bOldWay = way == "old";
+    }
+    else if (command == "walk-to")
+    {
+        // the player walks (or runs) straight there by itself, as a script makes it
+        float dx = 0.0f, dy = 0.0f;
+        std::string run;
+        stream >> dx >> dy >> run;
+        CVector pos = pPlayer->GetPosition();
+        plugin::Command<Commands::TASK_GO_STRAIGHT_TO_COORD>(CPools::GetPedRef(pPlayer), pos.x + dx, pos.y + dy, pos.z,
+            run == "run" ? PEDMOVE_RUN : PEDMOVE_WALK, 20000);
+    }
+    else if (command == "watch-moves")
+    {
+        // per frame moves of the remote players' clones: smooth is a steady move, a jerk is far off the mean
+        int ms = 5000;
+        stream >> ms;
+        ms_nWatchMovesUntil = CTimer::m_snTimeInMilliseconds + ms;
+        ms_moves.clear();
+        ms_nSnapsAtStart = CPlayerPositionSync::ms_nSnaps;
+    }
+    else if (command == "ride")
+    {
+        // a car with an npc driver wanders, the player stands on its roof
+        int model = 455;
+        stream >> model;
+        CVector pos = pPlayer->GetPosition() + pPlayer->GetForward() * 6.0f;
+        plugin::Command<Commands::REQUEST_MODEL>(model);
+        plugin::Command<Commands::LOAD_ALL_MODELS_NOW>();
+        int car = 0, driver = 0;
+        plugin::Command<Commands::CREATE_CAR>(model, pos.x, pos.y, pos.z, &car);
+        plugin::Command<Commands::CREATE_RANDOM_CHAR_AS_DRIVER>(car, &driver);
+        plugin::Command<Commands::SET_CAR_CRUISE_SPEED>(car, 8.0f);
+        plugin::Command<Commands::CAR_WANDER_RANDOMLY>(car);
+        if (CVehicle* pVehicle = CPools::GetVehicle(car))
+        {
+            CColModel* pCol = pVehicle->GetColModel();
+            float fTop = pCol ? pCol->m_boundBox.m_vecMax.z : 2.0f;
+            pPlayer->SetPosn(pVehicle->GetPosition() + CVector(0.0f, 0.0f, fTop + 1.0f));
+            logger::info("stand debug: ride car %d", car);
+        }
+    }
     else if (command == "watch-ped")
     {
         stream >> ms_watchedPed;
@@ -827,6 +873,61 @@ void CDebugCommands::Process()
     if (CTimer::m_snTimeInMilliseconds < ms_nWatchAnimsUntil)
     {
         LogPlayerAnims();
+    }
+
+    // watch-moves: a frame's move of the first remote player's clone, and its distance to the vehicle under it
+    if (ms_nWatchMovesUntil != 0)
+    {
+        CNetworkPlayer* pNetworkPlayer = CNetworkPlayerManager::m_pPlayers.empty() ? nullptr : CNetworkPlayerManager::m_pPlayers[0];
+        CPed* pClone = pNetworkPlayer ? pNetworkPlayer->m_pPed : nullptr;
+        if (pClone)
+        {
+            CVector pos = pClone->GetPosition();
+            CNetworkVehicle* pContact = CNetworkVehicleManager::GetVehicle(pNetworkPlayer->m_targetContactVehicle);
+            float fToVehicle = pContact && pContact->m_pVehicle ? (pos - pContact->m_pVehicle->GetPosition()).Magnitude() : -1.0f;
+            if (ms_bHasLastMove)
+            {
+                ms_moves.push_back({(pos - ms_vecLastMove).Magnitude(), fToVehicle});
+                if (pContact && pContact->m_pVehicle)
+                {
+                    ms_fVehicleMoves += (pContact->m_pVehicle->GetPosition() - ms_vecLastVehicle).Magnitude();
+                }
+            }
+            ms_vecLastMove = pos;
+            if (pContact && pContact->m_pVehicle)
+            {
+                ms_vecLastVehicle = pContact->m_pVehicle->GetPosition();
+            }
+            ms_bHasLastMove = true;
+        }
+
+        if (CTimer::m_snTimeInMilliseconds >= ms_nWatchMovesUntil)
+        {
+            ms_nWatchMovesUntil = 0;
+            ms_bHasLastMove = false;
+            float fSum = 0.0f, fMax = 0.0f, fToMin = 1e9f, fToMax = -1.0f;
+            for (auto& move : ms_moves)
+            {
+                fSum += move.first;
+                fMax = std::max(fMax, move.first);
+                if (move.second >= 0.0f)
+                {
+                    fToMin = std::min(fToMin, move.second);
+                    fToMax = std::max(fToMax, move.second);
+                }
+            }
+            float fMean = ms_moves.empty() ? 0.0f : fSum / ms_moves.size();
+            int nJerks = 0;
+            for (auto& move : ms_moves)
+            {
+                nJerks += move.first > fMean * 2.5f + 0.02f;
+            }
+            logger::info("stand debug: moves %d frames mean %.3f max %.3f jerks %d snaps %u to vehicle %.2f..%.2f "
+                         "(vehicle moved %.1f m)",
+                static_cast<int>(ms_moves.size()), fMean, fMax, nJerks, CPlayerPositionSync::ms_nSnaps - ms_nSnapsAtStart,
+                fToMax < 0.0f ? -1.0f : fToMin, fToMax, ms_fVehicleMoves);
+            ms_fVehicleMoves = 0.0f;
+        }
     }
 
     // after CGame::Process (its CPad::UpdatePads would overwrite it), before CPassengerEnter::Process reads it
