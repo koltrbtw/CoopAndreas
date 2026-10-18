@@ -69,8 +69,13 @@ public:
 // one animation playing on the ped, the clone plays the same set (gestures, chats, fights, idles)
 struct SPedAnim
 {
+    // a named one (a script's TASK_PLAY_ANIM: no group): its anim block and its index in the block, its flags
+    static constexpr uint8_t NAMED_GROUP = 255;
+
     uint8_t group = 0;
     uint16_t id = 0;
+    uint8_t block = 0;
+    uint16_t flags = 0;
     float time = 0.0f;
     float blendAmount = 0.0f;
     float blendDelta = 0.0f;
@@ -81,6 +86,11 @@ struct SPedAnim
     {
         serialize_uint8(stream, group);
         serialize_uint16(stream, id);
+        if (group == NAMED_GROUP)
+        {
+            serialize_uint8(stream, block);
+            serialize_uint16(stream, flags);
+        }
         serialize_float(stream, time);
         serialize_float(stream, blendAmount);
         serialize_float(stream, blendDelta);

@@ -119,7 +119,7 @@ public:
     int8_t iFightingStyle{};
     SKeySnapshot keySnapshot{};
     uint8_t iBreath = 100;  // percent of air left in the lungs, below 100 only under water
-    static constexpr int MAX_IDLE_ANIMS = 2;
+    static constexpr int MAX_IDLE_ANIMS = 4;  // the idles and what a script plays on the player (cutscenes)
     int idleAnimCount = 0;  // ANIM_GROUP_PLAYIDLES: the clone's own CPlayerPed picks others at random
     SPedAnim idleAnims[MAX_IDLE_ANIMS]{};
 

@@ -6,11 +6,14 @@ class CPedAnimSync
 {
 public:
     // returns the number written to pAnims
-    // nOnlyGroup: just the anims of that group (a player's idle anims), the rest is the clone's own
+    // nOnlyGroup: just the anims of that group (a player's idle anims) and the named ones a script plays, the rest is
+    // the clone's own
     static int Collect(CPed* pPed, SPedAnim* pAnims, int nMaxAnims, int nOnlyGroup = -1);
     static void Apply(CPed* pPed, const SPedAnim* pAnims, int nCount, int nOnlyGroup = -1);
     // the ped became ours: fade out what the packets kept on it, its own tasks play their anims now
     static void Release(CPed* pPed);
+    // every frame: the anim blocks held for the clones go once no mission runs
+    static void Process();
     // false: its anim block is still streaming, it is requested now
     static bool IsGroupLoaded(int nGroup);
     // the get in/sit/out anims of this vehicle (a quad, a bike: their own IFP) are loaded, requested if not. A clone
