@@ -8,6 +8,7 @@ PACKET_HANDLER(
 {
     pNetworkPlayer->m_vecPosition = pOnFootUpdate->vecPos;
     pNetworkPlayer->m_bHasPosition = true;
+    pNetworkPlayer->m_nArea = pOnFootUpdate->area;
     pOnFootUpdate->senderPlayerid = pNetworkPlayer->m_playerId;
     GetPacketFactory().SendToAll(*pOnFootUpdate, pNetworkPlayer);
 }

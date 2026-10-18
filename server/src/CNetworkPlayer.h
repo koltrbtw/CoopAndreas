@@ -24,6 +24,7 @@ public:
     vehicleid_t m_vehicleId{};
     CVector m_vecPosition{};  // last known, from the player's own updates
     bool m_bHasPosition = false;
+    uint8_t m_nArea = 0;  // CGame::currArea, from the on foot updates (a vehicle keeps the last one)
     bool m_bCorrectVersion = false;
     float m_afStats[14]{};
     uint8_t m_nWantedLevel = 0;

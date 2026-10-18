@@ -232,12 +232,13 @@ private:
     }
 };
 
-// server -> client: the sectors where this client spawns the ambient population
+// server -> client: the sectors where this client spawns the ambient population, in this area (interior)
 class WorldGridSectors : public Packet
 {
     DEFINE_PACKET_TYPE(WorldGridSectors, ePacketType::WORLD_GRID, ePacketChannel::EVENT);
 
 public:
+    uint8_t area{};
     uint8_t count{};
     uint16_t sectors[WorldGrid::MAX_SECTORS_PER_PLAYER]{};
 
@@ -245,6 +246,7 @@ private:
     template <typename Stream>
     bool Serialize(Stream& stream)
     {
+        serialize_uint8(stream, area);
         serialize_int(stream, count, 0, WorldGrid::MAX_SECTORS_PER_PLAYER);
         for (int i = 0; i < count; i++)
         {

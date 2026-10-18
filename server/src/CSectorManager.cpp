@@ -2,12 +2,12 @@
 #include "CSectorManager.h"
 #include <network/packets/world.h>
 
-std::vector<uint16_t> CSectorManager::GetWantedSectors(CNetworkPlayer* pNetworkPlayer)
+std::vector<uint32_t> CSectorManager::GetWantedCells(CNetworkPlayer* pNetworkPlayer)
 {
-    std::vector<uint16_t> sectors;
+    std::vector<uint32_t> cells;
     if (!pNetworkPlayer->m_bHasPosition)
     {
-        return sectors;
+        return cells;
     }
 
     const CVector& position = pNetworkPlayer->m_vecPosition;
@@ -20,20 +20,28 @@ std::vector<uint16_t> CSectorManager::GetWantedSectors(CNetworkPlayer* pNetworkP
     {
         for (int x = minX; x <= maxX; x++)
         {
-            sectors.push_back(WorldGrid::GetSector(x, y));
+            cells.push_back(GetCell(pNetworkPlayer->m_nArea, WorldGrid::GetSector(x, y)));
         }
     }
-    return sectors;
+    return cells;
+}
+
+void CSectorManager::Free(uint32_t cell)
+{
+    ms_owners.erase(cell);
+    ms_freeSince[cell] = static_cast<uint32_t>(g_serverTime);
 }
 
 void CSectorManager::SendSectors(CNetworkPlayer* pNetworkPlayer)
 {
+    // the player's cells are all in its area: it has let go of the others
     Packets::World::WorldGridSectors packet{};
-    for (int i = 0; i < WorldGrid::SECTOR_COUNT && packet.count < WorldGrid::MAX_SECTORS_PER_PLAYER; i++)
+    packet.area = pNetworkPlayer->m_nArea;
+    for (const auto& [cell, pOwner] : ms_owners)
     {
-        if (ms_apOwners[i] == pNetworkPlayer)
+        if (pOwner == pNetworkPlayer && packet.count < WorldGrid::MAX_SECTORS_PER_PLAYER)
         {
-            packet.sectors[packet.count++] = static_cast<uint16_t>(i);
+            packet.sectors[packet.count++] = GetSectorOfCell(cell);
         }
     }
     GetPacketFactory().Send(packet, pNetworkPlayer);
@@ -53,26 +61,32 @@ void CSectorManager::Update()
 
     for (auto pNetworkPlayer : CNetworkPlayerManager::m_pPlayers)
     {
-        std::vector<uint16_t> wanted = GetWantedSectors(pNetworkPlayer);
+        std::vector<uint32_t> wanted = GetWantedCells(pNetworkPlayer);
         bool bChanged = false;
 
-        // let go of the sectors the player has moved away from
-        for (int i = 0; i < WorldGrid::SECTOR_COUNT; i++)
+        // let go of the cells the player has moved away from (or left the area of)
+        std::vector<uint32_t> left;
+        for (const auto& [cell, pOwner] : ms_owners)
         {
-            if (ms_apOwners[i] == pNetworkPlayer && std::find(wanted.begin(), wanted.end(), i) == wanted.end())
+            if (pOwner == pNetworkPlayer && std::find(wanted.begin(), wanted.end(), cell) == wanted.end())
             {
-                ms_apOwners[i] = nullptr;
-                ms_anFreeSince[i] = static_cast<uint32_t>(g_serverTime);
-                bChanged = true;
+                left.push_back(cell);
             }
+        }
+        for (uint32_t cell : left)
+        {
+            Free(cell);
+            bChanged = true;
         }
 
         // first come, first served
-        for (uint16_t sector : wanted)
+        for (uint32_t cell : wanted)
         {
-            if (!ms_apOwners[sector] && g_serverTime - ms_anFreeSince[sector] >= FREE_COOLDOWN)
+            auto itFree = ms_freeSince.find(cell);
+            if (ms_owners.count(cell) == 0 &&
+                (itFree == ms_freeSince.end() || g_serverTime - itFree->second >= FREE_COOLDOWN))
             {
-                ms_apOwners[sector] = pNetworkPlayer;
+                ms_owners[cell] = pNetworkPlayer;
                 bChanged = true;
             }
         }
@@ -86,12 +100,16 @@ void CSectorManager::Update()
 
 void CSectorManager::OnPlayerDisconnected(CNetworkPlayer* pNetworkPlayer)
 {
-    for (int i = 0; i < WorldGrid::SECTOR_COUNT; i++)
+    std::vector<uint32_t> left;
+    for (const auto& [cell, pOwner] : ms_owners)
     {
-        if (ms_apOwners[i] == pNetworkPlayer)
+        if (pOwner == pNetworkPlayer)
         {
-            ms_apOwners[i] = nullptr;
-            ms_anFreeSince[i] = static_cast<uint32_t>(g_serverTime);
+            left.push_back(cell);
         }
+    }
+    for (uint32_t cell : left)
+    {
+        Free(cell);
     }
 }

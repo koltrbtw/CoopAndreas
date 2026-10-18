@@ -215,6 +215,7 @@ public:
                             Packets::Players::OnFootUpdate::MAX_IDLE_ANIMS, ANIM_GROUP_PLAYIDLES);
                         CPlayerPositionSync::Collect(localPlayer, onFootUpdate);
                         onFootUpdate.stateFlags = CPedStateSync::Collect(localPlayer);
+                        onFootUpdate.area = static_cast<uint8_t>(CGame::currArea);
                         GetPacketFactory().Send(onFootUpdate);
 
                         lastOnFootSyncTickRate = tickCount;

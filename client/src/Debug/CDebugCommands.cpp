@@ -619,6 +619,87 @@ void CDebugCommands::RunCommand(const std::string& line)
         logger::info("stand debug: vehicles <22 %d/%d <45 %d/%d <100 %d/%d <170 %d/%d far %d/%d", counts[0],
             onScreen[0], counts[1], onScreen[1], counts[2], onScreen[2], counts[3], onScreen[3], counts[4], onScreen[4]);
     }
+    else if (command == "dupes")
+    {
+        // peds / vehicles of one model at one spot within 150 units: copies of a scenario ped or a parked car
+        const CVector& center = pPlayer->GetPosition();
+        int nPeds = 0, nVehicles = 0, nDupes = 0;
+        auto logPed = [](CPed* pPed, const char* szWhat)
+        {
+            CNetworkPed* pNetworkPed = CNetworkPedManager::GetPed(pPed);
+            CTask* pTask = pPed->m_pIntelligence->m_TaskMgr.GetActiveTask();
+            const CVector& pos = pPed->GetPosition();
+            logger::info("stand debug: dupes %s ped %s ours %d model %d type %d created %d task %d at %.2f %.2f %.2f",
+                szWhat, pNetworkPed ? to_string(pNetworkPed->m_pedId).c_str() : "-",
+                pNetworkPed ? pNetworkPed->m_bSyncing : -1, pPed->m_nModelIndex, static_cast<int>(pPed->m_nPedType),
+                pPed->m_nCreatedBy, pTask ? pTask->GetTaskType() : -1, pos.x, pos.y, pos.z);
+        };
+        auto logVehicle = [](CVehicle* pVehicle, const char* szWhat)
+        {
+            CNetworkVehicle* pNetworkVehicle = CNetworkVehicleManager::GetVehicle(pVehicle);
+            const CVector& pos = pVehicle->GetPosition();
+            logger::info("stand debug: dupes %s vehicle %s ours %d model %d created %d status %d at %.2f %.2f %.2f",
+                szWhat, pNetworkVehicle ? to_string(pNetworkVehicle->m_vehicleId).c_str() : "-",
+                pNetworkVehicle ? pNetworkVehicle->m_bSyncing : -1, pVehicle->m_nModelIndex, pVehicle->m_nCreatedBy,
+                static_cast<int>(pVehicle->m_nStatus), pos.x, pos.y, pos.z);
+        };
+        std::vector<CPed*> peds;
+        for (auto pPed : CPools::ms_pPedPool)
+        {
+            if (!pPed->IsPlayer() && !pPed->m_nPedFlags.bInVehicle &&
+                (pPed->GetPosition() - center).Magnitude() < 150.0f)
+            {
+                peds.push_back(pPed);
+            }
+        }
+        for (size_t i = 0; i < peds.size(); i++)
+        {
+            nPeds++;
+            for (size_t j = i + 1; j < peds.size(); j++)
+            {
+                if (peds[i]->m_nModelIndex == peds[j]->m_nModelIndex &&
+                    (peds[i]->GetPosition() - peds[j]->GetPosition()).Magnitude() < 1.5f)
+                {
+                    nDupes++;
+                    logPed(peds[i], "pair");
+                    logPed(peds[j], "with");
+                }
+            }
+        }
+        std::vector<CVehicle*> vehicles;
+        for (auto pVehicle : CPools::ms_pVehiclePool)
+        {
+            if ((pVehicle->GetPosition() - center).Magnitude() < 150.0f)
+            {
+                vehicles.push_back(pVehicle);
+            }
+        }
+        for (size_t i = 0; i < vehicles.size(); i++)
+        {
+            nVehicles++;
+            for (size_t j = i + 1; j < vehicles.size(); j++)
+            {
+                if ((vehicles[i]->GetPosition() - vehicles[j]->GetPosition()).Magnitude() < 2.5f)
+                {
+                    nDupes++;
+                    logVehicle(vehicles[i], "pair");
+                    logVehicle(vehicles[j], "with");
+                }
+            }
+        }
+        if (stream >> std::ws && stream.peek() == 'a')  // "dupes all": every one of them
+        {
+            for (auto pPed : peds)
+            {
+                logPed(pPed, "all");
+            }
+            for (auto pVehicle : vehicles)
+            {
+                logVehicle(pVehicle, "all");
+            }
+        }
+        logger::info("stand debug: dupes %d of %d peds %d vehicles", nDupes, nPeds, nVehicles);
+    }
     else if (command == "objects")
     {
         LogMapObjects(pPlayer->GetPosition());

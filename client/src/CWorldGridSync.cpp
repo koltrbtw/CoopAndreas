@@ -10,24 +10,44 @@ void CWorldGridSync::HandlePacket(Packets::World::WorldGridSectors* pPacket)
     {
         ms_ownedSectors.set(pPacket->sectors[i]);
     }
+    ms_nOwnedArea = pPacket->area;
 
-    logger::info("world grid: we spawn the population in %d sectors", pPacket->count);
+    logger::info("world grid: we spawn the population in %d sectors of area %d", pPacket->count, pPacket->area);
 }
 
 void CWorldGridSync::Reset()
 {
     ms_ownedSectors.reset();
+    ms_nOwnedArea = 0;
 }
 
 bool CWorldGridSync::CanSpawnAt(const CVector& position)
 {
-    // offline, alone, or inside an interior (no sectors there): the vanilla rules
-    if (!CNetwork::m_bAuthenticated || CNetworkPlayerManager::m_pPlayers.empty() || CGame::currArea != 0)
+    // offline or alone: the vanilla rules; the filling of an interior we enter alone (its attractors)
+    if (!CNetwork::m_bAuthenticated || CNetworkPlayerManager::m_pPlayers.empty() || ms_bPopulatingInterior)
     {
         return true;
     }
 
-    return ms_ownedSectors.test(WorldGrid::GetSector(position.x, position.y));
+    // an interior has sectors of its own (the vanilla rules there made two players in one interior spawn its
+    // scenario peds twice); until the server hears of the new area, the sectors are another area's
+    return CGame::currArea == ms_nOwnedArea && ms_ownedSectors.test(WorldGrid::GetSector(position.x, position.y));
+}
+
+bool CWorldGridSync::CanPopulateInterior(const CVector& position)
+{
+    // the interior is filled on the way in, before the server has the new area: its peds are of the player who is
+    // already inside, they come to us as clones
+    for (CNetworkPlayer* pNetworkPlayer : CNetworkPlayerManager::m_pPlayers)
+    {
+        CPlayerPed* pPed = pNetworkPlayer->m_pPed;
+        if (pPed && pPed->m_nAreaCode == CGame::currArea &&
+            DistanceBetweenPoints(pPed->GetPosition(), position) < INTERIOR_RADIUS)
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
 // CCarCtrl::GenerateCarCreationCoors2 (0x424210): the spawn point of traffic, boats, police and emergency vehicles
@@ -78,6 +98,48 @@ static bool __cdecl CPopulation__AddPedAtAttractor_Hook(int modelIndex, C2dEffec
 
     return plugin::CallAndReturn<bool, 0x614210, int, C2dEffect*, CVector, CEntity*, int>(
         modelIndex, pAttractor, posn, pEntity, decisionMakerType);
+}
+
+// CPopulation::AddToPopulation (0x614720) from CPopulation::Update: inside an interior the peds don't come from
+// GeneratePedCreationCoors; an interior is small, the sector of the player decides
+static bool __cdecl CPopulation__AddToPopulation_Hook(float minDist, float maxDist, float minDistOffScreen,
+    float maxDistOffScreen)
+{
+    if (CGame::currArea != 0 && !CWorldGridSync::CanSpawnAt(FindPlayerCoors(0)))
+    {
+        return false;
+    }
+
+    return plugin::CallAndReturn<bool, 0x614720, float, float, float, float>(
+        minDist, maxDist, minDistOffScreen, maxDistOffScreen);
+}
+
+// CPopulation::PopulateInterior (0x616470) from CEntryExit (0x43E983): the peds of an interior (the cops of a police
+// station) on the way in, at its attractors and its own spawn points, none of the generators above
+static void __cdecl CPopulation__PopulateInterior_Hook(int numPeds, CVector posn)
+{
+    if (!CWorldGridSync::CanPopulateInterior(posn))
+    {
+        return;
+    }
+
+    CWorldGridSync::ms_bPopulatingInterior = true;
+    plugin::Call<0x616470, int, CVector>(numPeds, posn);
+    CWorldGridSync::ms_bPopulatingInterior = false;
+}
+
+// CPopulation::AddPed (0x612710) from the setup of the peds of an interior group (InteriorGroup_c: the staff and the
+// customers of a shop). The group stores the ped it got and handles nullptr (no ped there)
+static CPed* __cdecl CPopulation__AddPed_InteriorGroup_Hook(ePedType pedType, unsigned int modelIndex,
+    const CVector& posn, bool bMakeWander)
+{
+    if (!CWorldGridSync::CanPopulateInterior(posn))
+    {
+        return nullptr;
+    }
+
+    return plugin::CallAndReturn<CPed*, 0x612710, ePedType, unsigned int, const CVector&, bool>(
+        pedType, modelIndex, posn, bMakeWander);
 }
 
 // CCarGenerator::DoInternalProcessing (0x6F34D0): creates the parked vehicle of a generator
@@ -140,6 +202,12 @@ void CWorldGridSync::InjectHooks()
     patch::RedirectCall(0x42B86A, CCarCtrl__GenerateCarCreationCoors2_Hook);  // GenerateOneEmergencyServicesCar
     patch::RedirectCall(0x614B1C, CPathFind__GeneratePedCreationCoors_Hook);  // CPopulation::AddToPopulation
     patch::RedirectCall(0x615C0D, CPopulation__AddPedAtAttractor_Hook);      // GeneratePedsAtAttractors
+    patch::RedirectCall(0x43E983, CPopulation__PopulateInterior_Hook);        // CEntryExit
+    patch::RedirectCall(0x61679B, CPopulation__AddToPopulation_Hook);         // CPopulation::Update
+    patch::RedirectCall(0x615D4B, CPopulation__AddToPopulation_Hook);
+    patch::RedirectCall(0x594D48, CPopulation__AddPed_InteriorGroup_Hook);   // the peds of an interior group
+    patch::RedirectCall(0x594FD7, CPopulation__AddPed_InteriorGroup_Hook);
+    patch::RedirectCall(0x59676F, CPopulation__AddPed_InteriorGroup_Hook);
     patch::RedirectCall(0x6F3EC1, CCarGenerator__DoInternalProcessing_Hook);  // CCarGenerator::Process
     patch::RedirectCall(0x53BFE2, CHeli__UpdateHelis_Hook);                    // CGame::Process
     patch::RedirectCall(0x434272, CPlane__DoPlaneGenerationAndRemoval_Hook);   // CGame::Process
