@@ -279,7 +279,9 @@ void CDebugCommands::RunCommand(const std::string& line)
         // the slots of CPickups::aPickUps in a radius: index, ref, type, model, position, flags, regeneration - now
         float radius = 50.0f;
         stream >> radius;
-        logger::info("stand debug: pickups in %.0f m, money %d", radius, CWorld::Players[0].m_nMoney);
+        logger::info("stand debug: pickups in %.0f m, money %d, horseshoes %.0f oysters %.0f snapshots %.0f", radius,
+            CWorld::Players[0].m_nMoney, CStats::GetStatValue(STAT_HORSESHOES_COLLECTED),
+            CStats::GetStatValue(STAT_OYSTERS_COLLECTED), CStats::GetStatValue(STAT_SNAPSHOTS_TAKEN));
         for (int i = 0; i < 620; i++)
         {
             CPickup& pickup = CPickups::aPickUps[i];
@@ -310,13 +312,18 @@ void CDebugCommands::RunCommand(const std::string& line)
         }
         else
         {
-            int n = first.empty() ? 0 : std::stoi(first);
+            // or the nearest collectible
+            int model = first == "horseshoe" ? 954 : first == "oyster" ? 953 : first == "snapshot" ? 1253 : 0;
+            int n = model || first.empty() ? 0 : std::stoi(first);
             std::vector<std::pair<float, int>> nearest;
             for (int i = 0; i < 620; i++)
             {
                 CPickup& pickup = CPickups::aPickUps[i];
-                if (pickup.m_nPickupType == PICKUP_ON_STREET || pickup.m_nPickupType == PICKUP_ON_STREET_SLOW ||
-                    pickup.m_nPickupType == PICKUP_ONCE)
+                bool bWanted = model ? pickup.m_nPickupType != PICKUP_NONE && pickup.m_nModelIndex == model
+                                     : pickup.m_nPickupType == PICKUP_ON_STREET ||
+                                           pickup.m_nPickupType == PICKUP_ON_STREET_SLOW ||
+                                           pickup.m_nPickupType == PICKUP_ONCE;
+                if (bWanted)
                 {
                     nearest.emplace_back((pickup.GetPosn() - pPlayer->GetPosition()).Magnitude(), i);
                 }
