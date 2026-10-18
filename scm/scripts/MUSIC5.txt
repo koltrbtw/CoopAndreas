@@ -3,6 +3,8 @@
 
 :MUSIC5
 script_name 'MUSIC5'
+Coop.EnableSyncingThisScript()
+
 gosub @MUSIC5_47
 if 
   has_deatharrest_been_executed 
@@ -16,6 +18,22 @@ terminate_this_script
 :MUSIC5_47
 $onmission = 1
 Stat.RegisterMissionGiven
+$NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2] = Coop.CollectNetworkPlayersForTheMission()
+160@ = 0.0 // the point a network player is moved to
+161@ = 0.0
+162@ = 0.0
+163@ = 0.0 // its heading
+164@ = -1 // the car the network players are taken out of
+for 165@ = 0 to 11
+    167@(165@,12i) = -1 // the ballas whose blip is shown to the network players
+end
+165@ = 0
+166@ = -1
+179@ = 0 // the weapon in a network player's sub-machine gun slot
+180@ = 0
+181@ = 0
+182@ = 0 // the spot the network players are moved to: 1 the fight, 2 off the voodoo, 3 the walk home, 4 the morning
+183@ = 0 // the network player is moved to the spot
 Text.LoadMissionText('STRAP4')
 Text.ClearPrints
 wait 0
@@ -385,6 +403,10 @@ Streaming.RequestCarRecording(22)
 Streaming.RequestCarRecording(23)
 World.ClearArea(1, 2492.4, -1632.0, 12.4, 1.0)
 Char.SetCoordinates($scplayer, 2492.4, -1632.0, 12.4)
+
+// the host is put out of the scene of the ballas' arrival, bring the network players next to him
+Coop.TeleportPlayersToHostSafely($NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2])
+
 Camera.SetFixedPosition(2483.0, -1649.8, 12.5, 0.0, 0.0, 0.0)
 Camera.PointAtPoint(2494.3, -1650.3, 16.6, SwitchType.JumpCut)
 Game.ShutAllCharsUp(True)
@@ -392,6 +414,7 @@ Game.EnableAmbientCrime(False)
 
 :MUSIC5_3034
 wait 0
+gosub @MUSIC5_COOP_UPDATE
 if 
 is_ps2_keyboard_key_pressed 83
 goto_if_false @MUSIC5_3060
@@ -610,6 +633,8 @@ Camera.PointAtPoint(2460.089, -1653.843, 13.1158, SwitchType.JumpCut)
 if 
   not Car.IsDead(34@)
 goto_if_false @MUSIC5_4723
+set_lvar_int_to_lvar_int 164@ = 34@
+gosub @MUSIC5_COOP_LEAVE_CAR // the car is driven by its recording below
 Car.StartPlayback(34@, 22)
 
 :MUSIC5_4723
@@ -672,6 +697,8 @@ goto_if_false @MUSIC5_5104
 if 
   Char.IsInCar(63@, 35@)
 goto_if_false @MUSIC5_5097
+set_lvar_int_to_lvar_int 164@ = 35@
+gosub @MUSIC5_COOP_LEAVE_CAR // the car is driven by its recording below
 Car.StartPlayback(35@, 23)
 85@ = 1
 
@@ -803,6 +830,14 @@ goto @MUSIC5_15871
 
 :MUSIC5_5790
 Camera.ResetNewScriptables
+set_lvar_int_to_lvar_int 164@ = 43@
+gosub @MUSIC5_COOP_LEAVE_CAR // the cars are moved below
+set_lvar_int_to_lvar_int 164@ = 44@
+gosub @MUSIC5_COOP_LEAVE_CAR // the cars are moved below
+set_lvar_int_to_lvar_int 164@ = 34@
+gosub @MUSIC5_COOP_LEAVE_CAR // the cars are moved below
+set_lvar_int_to_lvar_int 164@ = 35@
+gosub @MUSIC5_COOP_LEAVE_CAR // the cars are moved below
 if 
   82@ == 1
 goto_if_false @MUSIC5_5904
@@ -941,6 +976,11 @@ Streaming.LoadScene(2487.3, -1650.7, 12.5)
 World.ClearArea(1, 2469.7, -1657.0, 12.3, 1.0)
 Char.SetCoordinatesDontWarpGang($scplayer, 2469.7, -1657.0, 12.3)
 Char.SetHeading($scplayer, 90.0)
+
+// the host is put behind the homies facing the ballas, bring the network players beside him
+182@ = 1
+gosub @MUSIC5_COOP_PUT_PLAYERS
+
 62@ = Pickup.CreateWithAmmo(372, 2, 120, 2466.0, -1656.1, 13.3)
 DecisionMakerChar.AddEventResponse(145@, 13, 917, 0.0, 100.0, 0.0, 0.0, False, True)
 Char.Delete($ryder)
@@ -988,6 +1028,13 @@ if
   105@ == 0
 goto_if_false @MUSIC5_7215
 Text.Print('STP4_02', 11000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintForNetworkPlayer('STP4_02', 11000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 106@ = 1
 
 :MUSIC5_7215
@@ -1370,6 +1417,13 @@ if
   105@ == 0
 goto_if_false @MUSIC5_9575
 Text.Print('STP4_03', 11000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintForNetworkPlayer('STP4_03', 11000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 106@ = 1
 
 :MUSIC5_9575
@@ -1463,6 +1517,11 @@ World.ClearArea(1, 2475.8, -1663.6, 12.3, 1.0)
 Char.SetCoordinates($scplayer, 2475.8, -1663.6, 12.3)
 
 :MUSIC5_10058
+// the voodoo is put back at its spot below, move the network players standing there beside the host
+182@ = 2
+gosub @MUSIC5_COOP_PUT_PLAYERS
+set_lvar_int_to_lvar_int 164@ = 35@
+gosub @MUSIC5_COOP_LEAVE_CAR // the car is moved below
 if 
   not Car.IsDead(35@)
 goto_if_false @MUSIC5_10135
@@ -1842,6 +1901,13 @@ Camera.SetBehindPlayer
 Camera.RestoreJumpcut
 Player.SetControl($player1, True)
 Text.Print('STP4_04', 11000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintForNetworkPlayer('STP4_04', 11000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Camera.DoFade(1, 500)
 
 :MUSIC5_13379
@@ -2131,6 +2197,11 @@ World.ClearArea(1, 2484.9, -1649.2, 12.5, 160.0)
 Char.ClearTasksImmediately($scplayer)
 Char.SetCoordinates($scplayer, 2484.2, -1666.2, 12.3)
 Char.SetHeading($scplayer, 336.7)
+
+// the host walks home with the homies, bring the network players behind them
+182@ = 3
+gosub @MUSIC5_COOP_PUT_PLAYERS
+
 144@ = Sequence.Open()
 Task.GoStraightToCoord(-1, 2486.7, -1650.1, 12.3, MoveState.Walk, -1)
 Task.Pause(-1, 1000)
@@ -2256,6 +2327,11 @@ Streaming.UnloadSpecialCharacter(1)
 Char.ClearTasksImmediately($scplayer)
 Char.SetCoordinates($scplayer, 2486.6, -1649.9, 12.5)
 Char.SetHeading($scplayer, 177.8)
+
+// the host is put in front of the house in the morning, bring the network players next to him
+182@ = 4
+gosub @MUSIC5_COOP_PUT_PLAYERS
+
 Game.ShutAllCharsUp(False)
 Player.SetControl($player1, True)
 Hud.SwitchWidescreen(False)
@@ -2281,6 +2357,13 @@ if
 goto_if_false @MUSIC5_15857
 Text.ClearPrints
 Text.PrintNow('STP4_06', 7000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('STP4_06', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @MUSIC5_15871
 
 :MUSIC5_15857
@@ -2299,6 +2382,13 @@ Blip.Remove($strap_contact_blip)
 $strap_contact_blip = Blip.AddSpriteForContactPoint($strap_blip_icon, $strap2X, $strap2Y, $strap2Z)
 Camera.DoFade(1, 500)
 Text.PrintNow('STP4_07', 11000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('STP4_07', 11000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 $flag_strap_mission_counter += 1
 $strap4_mission_passed_once_flag = 1
 goto @MUSIC5_16038
@@ -2388,6 +2478,14 @@ CarGenerator.Switch($gen_car7, 101)
 CarGenerator.Switch($gen_car10, 101)
 Pickup.Remove(62@)
 Game.EnableAmbientCrime(True)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        Coop.ClearAllEntityBlipsForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+    end
+end
 $timer_mobile_start = Clock.GetGameTimer()
 $onmission = 0
 Mission.Finish
@@ -2399,6 +2497,13 @@ if
 goto_if_false @MUSIC5_16443
 Text.ClearPrints
 Text.PrintNow('STP4_05', 7000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('STP4_05', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 83@ = 1
 
 :MUSIC5_16443
@@ -2768,6 +2873,13 @@ if
 goto_if_false @MUSIC5_18526
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 Text.PrintNow(109@(107@,9s), 4500, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer(109@(107@,9s), 4500, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 137@ = 2
 
 :MUSIC5_18526
@@ -2782,6 +2894,13 @@ if
 goto_if_false @MUSIC5_18602
 Audio.PlayMissionAudio(MissionAudioSlot.Slot2)
 Text.PrintNow(109@(107@,9s), 4500, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer(109@(107@,9s), 4500, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 138@ = 2
 
 :MUSIC5_18602
@@ -2813,6 +2932,253 @@ Text.ClearThisPrint(109@(107@,9s))
 
 :MUSIC5_18730
 return 
+
+:MUSIC5_COOP_UPDATE
+// the mission cars are locked for the host, the scenes drive them on recordings and move them,
+// keep the network players out of them
+set_lvar_int_to_lvar_int 164@ = 34@
+gosub @MUSIC5_COOP_LEAVE_CAR
+set_lvar_int_to_lvar_int 164@ = 35@
+gosub @MUSIC5_COOP_LEAVE_CAR
+set_lvar_int_to_lvar_int 164@ = 43@
+gosub @MUSIC5_COOP_LEAVE_CAR
+set_lvar_int_to_lvar_int 164@ = 44@
+gosub @MUSIC5_COOP_LEAVE_CAR
+set_lvar_int_to_lvar_int 164@ = 46@
+gosub @MUSIC5_COOP_LEAVE_CAR
+set_lvar_int_to_lvar_int 164@ = 61@
+gosub @MUSIC5_COOP_LEAVE_CAR
+
+// a ballas has a blip for the network players while the host's blip exists and he is alive,
+// the ballas 47@-58@ go with the blips 66@-77@ and every wave recreates them in the same variables
+for 165@ = 0 to 11
+    166@ = -1
+    if
+        Blip.DoesExist(66@(165@,12i))
+    then
+        if
+            not Char.IsDead(47@(165@,12i))
+        then
+            set_lvar_int_to_lvar_int 166@ = 47@(165@,12i)
+        end
+    end
+    if // a variable the mission has not set yet
+        166@ == 0
+    then
+        166@ = -1
+    end
+    if
+        not is_int_lvar_equal_to_int_lvar 167@(165@,12i) == 166@
+    then
+        if
+            167@(165@,12i) <> -1
+        then
+            if // a deleted ballas takes his blip with him
+                Char.DoesExist(167@(165@,12i))
+            then
+                for $temp_int = 0 to 2
+                    if
+                        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                    then
+                        Coop.RemoveCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 167@(165@,12i))
+                    end
+                end
+            end
+        end
+        if
+            166@ <> -1
+        then
+            for $temp_int = 0 to 2
+                if
+                    Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                then
+                    Coop.UpdateCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 166@, false, BlipDisplay.BlipOnly, BlipColor.Red, 2)
+                end
+            end
+        end
+        set_lvar_int_to_lvar_int 167@(165@,12i) = 166@
+    end
+end
+return
+
+:MUSIC5_COOP_PUT_PLAYERS
+// the network players are moved to the spots of 182@, outside (area 0) like the host
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        gosub @MUSIC5_COOP_GET_POINT
+        183@ = 1
+        if
+            182@ == 2
+        then
+            if // only the ones on the voodoo's spot
+                not Char.LocateAnyMeans3D($NETWORK_PLAYER[$temp_int], 0, 2473.5, -1655.2, 12.1, 5.0, 5.0, 5.0)
+            then
+                183@ = 0
+            end
+        end
+        if
+            183@ == 1
+        then
+            if
+                Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+            then
+                Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 160@, 161@, 162@)
+            else
+                Char.SetCoordinates($NETWORK_PLAYER[$temp_int], 160@, 161@, 162@)
+            end
+            Char.SetHeading($NETWORK_PLAYER[$temp_int], 163@)
+            Char.SetAreaVisible($NETWORK_PLAYER[$temp_int], 0)
+            if
+                182@ == 1
+            then
+                gosub @MUSIC5_COOP_GIVE_TEC9
+            end
+        end
+    end
+end
+return
+
+:MUSIC5_COOP_GIVE_TEC9
+// the host gets a tec9 pickup for the fight, give one if the player has no sub-machine gun
+179@, 180@, 181@ = Char.GetWeaponInSlot($NETWORK_PLAYER[$temp_int], WeaponSlot.SMG)
+if or
+    179@ == 0
+    180@ <= 0
+then
+    Char.GiveWeapon($NETWORK_PLAYER[$temp_int], WeaponType.Tec9, 120)
+end
+return
+
+:MUSIC5_COOP_GET_POINT
+// beside the host's spot of 182@, off the homies' and the scenes' spots
+if
+    182@ == 1
+then
+    // the street behind the homies, the host faces the ballas in the west
+    162@ = 12.3
+    163@ = 90.0
+    if
+        $temp_int == 0
+    then
+        160@ = 2470.2
+        161@ = -1654.0
+    end
+    if
+        $temp_int == 1
+    then
+        160@ = 2470.2
+        161@ = -1660.0
+    end
+    if
+        $temp_int == 2
+    then
+        160@ = 2472.2
+        161@ = -1657.0
+    end
+end
+if
+    182@ == 2
+then
+    // beside the host's spot off the voodoo, facing the ballas in the south
+    162@ = 12.3
+    163@ = 215.5
+    if
+        $temp_int == 0
+    then
+        160@ = 2477.8
+        161@ = -1662.6
+    end
+    if
+        $temp_int == 1
+    then
+        160@ = 2473.8
+        161@ = -1662.6
+    end
+    if
+        $temp_int == 2
+    then
+        160@ = 2475.8
+        161@ = -1661.4
+    end
+end
+if
+    182@ == 3
+then
+    // behind the host and the homies walking home, out of the camera's view
+    162@ = 12.3
+    163@ = 0.0
+    if
+        $temp_int == 0
+    then
+        160@ = 2481.5
+        161@ = -1671.0
+    end
+    if
+        $temp_int == 1
+    then
+        160@ = 2488.5
+        161@ = -1671.0
+    end
+    if
+        $temp_int == 2
+    then
+        160@ = 2486.0
+        161@ = -1673.0
+    end
+end
+if
+    182@ == 4
+then
+    // in front of the house beside the host
+    162@ = 12.5
+    163@ = 180.0
+    if
+        $temp_int == 0
+    then
+        160@ = 2484.6
+        161@ = -1650.6
+    end
+    if
+        $temp_int == 1
+    then
+        160@ = 2488.4
+        161@ = -1651.2
+    end
+    if
+        $temp_int == 2
+    then
+        160@ = 2486.6
+        161@ = -1652.4
+    end
+end
+return
+
+:MUSIC5_COOP_LEAVE_CAR
+// a network player in the car 164@ is taken out beside its left door
+if
+    Car.DoesExist(164@)
+then
+    if
+        not Car.IsDead(164@)
+    then
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                if
+                    Char.IsInCar($NETWORK_PLAYER[$temp_int], 164@)
+                then
+                    160@, 161@, 162@ = Car.GetOffsetInWorldCoords(164@, -2.5, 0.0, 0.0)
+                    Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 160@, 161@, 162@)
+                end
+            end
+        end
+    end
+end
+return
+
 
 //-------------Mission 35---------------
 // Originally: Race Tournament / 8-track / Dirt Track
