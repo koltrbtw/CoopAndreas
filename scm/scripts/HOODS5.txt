@@ -3,6 +3,7 @@
 
 :HOODS5
 script_name 'HOODS5'
+Coop.EnableSyncingThisScript()
 gosub @HOODS5_251
 if 
   has_deatharrest_been_executed 
@@ -29,6 +30,7 @@ goto_if_false @HOODS5_251
 
 :HOODS5_251
 Stat.RegisterMissionGiven
+$NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2] = Coop.CollectNetworkPlayersForTheMission()
 $onmission = 1
 Player.SetGroupToFollowAlways($player1, True)
 154@ = 14
@@ -38,6 +40,15 @@ Player.SetGroupToFollowAlways($player1, True)
 158@ = 18
 161@ = 21
 148@ = 0
+420@ = -1 // the Greenwood for the network players
+421@ = 0
+422@ = 0
+423@ = 0
+424@ = 0 // the car blips for the way home are shown to the network players
+for 430@ = 0 to 4
+    425@(430@,5i) = 0 // the balla blip is shown to the network players
+end
+437@ = 0 // free seats in the host's car for the network players
 Char.SetRelationship($scplayer, RelationshipType.Hate, PedType.Mission1)
 
 :HOODS5_325
@@ -118,6 +129,7 @@ goto @HOODS5_737
 gosub @HOODS5_792
 gosub @HOODS5_890
 gosub @HOODS5_13224
+gosub @HOODS5_COOP_UPDATE
 if 
   126@ == 1
 goto_if_false @HOODS5_783
@@ -136,6 +148,13 @@ if
 goto_if_false @HOODS5_849
 126@ = 1
 Text.Print('SW5_L', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('SW5_L', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :HOODS5_849
 if 
@@ -143,6 +162,13 @@ if
 goto_if_false @HOODS5_888
 126@ = 1
 Text.Print('SW5_M', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('SW5_M', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :HOODS5_888
 return 
@@ -542,6 +568,29 @@ World.SetCarDensityMultiplier(1.0)
 34@ = Char.GetScriptTaskStatus($scplayer, 1833)
 Text.Print('SW5_A2', 6000, 1)
 Text.Print('SW5_17', 6000, 1)
+
+// the host is back at Grove Street after the phone call scene
+Coop.TeleportPlayersToHostSafely($NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2])
+
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        // give a pistol for the fight if the player has no handgun, the host can get one at Emmet's
+        434@, 435@, 436@ = Char.GetWeaponInSlot($NETWORK_PLAYER[$temp_int], WeaponSlot.Pistols)
+        if or
+            434@ == 0
+            435@ <= 0
+        then
+            Char.GiveWeapon($NETWORK_PLAYER[$temp_int], WeaponType.Pistol, 100)
+        end
+        Coop.UpdateCheckpointForNetworkPlayer(2775.793, -1942.909, 15.6576, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int]) // the girl
+        // queued like the host's texts
+        Coop.PrintForNetworkPlayer('SW5_A2', 6000, 1, $NETWORK_PLAYER[$temp_int])
+        Coop.PrintForNetworkPlayer('SW5_17', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
+
 Player.SetControl($player1, True)
 Player.MakeGangReappear
 Hud.SwitchWidescreen(False)
@@ -568,6 +617,13 @@ if
 goto_if_false @HOODS5_3616
 $sw5_sweet_health = 0
 Text.Print('SW5_L', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('SW5_L', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 125@ = 1
 
 :HOODS5_3616
@@ -580,6 +636,13 @@ goto_if_false @HOODS5_4349
 Game.SetCreateRandomGangMembers(False)
 97@ = 1
 Text.Print('SW5_J', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('SW5_J', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 106@ = 2761.516
 112@ = -1972.028
 118@ = 12.5459
@@ -638,6 +701,13 @@ goto @HOODS5_3971
 54@ = Blip.AddForChar(40@)
 55@ = Blip.AddForChar(41@)
 Blip.Remove(48@)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+    end
+end
 Char.SetDecisionMaker(37@, 47@)
 Char.SetDecisionMaker(38@, 47@)
 Char.SetDecisionMaker(39@, 47@)
@@ -781,14 +851,35 @@ Task.UseMobilePhone($scplayer, False)
 Path.SwitchRoadsBackToOriginal(2793.814, -1987.935, 15.3045, 2754.324, -1900.369, 9.8752)
 Path.SwitchPedRoadsBackToOriginal(2793.814, -1987.935, 15.3045, 2754.324, -1900.369, 9.8752)
 Text.Print('SW5_14', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.UpdateCheckpointForNetworkPlayer(2764.272, -1979.494, 12.5394, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int]) // the car pick-up point
+        Coop.PrintNowForNetworkPlayer('SW5_14', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 127@ = 4
 
 :HOODS5_5151
 return 
 
 :HOODS5_5153
-if 
+432@ = 1 // all the network players are at the car pick-up point
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if not Char.LocateAnyMeans3D($NETWORK_PLAYER[$temp_int], 0, 2764.272, -1979.494, 12.5394, 12.0, 12.0, 4.0)
+        then
+            432@ = 0
+        end
+    end
+end
+
+if and
   Char.LocateAnyMeans3D($scplayer, 1, 2764.272, -1979.494, 12.5394, 4.0, 4.0, 4.0)
+  432@ == 1
 goto_if_false @HOODS5_5481
 if 
   Char.IsInAnyCar($scplayer)
@@ -836,6 +927,13 @@ goto @HOODS5_5415
 127@ = 5
 148@ = 0
 Blip.Remove(48@)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @HOODS5_5481
 
 :HOODS5_5465
@@ -931,6 +1029,22 @@ Char.GiveWeapon(64@, WeaponType.Pistol, 99999)
 Char.GiveWeapon(65@, WeaponType.Pistol, 99999)
 Car.SetPlaybackSpeed(62@, 0.0)
 Car.SetPlaybackSpeed(63@, 0.0)
+// sweet and the girl take the passenger seats, the passengers there are deleted below, get the network players out first
+if
+    not Car.IsDead(59@)
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                Char.IsInCar($NETWORK_PLAYER[$temp_int], 59@)
+            then
+                Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 2761.551, -1980.099, 12.5478)
+            end
+        end
+    end
+end
 if 
   not Car.IsDead(59@)
 goto_if_false @HOODS5_6293
@@ -1127,6 +1241,13 @@ Car.SetAirResistanceMultiplier(63@, 0.1)
 :HOODS5_7458
 73@ = Blip.AddForCoord(2509.062, -1672.527, 12.386)
 Blip.SetAsFriendly(73@, True)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.UpdateCheckpointForNetworkPlayer(2509.062, -1672.527, 12.386, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int]) // Grove Street
+    end
+end
 if and
   not Char.IsDead(75@)
   not Car.IsDead(59@)
@@ -1177,6 +1298,52 @@ Camera.SetBehindPlayer
 Camera.RestoreJumpcut
 Text.ClearPrints
 Text.Print('SW5_I', 5000, 1)
+
+// sweet and the girl sit in the front and the rear left seats, a car for the network players if there is no seat left for them
+437@ = 0
+if
+    not Car.IsDead(59@)
+then
+    437@ = Car.GetMaximumNumberOfPassengers(59@)
+    437@ -= 2
+end
+433@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        433@ += 1
+    end
+end
+if
+    is_int_lvar_greater_than_int_lvar 433@ > 437@
+then
+    World.ClearArea(1, 2758.9, -1978.9, 12.55, 4.0)
+    420@ = Car.Create(492, 2758.9, -1978.9, 12.55)
+    Car.SetHeading(420@, 0.0)
+    Car.SetHealth(420@, 1000)
+end
+
+// point the network players to the cars
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        421@($temp_int,3i) = 0 // car_blips_removed
+        if
+            437@ > 0
+        then
+            Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 59@, true, BlipDisplay.MarkerOnly, BlipColor.Blue, 3)
+        end
+        if
+            420@ <> -1
+        then
+            Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 420@, true, BlipDisplay.MarkerOnly, BlipColor.Blue, 3)
+        end
+        Coop.PrintNowForNetworkPlayer('SW5_I', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
+424@ = 1
 127@ = 6
 125@ = 1
 set_lvar_int_to_lvar_int 153@ = TIMERA
@@ -1331,6 +1498,14 @@ if
 goto_if_false @HOODS5_8609
 69@ = 1
 Text.Print('SW5_T', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('SW5_T', 4000, 1, $NETWORK_PLAYER[$temp_int])
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int]) // the host's Grove Street blip is removed below
+    end
+end
 if 
   not Blip.DoesExist(71@)
 goto_if_false @HOODS5_8604
@@ -1353,6 +1528,13 @@ if
   70@ == 0
 goto_if_false @HOODS5_8712
 73@ = Blip.AddForCoord(2509.062, -1672.527, 12.386)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.UpdateCheckpointForNetworkPlayer(2509.062, -1672.527, 12.386, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int]) // Grove Street
+    end
+end
 
 :HOODS5_8712
 if 
@@ -1366,6 +1548,14 @@ if
 goto_if_false @HOODS5_8824
 70@ = 1
 Text.Print('SW5_U', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('SW5_U', 4000, 1, $NETWORK_PLAYER[$temp_int])
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int]) // the host's Grove Street blip is removed below
+    end
+end
 if 
   not Blip.DoesExist(72@)
 goto_if_false @HOODS5_8819
@@ -1389,6 +1579,13 @@ if
 goto_if_false @HOODS5_8934
 73@ = Blip.AddForCoord(2509.062, -1672.527, 12.386)
 Blip.SetAsFriendly(73@, True)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.UpdateCheckpointForNetworkPlayer(2509.062, -1672.527, 12.386, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int]) // Grove Street
+    end
+end
 
 :HOODS5_8934
 if 
@@ -1471,8 +1668,21 @@ if and
   70@ == 0
   69@ == 0
 goto_if_false @HOODS5_9682
-if 
+432@ = 1 // all the network players are at Grove Street
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if not Char.LocateAnyMeans3D($NETWORK_PLAYER[$temp_int], 0, 2509.062, -1672.527, 12.386, 12.0, 12.0, 4.0)
+        then
+            432@ = 0
+        end
+    end
+end
+
+if and
   Char.LocateAnyMeans3D($scplayer, 1, 2509.062, -1672.527, 12.386, 4.0, 4.0, 4.0)
+  432@ == 1
 goto_if_false @HOODS5_9682
 if and
   Char.LocateAnyMeans3D(75@, 0, 2509.062, -1672.527, 12.386, 8.0, 8.0, 4.0)
@@ -1486,6 +1696,25 @@ $car = Char.StoreCarIsInNoSave($scplayer)
 Task.CarTempAction($scplayer, $car, TempAction.HandbrakeStraight, 2000000)
 
 :HOODS5_9668
+424@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        Coop.ClearAllEntityBlipsForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        // the host's car is hidden and moved for the ending scene
+        if
+            not Car.IsDead(59@)
+        then
+            if
+                Char.IsInCar($NETWORK_PLAYER[$temp_int], 59@)
+            then
+                Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 2515.28, -1673.44, 12.73)
+            end
+        end
+    end
+end
 127@ = 7
 148@ = 0
 
@@ -2231,6 +2460,13 @@ goto_if_false @HOODS5_14899
 Audio.PlayMissionAudio(351@)
 Text.ClearPrints
 Text.Print(228@(352@,40s), 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer(228@(352@,40s), 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 355@ += 1
 404@ = 0
 352@ += 1
@@ -2443,8 +2679,100 @@ DecisionMaker.Remove(47@)
 DecisionMaker.Remove(99@)
 Game.SetCreateRandomGangMembers(True)
 Player.SetGroupToFollowAlways($player1, False)
+if
+    420@ <> -1
+then
+    Car.MarkAsNoLongerNeeded(420@)
+end
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        Coop.ClearAllEntityBlipsForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+    end
+end
 $onmission = 0
 $timer_mobile_start = Clock.GetGameTimer()
 Mission.Finish
 return 
+
+:HOODS5_COOP_UPDATE
+// the ballas have a blip for the network players while the host's blip exists and the balla is alive
+if
+    97@ == 1
+then
+    for 430@ = 0 to 4
+        431@ = 0
+        if
+            Blip.DoesExist(51@(430@,5i))
+        then
+            if
+                not Char.IsDead(37@(430@,5i))
+            then
+                431@ = 1
+            end
+        end
+
+        if and
+            431@ == 1
+            425@(430@,5i) == 0
+        then
+            for $temp_int = 0 to 2
+                if
+                    Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                then
+                    Coop.UpdateCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 37@(430@,5i), false, BlipDisplay.Both, BlipColor.Red, 3)
+                end
+            end
+            425@(430@,5i) = 1
+        end
+
+        if and
+            431@ == 0
+            425@(430@,5i) == 1
+        then
+            for $temp_int = 0 to 2
+                if
+                    Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                then
+                    Coop.RemoveCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 37@(430@,5i))
+                end
+            end
+            425@(430@,5i) = 0
+        end
+    end
+end
+
+// the car blips for the way home are not needed anymore when the player found a car
+if
+    424@ == 1
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                421@($temp_int,3i) == 0
+            then
+                if
+                    Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+                then
+                    421@($temp_int,3i) = 1
+                    if
+                        437@ > 0
+                    then
+                        Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 59@)
+                    end
+                    if
+                        420@ <> -1
+                    then
+                        Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 420@)
+                    end
+                end
+            end
+        end
+    end
+end
+return
 
