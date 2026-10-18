@@ -4,6 +4,7 @@
 #include <sstream>
 #include <CWanted.h>
 #include <CGangWars.h>
+#include <CPickups.h>
 #include "Hooks/PlayerHooks.h"
 #include "Hooks/WorldHooks.h"
 #include <CDummyObject.h>
@@ -272,6 +273,91 @@ void CDebugCommands::RunCommand(const std::string& line)
         {
             CWanted::SetMaximumWantedLevel(6);
         }
+    }
+    else if (command == "pickup-list")
+    {
+        // the slots of CPickups::aPickUps in a radius: index, ref, type, model, position, flags, regeneration - now
+        float radius = 50.0f;
+        stream >> radius;
+        logger::info("stand debug: pickups in %.0f m, money %d", radius, CWorld::Players[0].m_nMoney);
+        for (int i = 0; i < 620; i++)
+        {
+            CPickup& pickup = CPickups::aPickUps[i];
+            if (pickup.m_nPickupType == PICKUP_NONE ||
+                (pickup.GetPosn() - pPlayer->GetPosition()).Magnitude() > radius)
+            {
+                continue;
+            }
+            CVector pos = pickup.GetPosn();
+            logger::info("stand debug: pickup %d ref %d type %d model %d at %.2f %.2f %.2f flags %02x ammo %u regen %d", i,
+                pickup.m_nReferenceIndex, pickup.m_nPickupType, pickup.m_nModelIndex, pos.x, pos.y, pos.z,
+                *reinterpret_cast<uint8_t*>(&pickup.m_nFlags), pickup.m_nAmmo,
+                static_cast<int>(pickup.m_nRegenerationTime - CTimer::m_snTimeInMilliseconds));
+        }
+    }
+    else if (command == "pickup-tp")
+    {
+        // onto the n-th nearest pickup every game has of its own (on street, once), or onto x y z
+        std::string first;
+        stream >> first;
+        CVector target{};
+        bool bFound = false;
+        float y = 0.0f, z = 0.0f;
+        if (stream >> y >> z)
+        {
+            target = CVector(std::stof(first), y, z);
+            bFound = true;
+        }
+        else
+        {
+            int n = first.empty() ? 0 : std::stoi(first);
+            std::vector<std::pair<float, int>> nearest;
+            for (int i = 0; i < 620; i++)
+            {
+                CPickup& pickup = CPickups::aPickUps[i];
+                if (pickup.m_nPickupType == PICKUP_ON_STREET || pickup.m_nPickupType == PICKUP_ON_STREET_SLOW ||
+                    pickup.m_nPickupType == PICKUP_ONCE)
+                {
+                    nearest.emplace_back((pickup.GetPosn() - pPlayer->GetPosition()).Magnitude(), i);
+                }
+            }
+            std::sort(nearest.begin(), nearest.end());
+            if (n < static_cast<int>(nearest.size()))
+            {
+                CPickup& pickup = CPickups::aPickUps[nearest[n].second];
+                target = pickup.GetPosn();
+                bFound = true;
+                logger::info("stand debug: pickup %d type %d model %d, %d synced ones", nearest[n].second,
+                    pickup.m_nPickupType, pickup.m_nModelIndex, static_cast<int>(nearest.size()));
+            }
+        }
+        if (bFound)
+        {
+            pPlayer->Teleport(target + CVector(0.0f, 0.0f, 0.5f), false);
+            logger::info("stand debug: on pickup at %.2f %.2f %.2f", target.x, target.y, target.z);
+        }
+    }
+    else if (command == "pickup-money" || command == "pickup-create")
+    {
+        // in front of the player: money as from a body (CreateSomeMoney), or any pickup as a script makes it
+        CVector pos = pPlayer->GetPosition() + pPlayer->GetForward() * 2.0f;
+        if (command == "pickup-money")
+        {
+            int amount = 100;
+            stream >> amount;
+            CPickups::CreateSomeMoney(pos, amount);
+        }
+        else
+        {
+            int model = 1240;  // health
+            int type = PICKUP_ON_STREET;
+            int ammo = 0;
+            stream >> model >> type >> ammo;
+            plugin::Command<Commands::REQUEST_MODEL>(model);
+            plugin::Command<Commands::LOAD_ALL_MODELS_NOW>();
+            CPickups::GenerateNewOne(pos, model, static_cast<unsigned char>(type), ammo, 0, false, nullptr);
+        }
+        logger::info("stand debug: pickup at %.2f %.2f %.2f", pos.x, pos.y, pos.z);
     }
     else if (command == "wanted")
     {

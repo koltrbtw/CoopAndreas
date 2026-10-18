@@ -101,6 +101,7 @@ using namespace plugin;
 #include "network/packets/vehicles.h"
 #include "network/packets/system.h"
 #include "network/packets/world.h"
+#include "network/packets/pickups.h"
 #include <network/packets/peds.h>
 #include <network/packets/scripts.h>
 #include <network/packets/blips.h>
@@ -136,6 +137,7 @@ using namespace plugin;
 #include "CVehicleBlowSync.h"
 #include "CVehiclePushSync.h"
 #include "CVehicleCloneDamage.h"
+#include "CPickupSync.h"
 #include "CDriveBy.h"
 #include "CNetworkPedManager.h"
 #include "CDebugPedTasks.h"

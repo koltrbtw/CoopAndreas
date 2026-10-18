@@ -14,6 +14,7 @@
 #include <network/packets/world.h>
 #include "CGangZones.h"
 #include "CWorldObjects.h"
+#include "CPickupStates.h"
 
 bool CNetwork::Init(unsigned short port)
 {
@@ -127,6 +128,7 @@ void CNetwork::HandlePlayerDisconnected(ENetEvent& event)
     CSectorManager::OnPlayerDisconnected(pNetworkPlayer);
     CGangZones::OnPlayerDisconnected(pNetworkPlayer);
     CWorldObjects::OnPlayerDisconnected(pNetworkPlayer);
+    CPickupStates::OnPlayerDisconnected(pNetworkPlayer);
 
     CNetworkPlayerManager::Remove(pNetworkPlayer);
 
@@ -264,6 +266,7 @@ void CNetwork::HandlePlayerConnected(ENetPeer* pENetPeer, Packets::System::Playe
     }
 
     CNetworkPlayerManager::AssignHostToFirstPlayer();
+    CPickupStates::OnPlayerConnected(pNewNetworkPlayer);
 
     // the host is announced on a change only: a later one didn't know it (a borrowed mission vehicle never went back)
     CNetworkPlayer* pHost = CNetworkPlayerManager::GetHost();
