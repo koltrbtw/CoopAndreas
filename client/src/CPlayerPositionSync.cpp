@@ -162,7 +162,9 @@ void CPlayerPositionSync::Process()
         if (ms_bHasLastPos && DistanceBetweenPoints(pos, ms_vecLastPos) > JUMP_DISTANCE)
         {
             ms_nEpoch++;
-            logger::info("our position jumped %.0f m: epoch %d", DistanceBetweenPoints(pos, ms_vecLastPos), ms_nEpoch);
+            CTask* pTask = pPlayerPed->m_pIntelligence->m_TaskMgr.GetActiveTask();
+            logger::info("our position jumped %.0f m: epoch %d, in vehicle %d, task %d", DistanceBetweenPoints(pos, ms_vecLastPos),
+                ms_nEpoch, pPlayerPed->m_nPedFlags.bInVehicle, pTask ? pTask->GetTaskType() : -1);
         }
         ms_vecLastPos = pos;
         ms_bHasLastPos = true;
