@@ -22,6 +22,7 @@
 #include "../CGangWarSync.h"
 #include "../CTrafficLightsSync.h"
 #include "../CRadialPopulation.h"
+#include "CCustomText.h"
 
 void CHook::Init()
 {
@@ -29,6 +30,7 @@ void CHook::Init()
     VehicleHooks::InjectHooks();
     PlayerHooks::InjectHooks();
     TaskHooks::InjectHooks();
+    CCustomText::InjectHooks();
     WorldHooks::InjectHooks();
     PedHooks::InjectHooks();
     GameHooks::InjectHooks();
