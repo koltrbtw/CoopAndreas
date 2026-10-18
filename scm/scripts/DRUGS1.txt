@@ -3,6 +3,8 @@
 
 :DRUGS1
 script_name 'DRUGS1'
+Coop.EnableSyncingThisScript()
+
 gosub @DRUGS1_47
 if 
   has_deatharrest_been_executed 
@@ -15,7 +17,40 @@ terminate_this_script
 
 :DRUGS1_47
 Stat.RegisterMissionGiven
+$NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2] = Coop.CollectNetworkPlayersForTheMission()
 $onmission = 1
+300@ = -1 // the Glendale for the network players
+301@ = 0
+302@ = 0
+for 318@ = 0 to 2
+    303@(318@,3i) = 0 // glendale_blips_removed
+    310@(318@,3i) = -1 // the bike of each network player
+    313@(318@,3i) = 0 // bike_blip_removed
+end
+306@ = 0 // 1: the network players drive to the Atrium, 3: they chase on their bikes
+307@ = 0.0 // the point a network player is moved to
+308@ = 0.0
+309@ = 0.0
+316@ = 0 // the enemy blips shown to the network players: 1, 2 the Atrium shootouts, 3 the chase
+317@ = 0
+318@ = 0
+319@ = -1
+for 318@ = 0 to 12
+    320@(318@,13i) = -1 // the enemy cars with a blip
+    333@(318@,13i) = -1 // their blips
+    346@(318@,13i) = -1 // the car whose blip is shown to the network players
+end
+for 318@ = 0 to 10
+    359@(318@,11i) = -1 // the enemies on foot with a blip
+    370@(318@,11i) = -1 // their blips
+    381@(318@,11i) = -1 // the enemy whose blip is shown to the network players
+end
+392@ = 0 // smoke's blip is shown to the network players
+393@ = 0
+394@ = 0
+395@ = 0
+396@ = 0
+398@ = -1 // the car a network player is in
 wait 0
 Text.LoadMissionText('SMOKE4')
 World.ClearArea(1, 2060.0, -1694.0, 50.0, 50.0)
@@ -204,6 +239,44 @@ Char.SetCantBeDraggedOut($big_smoke, True)
 Char.SetStayInCarWhenJacked($big_smoke, True)
 Game.SetMaxFireGenerations(1)
 Char.WarpIntoCar($scplayer, 34@)
+
+// the Glendale has 2 free seats, a car for the network players if there are 3 of them
+301@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        301@ += 1
+    end
+end
+if
+    301@ == 3
+then
+    World.ClearArea(1, 2075.0, -1698.5, 12.29, 3.0)
+    300@ = Car.Create(466, 2075.0, -1698.5, 12.29)
+    Car.SetHeading(300@, 359.74)
+    Car.SetHealth(300@, 1000)
+end
+
+// the host is in the Glendale at Smoke's house after the cutscene
+Coop.TeleportPlayersToHostSafely($NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2])
+
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        303@($temp_int,3i) = 0 // glendale_blips_removed
+        Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 34@, true, BlipDisplay.MarkerOnly, BlipColor.Blue, 3)
+        if
+            300@ <> -1
+        then
+            Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 300@, true, BlipDisplay.MarkerOnly, BlipColor.Blue, 3)
+        end
+        Coop.UpdateCheckpointForNetworkPlayer(1722.568, -1597.92, 12.405, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int]) // the Atrium
+    end
+end
+306@ = 1
+
 Game.SetWantedMultiplier(0.0)
 Game.SwitchEmergencyServices(False)
 Camera.DoFade(1, 1500)
@@ -213,6 +286,13 @@ Hud.SwitchWidescreen(False)
 Char.ShutUp($scplayer, True)
 Path.SwitchRoadsOff(1694.12, -1604.33, 5.0, 1805.94, -1593.12, 15.0)
 Text.PrintNow('DGS1_1', 6000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('DGS1_1', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 TIMERB = 0
 Player.SetGroupRecruitment($player1, False)
 Game.SetScriptLimitToGangSize(0)
@@ -221,6 +301,7 @@ Char.ShutUpForScriptedSpeech($scplayer, True)
 
 :DRUGS1_1348
 wait 0
+gosub @DRUGS1_COOP_UPDATE
 if 
 is_ps2_keyboard_key_pressed 83
 goto_if_false @DRUGS1_1374
@@ -234,6 +315,13 @@ if
   Char.IsDead($big_smoke)
 goto_if_false @DRUGS1_1431
 Text.PrintNow('DGS1_60', 7000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('DGS1_60', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @DRUGS1_52025
 
 :DRUGS1_1431
@@ -254,6 +342,13 @@ if
 goto_if_false @DRUGS1_1567
 Char.ExplodeHead($big_smoke)
 Text.PrintNow('DGS1_3', 7000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('DGS1_3', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @DRUGS1_52025
 
 :DRUGS1_1567
@@ -274,6 +369,13 @@ if
 goto_if_false @DRUGS1_1698
 88@ = Blip.AddForCoord(1722.568, -1597.92, 12.405)
 Text.PrintNow('DGS1_1', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('DGS1_1', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 90@ = 1
 
 :DRUGS1_1698
@@ -301,6 +403,13 @@ Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Text.ClearPrints
 Audio.PlayMissionAudio(MissionAudioSlot.Slot2)
 Text.PrintNow('SMOX_AC', 2000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('SMOX_AC', 2000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 91@ = 1
 
 :DRUGS1_1854
@@ -321,6 +430,13 @@ if
   282@ > 12
 goto_if_false @DRUGS1_1972
 Text.PrintNow('DGS1_1', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('DGS1_1', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :DRUGS1_1972
 90@ = 1
@@ -503,11 +619,33 @@ goto_if_false @DRUGS1_5137
 if 
   Char.IsSittingInCar($scplayer, 34@)
 goto_if_false @DRUGS1_5137
-if 
+302@ = 1 // all the network players are at the Atrium
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if not Char.LocateAnyMeans2D($NETWORK_PLAYER[$temp_int], 0, 1722.568, -1597.92, 12.0, 12.0)
+        then
+            302@ = 0
+        end
+    end
+end
+
+if and
   Car.Locate3D(34@, 1, 1722.568, -1597.92, 12.45, 4.0, 4.0, 5.0)
+  302@ == 1
 goto_if_false @DRUGS1_5137
 Player.SetControl($player1, False)
 Hud.SwitchWidescreen(True)
+306@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        Coop.ClearAllEntityBlipsForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+    end
+end
 World.DisableAllEntryExits(True)
 Game.SetMaxWantedLevel(0)
 122@ = 0
@@ -528,6 +666,23 @@ wait 0
 goto @DRUGS1_3236
 
 :DRUGS1_3260
+// the Glendale is deleted once the host is inside, get the network players out of it
+if
+    not Car.IsDead(34@)
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                Char.IsInCar($NETWORK_PLAYER[$temp_int], 34@)
+            then
+                gosub @DRUGS1_COOP_GET_ENTRANCE_POINT
+                Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 307@, 308@, 12.6)
+            end
+        end
+    end
+end
 Char.SetCurrentWeapon($scplayer, WeaponType.Unarmed)
 Streaming.RequestModel(352)
 Streaming.RequestModel(346)
@@ -808,6 +963,13 @@ Char.StartFacialTalk($big_smoke, 10000)
 
 :DRUGS1_5826
 Text.PrintNow('SMO4_BA', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('SMO4_BA', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 99@ = 4
 
 :DRUGS1_5849
@@ -831,6 +993,13 @@ Char.StopFacialTalk($big_smoke)
 
 :DRUGS1_5979
 Text.PrintNow('SMO4_BB', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('SMO4_BB', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Char.StartFacialTalk($scplayer, 10000)
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(35616, 1)
@@ -855,6 +1024,13 @@ Char.StartFacialTalk($big_smoke, 10000)
 
 :DRUGS1_6104
 Text.PrintNow('SMO4_BC', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('SMO4_BC', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(35617, 2)
 99@ = 6
@@ -871,6 +1047,13 @@ if
 goto_if_false @DRUGS1_6224
 Audio.PlayMissionAudio(MissionAudioSlot.Slot2)
 Text.PrintNow('SMO4_BD', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('SMO4_BD', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.LoadMissionAudio(35618, 1)
 99@ = 7
 
@@ -902,6 +1085,13 @@ Char.SetHeading(63@, 0.0)
 Task.PlayAnimNonInterruptable(63@, "GIRL_02", "JST_BUISNESS", 1000.0, False, False, False, True, -1)
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 Text.PrintNow('SMO4_BE', 3000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('SMO4_BE', 3000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Camera.SetNearClip(0.09)
 Char.StartFacialTalk($scplayer, 2000)
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
@@ -937,6 +1127,13 @@ Camera.PointAtPoint(1726.091, -1632.391, 20.6711, SwitchType.JumpCut)
 Camera.SetNearClip(0.1)
 Audio.PlayMissionAudio(MissionAudioSlot.Slot2)
 Text.PrintNow('SMO4_BF', 3000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('SMO4_BF', 3000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(35620, 1)
 99@ = 9
@@ -954,6 +1151,13 @@ goto_if_false @DRUGS1_6758
 Char.StopFacialTalk($scplayer)
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 Text.PrintNow('SMO4_BG', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('SMO4_BG', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 99@ = 10
 
 :DRUGS1_6758
@@ -1009,6 +1213,25 @@ Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Text.ClearPrints
 Streaming.SetAreaVisible(18)
 Streaming.LoadScene(1722.81, -1658.54, 20.19)
+
+// the host goes into the Atrium (area 18), the area is synced, move the network players inside next to him
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        gosub @DRUGS1_COOP_GET_ATRIUM_POINT
+        if
+            Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+        then
+            Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 307@, 308@, 19.22)
+        else
+            Char.SetCoordinates($NETWORK_PLAYER[$temp_int], 307@, 308@, 19.22)
+        end
+        Char.SetHeading($NETWORK_PLAYER[$temp_int], 180.0)
+        Char.SetAreaVisible($NETWORK_PLAYER[$temp_int], 18)
+        gosub @DRUGS1_COOP_GIVE_UZI
+    end
+end
 if 
   93@ == 0
 goto_if_false @DRUGS1_8359
@@ -1227,6 +1450,13 @@ if
 goto_if_false @DRUGS1_8777
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 Text.PrintNow('SMO4_BL', 2500, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('SMO4_BL', 2500, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :DRUGS1_8777
 if 
@@ -1944,6 +2174,16 @@ Char.SetHeading($big_smoke, 86.7366)
 Char.SetCoordinates($scplayer, 1696.339, -1666.897, 19.2)
 Char.SetHeading($scplayer, 85.4)
 
+// the host leaves the Atrium to its back part (area 0), bring the network players out with him
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Char.SetAreaVisible($NETWORK_PLAYER[$temp_int], 0)
+    end
+end
+Coop.TeleportPlayersToHostSafely($NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2])
+
 :DRUGS1_12909
 49@ = Char.Create(24, 112, 1682.685, -1671.516, 19.24)
 Char.SetHeading(49@, 289.407)
@@ -2496,6 +2736,35 @@ Car.SetCanBurstTires(161@, False)
 Char.GiveWeapon($scplayer, WeaponType.MicroUzi, 99999)
 Car.SetHealth(161@, 2000)
 Car.SetCanBurstTires(161@, False)
+
+// smoke's bike seats only smoke and the host, a bike for each network player next to it
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        gosub @DRUGS1_COOP_GET_BIKE_POINT
+        World.ClearArea(1, 307@, 308@, 19.48, 1.5)
+        310@($temp_int,3i) = Car.Create(581, 307@, 308@, 19.48)
+        Car.SetHeading(310@($temp_int,3i), 117.5347)
+        Car.SetHealth(310@($temp_int,3i), 1000)
+        313@($temp_int,3i) = 0 // bike_blip_removed
+        Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 310@($temp_int,3i), true, BlipDisplay.MarkerOnly, BlipColor.Blue, 3)
+
+        // the host is moved to smoke's bike, bring the network players to theirs
+        gosub @DRUGS1_COOP_GET_BIKE_RIDER_POINT
+        if
+            Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+        then
+            Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 307@, 308@, 19.814)
+        else
+            Char.SetCoordinates($NETWORK_PLAYER[$temp_int], 307@, 308@, 19.814)
+        end
+        Char.SetHeading($NETWORK_PLAYER[$temp_int], 117.5347)
+        gosub @DRUGS1_COOP_GIVE_UZI
+    end
+end
+306@ = 3
+
 TIMERA = 0
 90@ = 13
 
@@ -2532,6 +2801,13 @@ Task.EnterCarAsPassenger($scplayer, 161@, 0, 5000)
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.PlayMissionAudio(MissionAudioSlot.Slot2)
 Text.PrintNow('SMO4_EO', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('SMO4_EO', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 127@ = 2
 90@ = 15
 
@@ -2649,6 +2925,13 @@ Task.Die($big_smoke)
 :DRUGS1_17261
 Car.Explode(161@)
 Text.PrintNow('DGS1_60', 7000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('DGS1_60', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @DRUGS1_52025
 goto @DRUGS1_17303
 
@@ -3056,6 +3339,7 @@ goto_if_false @DRUGS1_20314
 Task.DriveBy(50@, -1, 161@, 0.0, 0.0, 0.0, 150.0, DriveByType.Ai, True, 100)
 
 :DRUGS1_20314
+gosub @DRUGS1_COOP_LEAVE_MISSION_CARS // the cars below are deleted
 Car.Delete(165@)
 Car.Delete(166@)
 Car.Delete(171@)
@@ -3111,6 +3395,7 @@ goto_if_false @DRUGS1_21513
 if 
   Car.Locate2D(161@, 0, 1508.7, -1440.86, 10.0, 10.0)
 goto_if_false @DRUGS1_21513
+gosub @DRUGS1_COOP_LEAVE_MISSION_CARS // the cars below are deleted
 Car.Delete(172@)
 Car.Delete(167@)
 Car.Delete(168@)
@@ -3221,6 +3506,7 @@ Car.MarkAsNoLongerNeeded(171@)
 Car.MarkAsNoLongerNeeded(172@)
 Car.MarkAsNoLongerNeeded(175@)
 Car.MarkAsNoLongerNeeded(176@)
+gosub @DRUGS1_COOP_LEAVE_MISSION_CARS // the cars below are deleted
 Car.Delete(169@)
 Car.Delete(170@)
 Car.Delete(173@)
@@ -4064,6 +4350,7 @@ goto_if_false @DRUGS1_27033
 Task.DriveBy(45@, -1, 161@, 0.0, 0.0, 0.0, 150.0, DriveByType.Ai, True, 100)
 
 :DRUGS1_27033
+gosub @DRUGS1_COOP_LEAVE_MISSION_CARS // the cars below are deleted
 Car.Delete(176@)
 Car.Delete(190@)
 Car.Delete(191@)
@@ -4157,6 +4444,7 @@ $cam_offz = 0.2
 Camera.AttachToVehicle(161@, 0.0, -2.0, $cam_offz, 0.0, 0.0, 204@, 0.0, SwitchType.JumpCut)
 Char.ClearTasksImmediately($scplayer)
 Char.WarpIntoCarAsPassenger($scplayer, 161@, 0)
+gosub @DRUGS1_COOP_LEAVE_MISSION_CARS // the cars below are deleted
 Car.StopPlayback(189@)
 Car.Delete(189@)
 Blip.Remove(214@)
@@ -4915,6 +5203,7 @@ if
   272@ == 0
 goto_if_false @DRUGS1_34556
 Camera.DoFade(0, Fade.Out)
+gosub @DRUGS1_COOP_LEAVE_MISSION_CARS // the cars below are deleted
 Car.StopPlayback(189@)
 Car.Delete(189@)
 Char.Delete(42@)
@@ -5334,6 +5623,7 @@ goto_if_false @DRUGS1_36241
 if 
   Car.Locate2D(161@, 0, 2425.93, -1874.76, 10.0, 10.0)
 goto_if_false @DRUGS1_36241
+gosub @DRUGS1_COOP_LEAVE_MISSION_CARS // the cars below are deleted
 Car.Delete(208@)
 Car.Delete(207@)
 Car.Delete(189@)
@@ -6509,6 +6799,7 @@ Car.OpenDoor(188@, CarDoor.LeftFrontDoor)
 135@ = 2.8487
 Camera.SetFixedPosition(2578.406, -1668.328, 1.3204, 0.0, 0.0, 0.0)
 Camera.PointAtPoint(2577.853, -1669.157, 1.4051, SwitchType.JumpCut)
+gosub @DRUGS1_COOP_LEAVE_MISSION_CARS // the cars below are deleted
 Car.StopPlayback(189@)
 Car.Delete(189@)
 Char.Delete(42@)
@@ -7023,6 +7314,7 @@ goto_if_false @DRUGS1_46480
 if 
   Car.Locate2D(161@, 0, 2676.96, -1432.1, 12.0, 12.0)
 goto_if_false @DRUGS1_46480
+gosub @DRUGS1_COOP_LEAVE_MISSION_CARS // the cars below are deleted
 Char.Delete(48@)
 Char.Delete(49@)
 Char.Delete(50@)
@@ -7068,6 +7360,13 @@ goto @DRUGS1_46629
 :DRUGS1_46655
 Audio.PlayMissionAudio(MissionAudioSlot.Slot2)
 Text.PrintNow('SMO4_JS', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('SMO4_JS', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 280@ = 4
 
 :DRUGS1_46682
@@ -7092,8 +7391,16 @@ goto_if_false @DRUGS1_46940
 Text.ClearPrints
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 Text.PrintNow('SMO4_KA', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('SMO4_KA', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(35729, 2)
+gosub @DRUGS1_COOP_LEAVE_MISSION_CARS // the cars below are deleted
 Char.Delete(43@)
 Char.Delete(44@)
 Car.Delete(189@)
@@ -7135,6 +7442,13 @@ Char.StartFacialTalk($big_smoke, 10000)
 :DRUGS1_47065
 Audio.PlayMissionAudio(MissionAudioSlot.Slot2)
 Text.PrintNow('SMO4_KC', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('SMO4_KC', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(35730, 1)
 Char.SetCanBeKnockedOffBike($scplayer, False)
@@ -7175,6 +7489,13 @@ goto_if_false @DRUGS1_47318
 Text.ClearPrints
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 Text.PrintNow('SMO4_KD', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('SMO4_KD', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(35731, 2)
 280@ = 8
@@ -7198,6 +7519,13 @@ Char.StopFacialTalk($big_smoke)
 Text.ClearPrints
 Audio.PlayMissionAudio(MissionAudioSlot.Slot2)
 Text.PrintNow('SMO4_KE', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('SMO4_KE', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Char.StartFacialTalk($scplayer, 10000)
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(35732, 1)
@@ -7216,6 +7544,13 @@ goto_if_false @DRUGS1_47534
 Text.ClearPrints
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 Text.PrintNow('SMO4_KF', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('SMO4_KF', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(35733, 2)
 TIMERA = 0
@@ -7245,6 +7580,13 @@ Car.SetStraightLineDistance(161@, 200)
 Task.CarDriveToCoord($big_smoke, 161@, 2804.5, -1538.95, 10.38, 6.0, DriveMode.Normal, 0, DrivingMode.PloughThrough)
 Audio.PlayMissionAudio(MissionAudioSlot.Slot2)
 Text.PrintNow('SMO4_KG', 2500, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('SMO4_KG', 2500, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 if 
   not Char.IsDead($big_smoke)
 goto_if_false @DRUGS1_47724
@@ -7932,6 +8274,13 @@ if
   Audio.HasMissionAudioLoaded(MissionAudioSlot.Slot1)
 goto_if_false @DRUGS1_51696
 Text.PrintNow(237@s, 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer(237@s, 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 283@ = 2
 
@@ -8095,6 +8444,26 @@ Weather.Release
 Char.DetachFromCar($scplayer)
 Char.SetProofs($scplayer, False, False, False, False, False)
 Game.SwitchEmergencyServices(True)
+if
+    300@ <> -1
+then
+    Car.MarkAsNoLongerNeeded(300@)
+end
+for $temp_int = 0 to 2
+    if
+        310@($temp_int,3i) <> -1
+    then
+        Car.MarkAsNoLongerNeeded(310@($temp_int,3i))
+    end
+end
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        Coop.ClearAllEntityBlipsForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+    end
+end
 $timer_mobile_start = Clock.GetGameTimer()
 Mission.Finish
 if 
@@ -8186,3 +8555,502 @@ Task.KillCharOnFoot(55@, $scplayer)
 :DRUGS1_52905
 return 
 
+:DRUGS1_COOP_UPDATE
+if // the glendale blips are not needed anymore when the player found a car
+    306@ == 1
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                303@($temp_int,3i) == 0
+            then
+                if
+                    Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+                then
+                    303@($temp_int,3i) = 1
+                    Coop.ClearAllEntityBlipsForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+                end
+            end
+        end
+    end
+end
+
+if // the bike blip is not needed anymore when the player found a vehicle
+    306@ == 3
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                313@($temp_int,3i) == 0
+            then
+                if or
+                    Car.IsDead(310@($temp_int,3i))
+                    Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+                then
+                    313@($temp_int,3i) = 1
+                    Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 310@($temp_int,3i))
+                end
+            end
+        end
+    end
+end
+
+// smoke has a blip for the network players while the host's blip exists and smoke is alive
+393@ = 0
+if
+    Blip.DoesExist(89@)
+then
+    if
+        not Char.IsDead($big_smoke)
+    then
+        393@ = 1
+    end
+end
+if and
+    393@ == 1
+    392@ == 0
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            Coop.UpdateCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], $big_smoke, true, BlipDisplay.Both, BlipColor.Blue, 3) // smoke
+        end
+    end
+    392@ = 1
+end
+if and
+    393@ == 0
+    392@ == 1
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            Coop.RemoveCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], $big_smoke)
+        end
+    end
+    392@ = 0
+end
+
+// the part of the mission whose enemy blips are shown to the network players
+317@ = 0
+if
+    90@ == 11
+then
+    if
+        126@ == 0
+    then
+        317@ = 1 // the Atrium
+    else
+        317@ = 2 // the back of the Atrium
+    end
+end
+if and
+    90@ >= 12
+    100 > 90@
+then
+    317@ = 3 // the chase
+end
+if
+    not is_int_lvar_equal_to_int_lvar 317@ == 316@
+then
+    gosub @DRUGS1_COOP_REMOVE_ENEMY_BLIPS
+    set_lvar_int_to_lvar_int 316@ = 317@
+end
+if
+    316@ > 0
+then
+    gosub @DRUGS1_COOP_FILL_ENEMIES
+    gosub @DRUGS1_COOP_SYNC_ENEMY_BLIPS
+end
+return
+
+:DRUGS1_COOP_FILL_ENEMIES
+// the enemies with a blip in the current part, copied every frame as the mission recreates them in the same variables
+for 318@ = 0 to 12
+    320@(318@,13i) = -1
+    333@(318@,13i) = -1
+end
+for 318@ = 0 to 10
+    359@(318@,11i) = -1
+    370@(318@,11i) = -1
+end
+if
+    316@ == 1
+then
+    set_lvar_int_to_lvar_int 359@ = 42@
+    set_lvar_int_to_lvar_int 370@ = 214@
+    set_lvar_int_to_lvar_int 360@ = 43@
+    set_lvar_int_to_lvar_int 371@ = 215@
+    set_lvar_int_to_lvar_int 361@ = 44@
+    set_lvar_int_to_lvar_int 372@ = 216@
+    set_lvar_int_to_lvar_int 362@ = 45@
+    set_lvar_int_to_lvar_int 373@ = 217@
+    set_lvar_int_to_lvar_int 363@ = 46@
+    set_lvar_int_to_lvar_int 374@ = 218@
+    set_lvar_int_to_lvar_int 364@ = 47@
+    set_lvar_int_to_lvar_int 375@ = 219@
+    set_lvar_int_to_lvar_int 365@ = 48@
+    set_lvar_int_to_lvar_int 376@ = 220@
+    set_lvar_int_to_lvar_int 366@ = 51@
+    set_lvar_int_to_lvar_int 377@ = 223@
+    set_lvar_int_to_lvar_int 367@ = 52@
+    set_lvar_int_to_lvar_int 378@ = 224@
+    set_lvar_int_to_lvar_int 368@ = 53@
+    set_lvar_int_to_lvar_int 379@ = 225@
+    set_lvar_int_to_lvar_int 369@ = 54@
+    set_lvar_int_to_lvar_int 380@ = 226@
+end
+if
+    316@ == 2
+then
+    set_lvar_int_to_lvar_int 359@ = 49@
+    set_lvar_int_to_lvar_int 370@ = 214@
+    set_lvar_int_to_lvar_int 360@ = 55@
+    set_lvar_int_to_lvar_int 371@ = 215@
+    set_lvar_int_to_lvar_int 361@ = 56@
+    set_lvar_int_to_lvar_int 372@ = 216@
+    set_lvar_int_to_lvar_int 362@ = 57@
+    set_lvar_int_to_lvar_int 373@ = 217@
+    set_lvar_int_to_lvar_int 363@ = 58@
+    set_lvar_int_to_lvar_int 374@ = 218@
+    set_lvar_int_to_lvar_int 364@ = 59@
+    set_lvar_int_to_lvar_int 375@ = 219@
+    set_lvar_int_to_lvar_int 365@ = 50@
+    set_lvar_int_to_lvar_int 376@ = 220@
+end
+if
+    316@ == 3
+then
+    // the gunmen in the alley and at the storm drain
+    set_lvar_int_to_lvar_int 359@ = 53@
+    set_lvar_int_to_lvar_int 370@ = 235@
+    set_lvar_int_to_lvar_int 360@ = 61@
+    set_lvar_int_to_lvar_int 371@ = 236@
+    set_lvar_int_to_lvar_int 361@ = 54@
+    set_lvar_int_to_lvar_int 372@ = 226@
+    set_lvar_int_to_lvar_int 362@ = 55@
+    set_lvar_int_to_lvar_int 373@ = 227@
+    set_lvar_int_to_lvar_int 363@ = 48@
+    set_lvar_int_to_lvar_int 374@ = 231@
+    set_lvar_int_to_lvar_int 364@ = 49@
+    set_lvar_int_to_lvar_int 375@ = 232@
+    set_lvar_int_to_lvar_int 365@ = 50@
+    set_lvar_int_to_lvar_int 376@ = 233@
+    set_lvar_int_to_lvar_int 366@ = 51@
+    set_lvar_int_to_lvar_int 377@ = 234@
+    // the bikes, the cars and the truck
+    set_lvar_int_to_lvar_int 320@ = 188@
+    set_lvar_int_to_lvar_int 333@ = 209@
+    set_lvar_int_to_lvar_int 321@ = 189@
+    set_lvar_int_to_lvar_int 334@ = 214@
+    set_lvar_int_to_lvar_int 322@ = 194@
+    set_lvar_int_to_lvar_int 335@ = 215@
+    set_lvar_int_to_lvar_int 323@ = 195@
+    set_lvar_int_to_lvar_int 336@ = 216@
+    set_lvar_int_to_lvar_int 324@ = 196@
+    set_lvar_int_to_lvar_int 337@ = 217@
+    set_lvar_int_to_lvar_int 325@ = 206@
+    set_lvar_int_to_lvar_int 338@ = 218@
+    set_lvar_int_to_lvar_int 326@ = 165@
+    set_lvar_int_to_lvar_int 339@ = 210@
+    set_lvar_int_to_lvar_int 327@ = 166@
+    set_lvar_int_to_lvar_int 340@ = 211@
+    set_lvar_int_to_lvar_int 328@ = 167@
+    set_lvar_int_to_lvar_int 341@ = 212@
+    set_lvar_int_to_lvar_int 329@ = 168@
+    set_lvar_int_to_lvar_int 342@ = 213@
+    set_lvar_int_to_lvar_int 330@ = 190@
+    set_lvar_int_to_lvar_int 343@ = 230@
+    set_lvar_int_to_lvar_int 331@ = 192@
+    set_lvar_int_to_lvar_int 344@ = 228@
+    set_lvar_int_to_lvar_int 332@ = 193@
+    set_lvar_int_to_lvar_int 345@ = 229@
+end
+return
+
+:DRUGS1_COOP_SYNC_ENEMY_BLIPS
+// an enemy has a blip for the network players while the host's blip exists and the enemy is alive
+for 318@ = 0 to 10
+    319@ = -1
+    if
+        Blip.DoesExist(370@(318@,11i))
+    then
+        if
+            not Char.IsDead(359@(318@,11i))
+        then
+            set_lvar_int_to_lvar_int 319@ = 359@(318@,11i)
+        end
+    end
+    if // a variable the mission has not set yet
+        319@ == 0
+    then
+        319@ = -1
+    end
+    if
+        not is_int_lvar_equal_to_int_lvar 381@(318@,11i) == 319@
+    then
+        if
+            381@(318@,11i) <> -1
+        then
+            for $temp_int = 0 to 2
+                if
+                    Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                then
+                    Coop.RemoveCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 381@(318@,11i))
+                end
+            end
+        end
+        if
+            319@ <> -1
+        then
+            for $temp_int = 0 to 2
+                if
+                    Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                then
+                    Coop.UpdateCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 319@, false, BlipDisplay.BlipOnly, BlipColor.Red, 2)
+                end
+            end
+        end
+        set_lvar_int_to_lvar_int 381@(318@,11i) = 319@
+    end
+end
+
+for 318@ = 0 to 12
+    319@ = -1
+    if
+        Blip.DoesExist(333@(318@,13i))
+    then
+        if
+            not Car.IsDead(320@(318@,13i))
+        then
+            set_lvar_int_to_lvar_int 319@ = 320@(318@,13i)
+        end
+    end
+    if // a variable the mission has not set yet
+        319@ == 0
+    then
+        319@ = -1
+    end
+    if
+        not is_int_lvar_equal_to_int_lvar 346@(318@,13i) == 319@
+    then
+        if
+            346@(318@,13i) <> -1
+        then
+            for $temp_int = 0 to 2
+                if
+                    Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                then
+                    Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 346@(318@,13i))
+                end
+            end
+        end
+        if
+            319@ <> -1
+        then
+            for $temp_int = 0 to 2
+                if
+                    Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                then
+                    Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 319@, false, BlipDisplay.BlipOnly, BlipColor.Red, 2)
+                end
+            end
+        end
+        set_lvar_int_to_lvar_int 346@(318@,13i) = 319@
+    end
+end
+return
+
+:DRUGS1_COOP_REMOVE_ENEMY_BLIPS
+for 318@ = 0 to 10
+    if
+        381@(318@,11i) <> -1
+    then
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                Coop.RemoveCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 381@(318@,11i))
+            end
+        end
+        381@(318@,11i) = -1
+    end
+end
+for 318@ = 0 to 12
+    if
+        346@(318@,13i) <> -1
+    then
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 346@(318@,13i))
+            end
+        end
+        346@(318@,13i) = -1
+    end
+end
+return
+
+:DRUGS1_COOP_LEAVE_MISSION_CARS
+// the mission deletes its cars, a network player who took one of them is taken out first
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if
+            Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+        then
+            398@ = Char.StoreCarIsInNoSave($NETWORK_PLAYER[$temp_int])
+            394@ = 0
+            if or
+                is_int_lvar_equal_to_int_lvar 398@ == 163@
+                is_int_lvar_equal_to_int_lvar 398@ == 164@
+                is_int_lvar_equal_to_int_lvar 398@ == 165@
+                is_int_lvar_equal_to_int_lvar 398@ == 166@
+                is_int_lvar_equal_to_int_lvar 398@ == 167@
+                is_int_lvar_equal_to_int_lvar 398@ == 168@
+                is_int_lvar_equal_to_int_lvar 398@ == 169@
+                is_int_lvar_equal_to_int_lvar 398@ == 170@
+            then
+                394@ = 1
+            end
+            if or
+                is_int_lvar_equal_to_int_lvar 398@ == 171@
+                is_int_lvar_equal_to_int_lvar 398@ == 172@
+                is_int_lvar_equal_to_int_lvar 398@ == 173@
+                is_int_lvar_equal_to_int_lvar 398@ == 176@
+                is_int_lvar_equal_to_int_lvar 398@ == 188@
+                is_int_lvar_equal_to_int_lvar 398@ == 189@
+                is_int_lvar_equal_to_int_lvar 398@ == 190@
+                is_int_lvar_equal_to_int_lvar 398@ == 191@
+            then
+                394@ = 1
+            end
+            if or
+                is_int_lvar_equal_to_int_lvar 398@ == 192@
+                is_int_lvar_equal_to_int_lvar 398@ == 193@
+                is_int_lvar_equal_to_int_lvar 398@ == 194@
+                is_int_lvar_equal_to_int_lvar 398@ == 195@
+                is_int_lvar_equal_to_int_lvar 398@ == 196@
+                is_int_lvar_equal_to_int_lvar 398@ == 206@
+                is_int_lvar_equal_to_int_lvar 398@ == 207@
+                is_int_lvar_equal_to_int_lvar 398@ == 208@
+            then
+                394@ = 1
+            end
+            if
+                394@ == 1
+            then
+                307@, 308@, 309@ = Car.GetCoordinates(398@)
+                Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 307@, 308@, 309@)
+            end
+        end
+    end
+end
+return
+
+:DRUGS1_COOP_GIVE_UZI
+// give an uzi for the shootouts and the drive-bys if the player has no sub-machine gun
+394@, 395@, 396@ = Char.GetWeaponInSlot($NETWORK_PLAYER[$temp_int], WeaponSlot.SMG)
+if or
+    394@ == 0
+    395@ <= 0
+then
+    Char.GiveWeapon($NETWORK_PLAYER[$temp_int], WeaponType.MicroUzi, 300)
+end
+return
+
+:DRUGS1_COOP_GET_ENTRANCE_POINT
+// the street at the Atrium entrance, next to where the Glendale stops
+if
+    $temp_int == 0
+then
+    307@ = 1720.0
+    308@ = -1600.5
+end
+if
+    $temp_int == 1
+then
+    307@ = 1722.5
+    308@ = -1601.0
+end
+if
+    $temp_int == 2
+then
+    307@ = 1725.0
+    308@ = -1600.5
+end
+return
+
+:DRUGS1_COOP_GET_ATRIUM_POINT
+// beside the host's spot inside the entrance, out of the camera of the scene and of the host's walk
+if
+    $temp_int == 0
+then
+    307@ = 1724.4
+    308@ = -1637.4
+end
+if
+    $temp_int == 1
+then
+    307@ = 1723.2
+    308@ = -1638.6
+end
+if
+    $temp_int == 2
+then
+    307@ = 1723.0
+    308@ = -1640.0
+end
+return
+
+:DRUGS1_COOP_GET_BIKE_POINT
+// beside and behind smoke's bike, out of its way
+if
+    $temp_int == 0
+then
+    307@ = 1673.41
+    308@ = -1698.21
+end
+if
+    $temp_int == 1
+then
+    307@ = 1674.33
+    308@ = -1699.98
+end
+if
+    $temp_int == 2
+then
+    307@ = 1674.89
+    308@ = -1693.49
+end
+return
+
+:DRUGS1_COOP_GET_BIKE_RIDER_POINT
+// behind each network player's bike
+if
+    $temp_int == 0
+then
+    307@ = 1674.74
+    308@ = -1697.52
+end
+if
+    $temp_int == 1
+then
+    307@ = 1675.66
+    308@ = -1699.29
+end
+if
+    $temp_int == 2
+then
+    307@ = 1676.22
+    308@ = -1692.8
+end
+return
