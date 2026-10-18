@@ -131,7 +131,10 @@ void __cdecl WorldHooks::CWorld__Remove_Hook(CEntity* entity)
             GetPacketFactory().Send(packet);
             logger::info("vehicle %s clone removed by the game", to_string(packet.vehicleid).c_str());
 
-            // the game deletes the vehicle itself
+            // the game deletes the vehicle itself, and the peds in it: the mission cleanup keeps a car only with our
+            // own player inside, a remote one driving it (SWEET4's Greenwood on a fail) lost his CPlayerPed - the radar
+            // pin of that player read it (crash). Out first, as our own removals do
+            CNetworkVehicle::TakeOutNetworkPlayers(vehicle);
             vehicle->CleanUpOldReference(reinterpret_cast<CEntity**>(&networkVehicle->m_pVehicle));
             networkVehicle->m_pVehicle = nullptr;
             CNetworkVehicleManager::Remove(networkVehicle);

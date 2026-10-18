@@ -45,6 +45,10 @@ void CNetworkPlayerMapPin::Process()
 {
 	for (auto player : CNetworkPlayerManager::m_pPlayers)
 	{
+		// its ped deleted by the game (the reference cleared) until the player is created again
+		if (!player->m_pPed)
+			continue;
+
 		CWorld::PlayerInFocus = player->GetInternalId();
 
 		if (CWorld::PlayerInFocus == -1)
