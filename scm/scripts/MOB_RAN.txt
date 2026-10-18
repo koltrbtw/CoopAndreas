@@ -4,6 +4,9 @@ script_name 'MOB_RAN'
 
 :MOB_RAN_15
 wait 1000
+if 
+  Coop.IsHost()
+goto_if_false @MOB_RAN_15
 if and
   $onmission == 0
   $flag_mobile_timer == 0

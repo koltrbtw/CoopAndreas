@@ -12,10 +12,12 @@ void CCommandEnableSyncingThisScript::Process(CRunningScript* pScript)
     {
         if (strnicmp(COpCodeSync::ms_aszSyncedScripts[i], pScript->m_szName, 7) == 0) 
         {
+            COpCodeSync::ms_abSyncedScriptPaused[i] = false;
             return;
         }
     }
 
     strncpy_s(COpCodeSync::ms_aszSyncedScripts[COpCodeSync::ms_iFreeSyncedScript], 8, pScript->m_szName, 7);
+    COpCodeSync::ms_abSyncedScriptPaused[COpCodeSync::ms_iFreeSyncedScript] = false;
     ++COpCodeSync::ms_iFreeSyncedScript;
 }

@@ -18,6 +18,7 @@ public:
 	unsigned int m_nOwnershipChangeTime = 0;  // when it became ours or someone else's, CTimer time
 	// a mission vehicle we sync for the host while it has no collision there, see CPopulationHandover::Process
 	bool m_bBorrowed = false;
+	bool m_bHeldForGround = false;  // CPopulationHandover: a mission one waits for our ground
 	// a clone: the last packet from its syncer, CTimer time (an idle one comes at least once a second), see
 	// CNetworkVehicleManager::DropStaleClones
 	unsigned int m_nLastSyncerPacketTime = 0;

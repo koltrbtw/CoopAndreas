@@ -5,12 +5,16 @@
 #include <CAnimBlendAssocGroup.h>
 #include <CAnimBlendHierarchy.h>
 #include <CAnimBlock.h>
+#include <set>
 
 static constexpr int IFP_MODEL_BASE = 25575;          // streaming ids of the anim blocks (RESOURCE_ID_IFP)
 static constexpr uint16_t ANIM_FLAG_LOOPED = 0x2;
 static constexpr uint16_t ANIM_FLAG_BLEND_AUTO_REMOVE = 0x4;
 static constexpr uint16_t ANIM_FLAG_PARTIAL = 0x10;
 static constexpr uint16_t ANIM_FLAG_FACIAL = 0x8000;
+// the association ctor from a hierarchy (0x4CEFC0) leaves no group / id: a named anim of a script (TASK_PLAY_ANIM,
+// the talk gestures and rolls of the scripted cutscenes)
+static constexpr uint16_t NAMED_ANIM_GROUP = 0xFFFF;
 static constexpr float MIN_BLEND_AMOUNT = 0.05f;
 static constexpr float MAX_TIME_ERROR = 0.15f;         // seconds, the clone keeps its own time below that
 static constexpr float FADE_OUT_DELTA = -4.0f;
@@ -33,6 +37,17 @@ static bool IsSyncedAnim(const CAnimBlendAssociation* pAssoc)
     return !bVehicle && !bGun;
 }
 
+static bool IsNamedAnim(const CAnimBlendAssociation* pAssoc)
+{
+    return static_cast<uint16_t>(pAssoc->m_nAnimGroup) == NAMED_ANIM_GROUP;
+}
+
+// the player's packets carry its idles and the named anims (a script's), the rest the pad plays on the clone
+static bool IsInGroup(const CAnimBlendAssociation* pAssoc, int nOnlyGroup)
+{
+    return nOnlyGroup < 0 || pAssoc->m_nAnimGroup == nOnlyGroup || IsNamedAnim(pAssoc);
+}
+
 static CAnimBlendAssociation* FindAnim(RpClump* pClump, int nGroup, int nAnimId)
 {
     for (auto pAssoc = RpAnimBlendClumpGetFirstAssociation(pClump); pAssoc; pAssoc = RpAnimBlendGetNextAssociation(pAssoc))
@@ -43,6 +58,91 @@ static CAnimBlendAssociation* FindAnim(RpClump* pClump, int nGroup, int nAnimId)
         }
     }
     return nullptr;
+}
+
+static CAnimBlendAssociation* FindNamedAnim(RpClump* pClump, const CAnimBlendHierarchy* pHierarchy)
+{
+    for (auto pAssoc = RpAnimBlendClumpGetFirstAssociation(pClump); pAssoc; pAssoc = RpAnimBlendGetNextAssociation(pAssoc))
+    {
+        if (pAssoc->m_pHierarchy == pHierarchy)
+        {
+            return pAssoc;
+        }
+    }
+    return nullptr;
+}
+
+// the block of a named anim and its place there: the blocks are registered from the IMG directory in the same order
+// everywhere, the index of a hierarchy in ms_aAnimations isn't (a block gets its range the first time it loads)
+static bool CollectNamed(const CAnimBlendAssociation* pAssoc, SPedAnim& anim)
+{
+    const CAnimBlendHierarchy* pHierarchy = pAssoc->m_pHierarchy;
+    int nBlock = pHierarchy ? pHierarchy->m_nAnimBlockId : -1;
+    if (nBlock < 0 || nBlock >= CAnimManager::ms_numAnimBlocks)
+    {
+        return false;
+    }
+
+    int nIndex = static_cast<int>(pHierarchy - CAnimManager::ms_aAnimations) -
+                 CAnimManager::ms_aAnimBlocks[nBlock].startAnimation;
+    if (nIndex < 0 || nIndex >= CAnimManager::ms_aAnimBlocks[nBlock].animationCount)
+    {
+        return false;
+    }
+
+    anim.group = SPedAnim::NAMED_GROUP;
+    anim.block = static_cast<uint8_t>(nBlock);
+    anim.id = static_cast<uint16_t>(nIndex);
+    anim.flags = pAssoc->m_nFlags & ~ANIM_FLAG_BLEND_AUTO_REMOVE;
+    return true;
+}
+
+// the blocks we hold for the named anims of clones (a script's REQUEST_ANIMATION came on the host only, or it holds
+// none here): unreferenced, the streaming could drop a block under a playing anim. Let go once the mission is over
+static std::set<int> s_heldBlocks;
+
+static void HoldBlock(int nBlock)
+{
+    if (s_heldBlocks.insert(nBlock).second)
+    {
+        CAnimManager::AddAnimBlockRef(nBlock);
+        logger::info("anim sync: holding the anim block %s", CAnimManager::ms_aAnimBlocks[nBlock].szName);
+    }
+}
+
+void CPedAnimSync::Process()
+{
+    if (s_heldBlocks.empty() || CTheScripts::ScriptSpace[CTheScripts::OnAMissionFlag])
+    {
+        return;
+    }
+
+    for (int nBlock : s_heldBlocks)
+    {
+        CAnimManager::RemoveAnimBlockRef(nBlock);
+    }
+    s_heldBlocks.clear();
+}
+
+// the hierarchy of a named anim here, nullptr while its block streams (requested then)
+static CAnimBlendHierarchy* FindNamedHierarchy(const SPedAnim& anim)
+{
+    if (anim.block >= CAnimManager::ms_numAnimBlocks)
+    {
+        return nullptr;
+    }
+
+    CAnimBlock& block = CAnimManager::ms_aAnimBlocks[anim.block];
+    if (!block.bLoaded)
+    {
+        CStreaming::RequestModel(IFP_MODEL_BASE + anim.block, 0);
+        return nullptr;
+    }
+    if (anim.id >= block.animationCount)
+    {
+        return nullptr;
+    }
+    return &CAnimManager::ms_aAnimations[block.startAnimation + anim.id];
 }
 
 // the block of the group may not be loaded here (gangs, attractors...): request it, play the anim from a later packet
@@ -117,8 +217,7 @@ int CPedAnimSync::Collect(CPed* pPed, SPedAnim* pAnims, int nMaxAnims, int nOnly
     for (auto pAssoc = RpAnimBlendClumpGetFirstAssociation(pPed->m_pRwClump); pAssoc;
          pAssoc = RpAnimBlendGetNextAssociation(pAssoc))
     {
-        if (pAssoc->m_fBlendAmount >= MIN_BLEND_AMOUNT && IsSyncedAnim(pAssoc) &&
-            (nOnlyGroup < 0 || pAssoc->m_nAnimGroup == nOnlyGroup))
+        if (pAssoc->m_fBlendAmount >= MIN_BLEND_AMOUNT && IsSyncedAnim(pAssoc) && IsInGroup(pAssoc, nOnlyGroup))
         {
             anims.push_back(pAssoc);
         }
@@ -128,13 +227,29 @@ int CPedAnimSync::Collect(CPed* pPed, SPedAnim* pAnims, int nMaxAnims, int nOnly
     std::sort(anims.begin(), anims.end(),
         [](auto a, auto b) { return a->m_fBlendAmount > b->m_fBlendAmount; });
 
-    int nCount = std::min(static_cast<int>(anims.size()), nMaxAnims);
-    for (int i = 0; i < nCount; i++)
+    int nCount = 0;
+    for (CAnimBlendAssociation* pAssoc : anims)
     {
-        CAnimBlendAssociation* pAssoc = anims[i];
-        SPedAnim& anim = pAnims[i];
-        anim.group = static_cast<uint8_t>(pAssoc->m_nAnimGroup);
-        anim.id = static_cast<uint16_t>(pAssoc->m_nAnimId);
+        if (nCount == nMaxAnims)
+        {
+            break;
+        }
+
+        SPedAnim& anim = pAnims[nCount];
+        anim = SPedAnim{};
+        if (IsNamedAnim(pAssoc))
+        {
+            if (!CollectNamed(pAssoc, anim))
+            {
+                continue;
+            }
+        }
+        else
+        {
+            anim.group = static_cast<uint8_t>(pAssoc->m_nAnimGroup);
+            anim.id = static_cast<uint16_t>(pAssoc->m_nAnimId);
+        }
+        nCount++;
         anim.time = pAssoc->m_fCurrentTime;
         anim.blendAmount = pAssoc->m_fBlendAmount;
         anim.blendDelta = pAssoc->m_fBlendDelta;
@@ -174,15 +289,43 @@ void CPedAnimSync::Apply(CPed* pPed, const SPedAnim* pAnims, int nCount, int nOn
     }
 
     CAnimBlendAssociation* applied[Packets::Peds::PedOnFoot::MAX_ANIMS]{};
+    // a named anim of the syncer we can't play here yet: the clone's own named ones (the replayed TASK_PLAY_ANIM) stay
+    bool bNamedMissing = false;
     for (int i = 0; i < nCount; i++)
     {
         const SPedAnim& anim = pAnims[i];
-        if (anim.group >= CAnimManager::ms_numAnimAssocDefinitions)
+        CAnimBlendAssociation* pAssoc = nullptr;
+        if (anim.group == SPedAnim::NAMED_GROUP)
+        {
+            // the script's own anim the replayed opcode started here too, or a new one from the hierarchy
+            CAnimBlendHierarchy* pHierarchy = FindNamedHierarchy(anim);
+            pAssoc = pHierarchy ? FindNamedAnim(pClump, pHierarchy) : nullptr;
+            if (!pAssoc && !pHierarchy)
+            {
+                bNamedMissing = true;
+                continue;
+            }
+            if (!pAssoc)
+            {
+                // the nested sequences of a cutscene (Smoke's gestures after the shots) don't come as tasks, only here
+                HoldBlock(anim.block);
+                pAssoc = CAnimManager::AddAnimation(pClump, pHierarchy, anim.flags);
+                if (!pAssoc)
+                {
+                    continue;
+                }
+                pAssoc->SetCurrentTime(anim.time);
+            }
+        }
+        else if (anim.group >= CAnimManager::ms_numAnimAssocDefinitions)
         {
             continue;
         }
+        else
+        {
+            pAssoc = FindAnim(pClump, anim.group, anim.id);
+        }
 
-        CAnimBlendAssociation* pAssoc = FindAnim(pClump, anim.group, anim.id);
         if (!pAssoc)
         {
             if (!IsGroupLoaded(anim.group))
@@ -227,8 +370,9 @@ void CPedAnimSync::Apply(CPed* pPed, const SPedAnim* pAnims, int nCount, int nOn
     // what the syncer doesn't play anymore (or never did, like the idle gestures the clone picks itself)
     for (auto pAssoc = RpAnimBlendClumpGetFirstAssociation(pClump); pAssoc; pAssoc = RpAnimBlendGetNextAssociation(pAssoc))
     {
-        if (!IsSyncedAnim(pAssoc) || (nOnlyGroup >= 0 && pAssoc->m_nAnimGroup != nOnlyGroup) ||
-            std::find(std::begin(applied), std::end(applied), pAssoc) != std::end(applied))
+        if (!IsSyncedAnim(pAssoc) || !IsInGroup(pAssoc, nOnlyGroup) ||
+            std::find(std::begin(applied), std::end(applied), pAssoc) != std::end(applied) ||
+            (bNamedMissing && IsNamedAnim(pAssoc)))
         {
             continue;
         }

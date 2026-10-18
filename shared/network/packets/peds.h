@@ -387,7 +387,7 @@ public:
     pedid_t pedid{};
     vehicleid_t vehicleid{};
     bool passenger = false;
-    int8_t seat = 0;  // CTaskComplexEnterCar::m_nTargetSeat of a passenger
+    int8_t seat = 0;  // CTaskComplexEnterCar::m_nTargetSeat of a passenger: a door id, 0 any
 
 private:
     template <typename Stream>
@@ -399,7 +399,7 @@ private:
         serialize_bool(stream, passenger);
         if (passenger)
         {
-            serialize_int(stream, seat, 0, 7);
+            serialize_int(stream, seat, 0, 18);
         }
         return true;
     }
@@ -487,6 +487,8 @@ public:
     WorldPositionCompressed origin{};
     WorldPositionCompressed effect{};
     WorldPositionCompressed target{};
+    // CPed::m_nWeaponAccuracy (SET_CHAR_ACCURACY of a script isn't synced): the shot spreads from the target by it
+    uint8_t accuracy = 0;
 
 private:
     template <typename Stream>
@@ -497,6 +499,7 @@ private:
         serialize_object(stream, origin);
         serialize_object(stream, effect);
         serialize_object(stream, target);
+        serialize_uint8(stream, accuracy);
         return true;
     }
 };

@@ -85,6 +85,52 @@ PACKET_HANDLER(ePacketType::TELEPORT_PLAYER_SCRIPTED, Packets::Scripts::Teleport
     }
 }
 
+PACKET_HANDLER(ePacketType::NETWORK_PLAYER_OBJECT, Packets::Scripts::NetworkPlayerObject* pObject,
+    CNetworkPlayer* pNetworkPlayer)
+{
+    if (pNetworkPlayer->m_bIsHost)
+    {
+        if (auto pTargetPlayer = CNetworkPlayerManager::GetPlayer(pObject->forWhoPlayerId))
+        {
+            GetPacketFactory().Send(*pObject, pTargetPlayer);
+        }
+    }
+}
+
+PACKET_HANDLER(ePacketType::NETWORK_PLAYER_CAMERA_SCENE, Packets::Scripts::NetworkPlayerCameraScene* pScene,
+    CNetworkPlayer* pNetworkPlayer)
+{
+    if (pNetworkPlayer->m_bIsHost)
+    {
+        if (auto pTargetPlayer = CNetworkPlayerManager::GetPlayer(pScene->forWhoPlayerId))
+        {
+            GetPacketFactory().Send(*pScene, pTargetPlayer);
+        }
+    }
+}
+
+PACKET_HANDLER(ePacketType::NETWORK_PLAYER_CAR_HEALTH_BAR, Packets::Scripts::NetworkPlayerCarHealthBar* pBar,
+    CNetworkPlayer* pNetworkPlayer)
+{
+    if (pNetworkPlayer->m_bIsHost)
+    {
+        if (auto pTargetPlayer = CNetworkPlayerManager::GetPlayer(pBar->forWhoPlayerId))
+        {
+            GetPacketFactory().Send(*pBar, pTargetPlayer);
+        }
+    }
+}
+
+PACKET_HANDLER(ePacketType::NETWORK_PLAYER_OBJECT_BROKEN, Packets::Scripts::NetworkPlayerObjectBroken* pBroken,
+    CNetworkPlayer* pNetworkPlayer)
+{
+    if (auto pHost = CNetworkPlayerManager::GetHost(); pHost && pHost != pNetworkPlayer)
+    {
+        pBroken->senderPlayerid = pNetworkPlayer->m_playerId;
+        GetPacketFactory().Send(*pBroken, pHost);
+    }
+}
+
 PACKET_HANDLER(ePacketType::OPCODE_SYNC, Packets::Scripts::OpCodeSync* pOpCodeSync, CNetworkPlayer* pNetworkPlayer)
 {
     GetPacketFactory().SendToAll(*pOpCodeSync, pNetworkPlayer);

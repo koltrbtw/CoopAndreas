@@ -203,7 +203,7 @@ void CNetworkPlayer::WarpIntoVehiclePassenger(CVehicle* vehicle, int seatid)
     task.ProcessPed(m_pPed);
 }
 
-void CNetworkPlayer::EnterVehiclePassenger(CVehicle* vehicle, int seatid)
+void CNetworkPlayer::EnterVehiclePassenger(CVehicle* vehicle, int seatid, bool bWalk)
 {
     assert(m_pPed != nullptr);
 
@@ -223,16 +223,24 @@ void CNetworkPlayer::EnterVehiclePassenger(CVehicle* vehicle, int seatid)
 
     int doorId = CCarEnterExit::ComputeTargetDoorToEnterAsPassenger(vehicle, seatid);
     auto task = new CTaskComplexEnterCarAsPassenger(vehicle, doorId, false);
+    // the sender's script walks it to the door: a run of the copy gets it in long before the sender
+    if (bWalk)
+    {
+        task->m_nMoveState = PEDMOVE_WALK;
+    }
     m_pPed->m_pIntelligence->m_TaskMgr.SetTask(task, 3, false);
 }
 
 // an enter (from the door walk to the door closed) takes a few seconds; past that the updates of the sender win
 static constexpr unsigned int ENTER_VEHICLE_TIMEOUT = 6000;
+// a script's walk to the door from a few metres away (a mission's scene) takes longer
+static constexpr unsigned int ENTER_VEHICLE_WALK_TIMEOUT = 15000;
 
-void CNetworkPlayer::OnEnterVehicle(vehicleid_t vehicleid)
+void CNetworkPlayer::OnEnterVehicle(vehicleid_t vehicleid, bool bWalk)
 {
     m_enterVehicleId = vehicleid;
     m_nEnterVehicleTime = CTimer::m_snTimeInMilliseconds;
+    m_bEnterVehicleWalk = bWalk;
     m_nExitVehicleTime = 0;
     m_nJackAllowedUntil = 0;  // its own enter now, whatever jack was on the way
     m_pendingExit.reset();
@@ -263,7 +271,8 @@ bool CNetworkPlayer::HasJustLeftVehicle(vehicleid_t vehicleid)
 bool CNetworkPlayer::IsEnteringVehicle(CVehicle* vehicle)
 {
     if (m_pPed == nullptr || m_nEnterVehicleTime == 0 ||
-        CTimer::m_snTimeInMilliseconds - m_nEnterVehicleTime > ENTER_VEHICLE_TIMEOUT)
+        CTimer::m_snTimeInMilliseconds - m_nEnterVehicleTime >
+            (m_bEnterVehicleWalk ? ENTER_VEHICLE_WALK_TIMEOUT : ENTER_VEHICLE_TIMEOUT))
     {
         return false;
     }
@@ -284,7 +293,8 @@ bool CNetworkPlayer::IsEnteringVehicle(CVehicle* vehicle)
 bool CNetworkPlayer::HasJustEnteredVehicle()
 {
     if (m_pPed == nullptr || m_nEnterVehicleTime == 0 ||
-        CTimer::m_snTimeInMilliseconds - m_nEnterVehicleTime > ENTER_VEHICLE_TIMEOUT)
+        CTimer::m_snTimeInMilliseconds - m_nEnterVehicleTime >
+            (m_bEnterVehicleWalk ? ENTER_VEHICLE_WALK_TIMEOUT : ENTER_VEHICLE_TIMEOUT))
     {
         return false;
     }
@@ -403,7 +413,7 @@ void CNetworkPlayer::HandleTask(Packets::Players::SetPlayerTask& packet)
         }
         case eTaskType::TASK_SIMPLE_DUCK:
         {
-            m_bRequestedDuckTask = true;
+            m_bOwnerDucking = packet.toggle;
             // if (packet.toggle)
             //{
             //     m_pPed->m_pIntelligence->SetTaskDuckSecondary(0);

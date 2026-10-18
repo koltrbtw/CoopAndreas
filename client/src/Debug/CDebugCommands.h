@@ -30,6 +30,9 @@
 //   car [model] [empty]         a parked car with a random driver (or empty) 6 m ahead (a jacking to test)
 //   enter-driver                into the nearest vehicle as the driver, as the F key
 //   enter-passenger             into the nearest network vehicle as a passenger, as the G key
+//   script-enter [seat] [time] [control] TASK_ENTER_CAR_AS_PASSENGER into the nearest vehicle with no control (a scene)
+//   control                     the control back
+//   break-bottles               the mission objects within 40 m hit by us (SWEET2 bottles)
 //   warp-remote-passenger       warp the other players into seat 0 of the vehicle nearest to them (a late passenger update)
 //   g                           press G for a frame, the passenger enter of CPassengerEnter
 //   knock-off                   CEventKnockOffBike on the player in its vehicle, as a bike crash

@@ -6,12 +6,17 @@
 #include <CEntryExitMarkerSync.h>
 #include <COpCodeSync.h>
 #include <CTaskSequenceSync.h>
+#include <CNetworkPlayerObjects.h>
+#include <CNetworkCameraScene.h>
+#include <CMissionCarHealthBar.h>
 
 PACKET_HANDLER(ePacketType::ON_MISSION_FLAG_SYNC, Packets::Scripts::OnMissionFlagSync* pOnMissionFlagSync)
 {
 	if (CLocalPlayer::m_bIsHost)
 		return;
 
+	logger::info("the host's mission flag: %d", pOnMissionFlagSync->bOnMission);
+	CLocalPlayer::m_bHostOnMission = pOnMissionFlagSync->bOnMission;
 	if (CTheScripts::OnAMissionFlag)
 	{
         bool bWasOnMission = (bool)CTheScripts::ScriptSpace[CTheScripts::OnAMissionFlag];
@@ -20,6 +25,7 @@ PACKET_HANDLER(ePacketType::ON_MISSION_FLAG_SYNC, Packets::Scripts::OnMissionFla
 		{
 			// cleanup
 			CNetworkCheckpoint::Remove();
+			CNetworkPlayerObjects::RemoveAll();
 			CNetworkEntityBlip::ClearEntityBlips();
 			TheCamera.SetWideScreenOff();
 			CPad::GetPad(0)->SetDrunkInputDelay(0);
@@ -117,6 +123,47 @@ PACKET_HANDLER(ePacketType::PLAY_MISSION_AUDIO, Packets::Scripts::PlayMissionAud
 
 	plugin::CallMethod<0x507290>(&AudioEngine, pPlayMissionAudio->slotid, pPlayMissionAudio->audioid); // CAudioEngine__PreloadMissionAudio
 	COpCodeSync::ms_abLoadingMissionAudio[pPlayMissionAudio->slotid] = true;
+}
+
+PACKET_HANDLER(ePacketType::NETWORK_PLAYER_OBJECT, Packets::Scripts::NetworkPlayerObject* pObject)
+{
+	if (pObject->clear)
+	{
+		CNetworkPlayerObjects::RemoveAll();
+		return;
+	}
+	if (pObject->broken)
+	{
+		CNetworkPlayerObjects::Break(pObject->pos);
+		return;
+	}
+	CNetworkPlayerObjects::Add(pObject->model, pObject->pos, pObject->heading);
+}
+
+PACKET_HANDLER(ePacketType::NETWORK_PLAYER_CAMERA_SCENE, Packets::Scripts::NetworkPlayerCameraScene* pScene)
+{
+	CNetworkCameraScene::Start(pScene->camPos, pScene->lookAt, pScene->text, pScene->help, pScene->delay,
+		pScene->duration);
+}
+
+PACKET_HANDLER(ePacketType::NETWORK_PLAYER_CAR_HEALTH_BAR, Packets::Scripts::NetworkPlayerCarHealthBar* pBar)
+{
+	if (pBar->show)
+	{
+		CMissionCarHealthBar::Set(pBar->varOffset, pBar->gxt, pBar->car1, pBar->car2);
+	}
+	else
+	{
+		CMissionCarHealthBar::Clear();
+	}
+}
+
+PACKET_HANDLER(ePacketType::NETWORK_PLAYER_OBJECT_BROKEN, Packets::Scripts::NetworkPlayerObjectBroken* pBroken)
+{
+	if (auto pNetworkPlayer = CNetworkPlayerManager::GetPlayer(pBroken->senderPlayerid))
+	{
+		pNetworkPlayer->m_nObjectsBroken++;
+	}
 }
 
 PACKET_HANDLER(ePacketType::TELEPORT_PLAYER_SCRIPTED, Packets::Scripts::TeleportPlayerScripted* pTeleportPlayerScripted)

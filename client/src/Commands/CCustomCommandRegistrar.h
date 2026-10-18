@@ -28,6 +28,14 @@
 #include "Commands/CCommandPedTakeHost.h"
 #include "Commands/CCommandGetNetworkPlayerInternalId.h"
 #include "Commands/CCommandTeleportPlayersToHostSafely.h"
+#include "Commands/CCommandCreateObjectForNetworkPlayer.h"
+#include "Commands/CCommandRemoveObjectsForNetworkPlayer.h"
+#include "Commands/CCommandGetObjectsBrokenByNetworkPlayer.h"
+#include "Commands/CCommandPauseSyncingThisScript.h"
+#include "Commands/CCommandBreakObjectForNetworkPlayer.h"
+#include "Commands/CCommandPlayCameraSceneForNetworkPlayer.h"
+#include "Commands/CCommandShowMissionCarHealthBar.h"
+#include "Commands/CCommandRemoveMissionCarHealthBar.h"
 
 class CCustomCommandRegistrar
 {
@@ -53,6 +61,8 @@ public:
 		CCustomCommandMgr::RegisterCommand(0x1D10, new CCommandUpdateCheckpointForNetworkPlayer());
 		CCustomCommandMgr::RegisterCommand(0x1D11, new CCommandRemoveCheckpointForNetworkPlayer());
 		CCustomCommandMgr::RegisterCommand(0x1D12, new CCommandEnableSyncingThisScript());
+		CCustomCommandMgr::RegisterCommand(0x1D13, new CCommandCreateObjectForNetworkPlayer());
+		CCustomCommandMgr::RegisterCommand(0x1D14, new CCommandRemoveObjectsForNetworkPlayer());
 		CCustomCommandMgr::RegisterCommand(0x1D15, new CCommandGetPedInAreaWithModel());
 		CCustomCommandMgr::RegisterCommand(0x1D16, new CCommandClaimPedOnRelease());
 		CCustomCommandMgr::RegisterCommand(0x1D17, new CCommandCancelPedClaim());
@@ -61,5 +71,11 @@ public:
 		CCustomCommandMgr::RegisterCommand(0x1D1A, new CCommandPedTakeHost());
 		CCustomCommandMgr::RegisterCommand(0x1D1B, new CCommandGetNetworkPlayerInternalId());
 		CCustomCommandMgr::RegisterCommand(0x1D1C, new CCommandTeleportPlayersToHostSafely());
+		CCustomCommandMgr::RegisterCommand(0x1D1D, new CCommandGetObjectsBrokenByNetworkPlayer());
+		CCustomCommandMgr::RegisterCommand(0x1D1E, new CCommandPauseSyncingThisScript());
+		CCustomCommandMgr::RegisterCommand(0x1D1F, new CCommandBreakObjectForNetworkPlayer());
+		CCustomCommandMgr::RegisterCommand(0x1D20, new CCommandPlayCameraSceneForNetworkPlayer());
+		CCustomCommandMgr::RegisterCommand(0x1D21, new CCommandShowMissionCarHealthBar());
+		CCustomCommandMgr::RegisterCommand(0x1D22, new CCommandRemoveMissionCarHealthBar());
 	}
 };

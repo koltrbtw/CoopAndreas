@@ -39,6 +39,15 @@ bool CNetworkVehicle::CreateVehicle(vehicleid_t vehicleid, int modelid, CVector 
         CStreaming::SetModelTxdIsDeletable(modelid);
     }
 
+    // the streaming busy (a mission start loads a lot at once) can leave it unloaded: the vehicle ctor then read the
+    // model's missing clump (0x4C9691 from CVehicle::SetModelIndex, a BMX of a remote player). No vehicle here, as with
+    // a full pool; the syncer's next packets bring it back
+    if (CStreaming::ms_aInfoForModel[modelid].m_nLoadState != LOADSTATE_LOADED)
+    {
+        logger::info("vehicle %s: model %d not loaded, not created", to_string(vehicleid).c_str(), modelid);
+        return false;
+    }
+
     // the creator's extras instead of random ones: ChooseComponent/ChooseSecondComponent take ms_compsToUse
     // unless it's -2 and reset it, the way CCarGenerator sets them
     CVehicleModelInfo::ms_compsToUse[0] = extras[0];
@@ -112,6 +121,39 @@ bool CNetworkVehicle::CreateVehicle(vehicleid_t vehicleid, int modelid, CVector 
     return true;
 }
 
+// a clone deleted under an enter task into it (our copy of an npc's or a player's, our own): the open door task went
+// on with the vehicle reference cleared, the event it raises (0x6568AB) took the null vehicle - a crash in
+// CEntity::RegisterReference (0x571B73) on the clone of that event (0x4AE9D3)
+static void AbortEnterTasksInto(CVehicle* pVehicle)
+{
+    auto abort = [pVehicle](CPed* pPed)
+    {
+        if (!pPed || pPed->m_nPedFlags.bInVehicle)
+        {
+            return;
+        }
+        for (int taskType : {TASK_COMPLEX_ENTER_CAR_AS_PASSENGER, TASK_COMPLEX_ENTER_CAR_AS_DRIVER})
+        {
+            auto pTask = static_cast<CTaskComplexEnterCar*>(pPed->m_pIntelligence->m_TaskMgr.FindActiveTaskByType(taskType));
+            if (pTask && pTask->m_pTargetVehicle == pVehicle)
+            {
+                pPed->m_pIntelligence->FlushImmediately(false);
+                return;
+            }
+        }
+    };
+
+    abort(FindPlayerPed(0));
+    for (auto pNetworkPlayer : CNetworkPlayerManager::m_pPlayers)
+    {
+        abort(pNetworkPlayer->m_pPed);
+    }
+    for (auto pNetworkPed : CNetworkPedManager::m_pPeds)
+    {
+        abort(pNetworkPed->m_pPed);
+    }
+}
+
 CNetworkVehicle::~CNetworkVehicle()
 {
     if (m_pVehicle)
@@ -140,6 +182,7 @@ CNetworkVehicle::~CNetworkVehicle()
             {
                 CRadar::ClearBlipForEntity(eBlipType::BLIP_CAR, CPools::GetVehicleRef(m_pVehicle));
             }
+            AbortEnterTasksInto(m_pVehicle);
             TakeOutNetworkPlayers(m_pVehicle);
             CWorld::Remove(m_pVehicle);
             //CWorld::RemoveReferencesToDeletedObject(m_pVehicle); // ?
@@ -909,7 +952,12 @@ void CNetworkVehicle::ApplyExtras(const SVehicleExtras& extras)
         return;
     }
 
-    m_pVehicle->m_nVehicleFlags.bEngineOn = extras.engineOn;
+    // we drive it: the engine is ours. Until the server makes us its syncer the old one's idle updates come on, the
+    // engine they said off stopped the one our enter started - a car that wouldn't go until got in again
+    if (!m_pVehicle->m_pDriver || m_pVehicle->m_pDriver != FindPlayerPed(0))
+    {
+        m_pVehicle->m_nVehicleFlags.bEngineOn = extras.engineOn;
+    }
     m_pVehicle->m_nVehicleFlags.bLightsOn = extras.lightsOn;
     m_pVehicle->m_nVehicleFlags.bSirenOrAlarm = extras.siren;
     m_pVehicle->m_nOverrideLights = extras.overrideLights;
@@ -980,6 +1028,16 @@ void CNetworkVehicle::ProcessExtras()
     for (auto pNetworkPlayer : CNetworkPlayerManager::m_pPlayers)
     {
         nInUse |= GetDoorsOfEnterTask(pNetworkPlayer->m_pPed, m_pVehicle);
+    }
+    // our copies of an npc's enter (PED_VEHICLE_ENTER): the syncer's ped is a ping ahead, its door would open and
+    // shut under our copy's open door anim
+    for (auto pNetworkPed : CNetworkPedManager::m_pPeds)
+    {
+        if (!pNetworkPed->m_bSyncing && pNetworkPed->m_enterVehicleId == m_vehicleId &&
+            pNetworkPed->IsEnteringVehicle(m_pVehicle))
+        {
+            nInUse |= GetDoorsOfEnterTask(pNetworkPed->m_pPed, m_pVehicle);
+        }
     }
     for (int i = 0; i < 6; i++)
     {

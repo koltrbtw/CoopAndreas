@@ -12,6 +12,7 @@
 #include <CCarEnterExit.h>
 #include "CPassengerEnter.h"
 #include <CFireManager.h>
+#include <CAnimBlendHierarchy.h>
 #include "CStandAgent.h"
 
 static CTrain* FindNearestFrontCarriage(const CVector& position, bool bMissionOnly = false)
@@ -177,15 +178,23 @@ static void LogPlayerAnims()
             nSlot++;
         }
         char szState[256];
-        int n = sprintf_s(szState, "fire %d slot %d task %d in %d seat %d anims", pPed->m_pFire != nullptr, nSlot,
-            pTask ? pTask->GetTaskType() : -1,
-            pPed->m_nPedFlags.bInVehicle, pPed->m_pVehicle && pPed->m_pVehicle->m_pDriver == pPed ? 0 : 1);
+        // the weapon in the hand: its type, its model and whether the model is in the hand (m_pWeaponObject)
+        int n = sprintf_s(szState, "fire %d slot %d task %d in %d seat %d weapon %d model %d obj %d anims",
+            pPed->m_pFire != nullptr, nSlot, pTask ? pTask->GetTaskType() : -1, pPed->m_nPedFlags.bInVehicle,
+            pPed->m_pVehicle && pPed->m_pVehicle->m_pDriver == pPed ? 0 : 1, pPed->GetWeapon().m_eWeaponType,
+            pPed->m_nWeaponModelId, pPed->m_pWeaponObject != nullptr);
         for (auto pAssoc = RpAnimBlendClumpGetFirstAssociation(pPed->m_pRwClump); pAssoc && n < 240;
              pAssoc = RpAnimBlendGetNextAssociation(pAssoc))
         {
             if (pAssoc->m_fBlendAmount > 0.1f)
             {
                 n += sprintf_s(szState + n, sizeof(szState) - n, " %d", pAssoc->m_nAnimId);
+                // a named anim of a script: which one and its second, to compare the phase with the host's
+                if (pAssoc->m_nAnimId == -1 && pAssoc->m_pHierarchy)
+                {
+                    n += sprintf_s(szState + n, sizeof(szState) - n, "(%04x@%d)",
+                        pAssoc->m_pHierarchy->m_hashKey & 0xFFFF, static_cast<int>(pAssoc->m_fCurrentTime));
+                }
             }
         }
 
@@ -197,6 +206,7 @@ static void LogPlayerAnims()
     };
 
     log(FindPlayerPed(0), "local");
+
 
     // the doors of the nearest car: a clone's door sync must not fight the enter / exit tasks
     static std::string lastDoors;
@@ -237,6 +247,15 @@ static void LogPlayerAnims()
             char szName[64];
             sprintf_s(szName, "watched %s (ours %d)", to_string(pNetworkPed->m_pedId).c_str(), pNetworkPed->m_bSyncing);
             log(pNetworkPed->m_pPed, szName);
+            continue;
+        }
+
+        // a passenger: the weapon in its hand in a car scene (SWEET4's homies)
+        if (pWatched && pWatched->m_nPedFlags.bInVehicle && pWatched->m_pVehicle && pWatched->m_pVehicle->m_pDriver != pWatched)
+        {
+            char szName[64];
+            sprintf_s(szName, "passenger %s (ours %d)", to_string(pNetworkPed->m_pedId).c_str(), pNetworkPed->m_bSyncing);
+            log(pWatched, szName);
             continue;
         }
 
@@ -842,6 +861,45 @@ void CDebugCommands::RunCommand(const std::string& line)
             }
         }
     }
+    else if (command == "script-enter")
+    {
+        // as a mission's TASK_ENTER_CAR_AS_PASSENGER replayed for us in a scene (SWEET2 after the blast): no control,
+        // the task into the nearest vehicle; "control" keeps the control
+        int seat = 1;
+        int time = 50000;
+        std::string mode;
+        stream >> seat >> time >> mode;
+        if (CVehicle* pVehicle = FindNearestVehicle(pPlayer->GetPosition(), 40.0f))
+        {
+            if (mode != "control")
+            {
+                plugin::Command<Commands::SET_PLAYER_CONTROL>(0, false);
+            }
+            plugin::Command<Commands::TASK_ENTER_CAR_AS_PASSENGER>(CPools::GetPedRef(pPlayer),
+                CPools::GetVehicleRef(pVehicle), time, seat);  // the time, then the seat
+            logger::info("stand debug: script enter into model %d seat %d time %d, %.1f m", pVehicle->m_nModelIndex, seat, time,
+                (pVehicle->GetPosition() - pPlayer->GetPosition()).Magnitude());
+        }
+    }
+    else if (command == "break-bottles")
+    {
+        // the mission objects near us hit by our shot (SWEET2's bottles: the script's HasBeenDamaged, ours too)
+        int count = 0;
+        for (auto pObject : CPools::ms_pObjectPool)
+        {
+            if (pObject && (pObject->m_nObjectType == OBJECT_MISSION || pObject->m_nObjectType == OBJECT_MISSION2) &&
+                (pObject->GetPosition() - pPlayer->GetPosition()).Magnitude() < 40.0f)
+            {
+                pObject->ObjectDamage(10000.0f, nullptr, nullptr, pPlayer, WEAPON_PISTOL);
+                count++;
+            }
+        }
+        logger::info("stand debug: %d mission objects hit", count);
+    }
+    else if (command == "control")
+    {
+        plugin::Command<Commands::SET_PLAYER_CONTROL>(0, true);
+    }
     else if (command == "warp-remote-passenger")
     {
         // as VEHICLE_PASSENGER_UPDATE does when it outruns the enter task here (a laggy connection)
@@ -941,18 +999,20 @@ void CDebugCommands::RunCommand(const std::string& line)
             CVector pos = pVehicle->GetPosition();
             // the tyres of a car (CDamageManager wheel status: 0 ok, 1 burst, 2 missing), front left first
             char szWheels[5] = "----";
+            unsigned int nPanels = 0;  // 4 bits a panel, the windscreen is panel 4
             if (pVehicle->m_nVehicleType == VEHICLE_AUTOMOBILE)
             {
                 CDamageManager& damage = static_cast<CAutomobile*>(pVehicle)->m_damageManager;
+                nPanels = damage.m_nPanelsStatus;
                 for (int i = 0; i < 4; i++)
                 {
                     szWheels[i] = static_cast<char>('0' + damage.GetWheelStatus(i));
                 }
             }
-            logger::info("stand debug: vehicle %s syncing %d status %d health %.0f wheels %s siren %d alarm %d lights %d "
-                         "at %.2f %.2f %.2f",
+            logger::info("stand debug: vehicle %s syncing %d status %d health %.0f wheels %s panels %07x siren %d "
+                         "alarm %d lights %d at %.2f %.2f %.2f",
                 to_string(pNetworkVehicle->m_vehicleId).c_str(), pNetworkVehicle->m_bSyncing, pVehicle->m_nStatus,
-                pVehicle->m_fHealth, szWheels, pVehicle->m_nVehicleFlags.bSirenOrAlarm, pVehicle->m_nAlarmState,
+                pVehicle->m_fHealth, szWheels, nPanels, pVehicle->m_nVehicleFlags.bSirenOrAlarm, pVehicle->m_nAlarmState,
                 pVehicle->m_nOverrideLights, pos.x, pos.y, pos.z);
         }
     }
@@ -1400,6 +1460,24 @@ void CDebugCommands::RunCommand(const std::string& line)
     else if (command == "g")
     {
         ms_bPressG = true;
+    }
+    // the running cutscene, as the skip button does (the host: the script sees it finished)
+    else if (command == "skip-cutscene")
+    {
+        if (!CCutsceneMgr::ms_running)
+        {
+            logger::info("stand debug: no cutscene");
+            return;
+        }
+        CCutsceneMgr::SkipCutscene();
+    }
+    // the weapons in the hands drawn without the depth test (RenderWeaponPedsForPC: ZTESTENABLE 1 -> 0): seen through
+    // whatever covers them
+    else if (command == "weapons-noz")
+    {
+        int nOn = 1;
+        stream >> nOn;
+        patch::SetUChar(0x732F40, nOn ? 0 : 1);
     }
     else if (command == "watch-slopes")
     {

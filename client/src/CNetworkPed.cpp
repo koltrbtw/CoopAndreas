@@ -427,7 +427,9 @@ void CNetworkPed::CollectVehicleEnter()
     packet.pedid = m_pedId;
     packet.vehicleid = pNetworkVehicle->m_vehicleId;
     packet.passenger = pTask->GetTaskType() == TASK_COMPLEX_ENTER_CAR_AS_PASSENGER;
-    packet.seat = static_cast<int8_t>(std::clamp(pTask->m_nTargetSeat, 0, 7));
+    // a passenger's target is a door id of CCarEnterExit (8 front right, 9 / 11 rear right / left, up to 18 on bikes), 0
+    // to choose at the car: clamped to 7 the copy walked to a door that isn't there and was warped in at last
+    packet.seat = static_cast<int8_t>(std::clamp(pTask->m_nTargetSeat, 0, 18));
     GetPacketFactory().Send(packet);
 }
 

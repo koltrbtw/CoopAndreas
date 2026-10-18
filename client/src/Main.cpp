@@ -3,6 +3,10 @@
 #include "CPacketBuffer.h"
 #include "CServerTime.h"
 #include "stdafx.h"
+#include "CClothesChangeSync.h"
+#include "CNetworkPlayerObjects.h"
+#include "CNetworkCameraScene.h"
+#include "CMissionCarHealthBar.h"
 #include "CPedAnimSync.h"
 #include "CSniperDot.h"
 #include "CCutsceneMgr.h"
@@ -143,6 +147,18 @@ public:
                     Packets::Scripts::OnMissionFlagSync packet{};
                     packet.bOnMission = CTheScripts::ScriptSpace[CTheScripts::OnAMissionFlag];
                     GetPacketFactory().Send(packet);
+                    logger::info("our mission flag: %d", packet.bOnMission);
+                }
+                else if (!CLocalPlayer::m_bIsHost && CLocalPlayer::m_bHostOnMission && CTheScripts::OnAMissionFlag &&
+                         !CTheScripts::ScriptSpace[CTheScripts::OnAMissionFlag])
+                {
+                    CTheScripts::ScriptSpace[CTheScripts::OnAMissionFlag] = 1;
+                    static bool bLogged = false;
+                    if (!bLogged)
+                    {
+                        logger::info("the mission flag set back to the host's: a script of ours cleared it");
+                        bLogged = true;
+                    }
                 }
 
                 unsigned int tickCount = GetTickCount();
@@ -247,6 +263,12 @@ public:
 
                 CNetworkPedManager::Process();
                 CPlayerPositionSync::Process();
+                CClothesChangeSync::Process();
+                CNetworkPlayerObjects::Process();
+                CNetworkCameraScene::Process();
+                CMissionCarHealthBar::Process();
+                CLocalPlayer::ProcessVehicleWeapon();
+                CPedAnimSync::Process();
                 CNetworkVehicleManager::Process();
                 CSniperDot::Process();
 

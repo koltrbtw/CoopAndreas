@@ -259,4 +259,120 @@ private:
     }
 };
 
+// a mission object of one player's own (the bottles of SWEET2: everyone shoots his own), host -> that player.
+// clear: remove all of his; broken: break his one at pos (the script breaks the host's, Smoke's shot in a cutscene)
+class NetworkPlayerObject : public Packet
+{
+    DEFINE_PACKET_TYPE(NetworkPlayerObject, ePacketType::NETWORK_PLAYER_OBJECT, ePacketChannel::SCRIPT);
+
+public:
+    playerid_t forWhoPlayerId{};
+    bool clear = false;
+    bool broken = false;
+    uint16_t model = 0;
+    CVector pos{};
+    float heading = 0.0f;
+
+private:
+    template <typename Stream>
+    bool Serialize(Stream& stream)
+    {
+        serialize_playerid(stream, forWhoPlayerId);
+        serialize_bool(stream, clear);
+        serialize_bool(stream, broken);
+        if (!clear)
+        {
+            serialize_uint16(stream, model);
+            serialize_float(stream, pos.x);
+            serialize_float(stream, pos.y);
+            serialize_float(stream, pos.z);
+            serialize_float(stream, heading);
+        }
+        return true;
+    }
+};
+
+// the player broke one of his objects, -> the host (senderPlayerid)
+class NetworkPlayerObjectBroken : public Packet
+{
+    DEFINE_PACKET_TYPE(NetworkPlayerObjectBroken, ePacketType::NETWORK_PLAYER_OBJECT_BROKEN, ePacketChannel::SCRIPT);
+
+public:
+    SenderPlayerId senderPlayerid{};
+
+private:
+    template <typename Stream>
+    bool Serialize(Stream& stream)
+    {
+        serialize_object(stream, senderPlayerid);
+        return true;
+    }
+};
+
+// a camera scene of the host's mission for one player, see CNetworkCameraScene; host -> that player
+class NetworkPlayerCameraScene : public Packet
+{
+    DEFINE_PACKET_TYPE(NetworkPlayerCameraScene, ePacketType::NETWORK_PLAYER_CAMERA_SCENE, ePacketChannel::SCRIPT);
+
+public:
+    playerid_t forWhoPlayerId{};
+    CVector camPos{};
+    CVector lookAt{};
+    char text[8]{};
+    char help[8]{};
+    uint16_t delay = 0;     // ms
+    uint16_t duration = 0;  // ms
+
+private:
+    template <typename Stream>
+    bool Serialize(Stream& stream)
+    {
+        serialize_playerid(stream, forWhoPlayerId);
+        serialize_float(stream, camPos.x);
+        serialize_float(stream, camPos.y);
+        serialize_float(stream, camPos.z);
+        serialize_float(stream, lookAt.x);
+        serialize_float(stream, lookAt.y);
+        serialize_float(stream, lookAt.z);
+        serialize_string(stream, text, 8);
+        text[ARRAY_SIZE(text) - 1] = '\0';
+        serialize_string(stream, help, 8);
+        help[ARRAY_SIZE(help) - 1] = '\0';
+        serialize_uint16(stream, delay);
+        serialize_uint16(stream, duration);
+        return true;
+    }
+};
+
+// the health bar of the mission cars for one player, see CMissionCarHealthBar; host -> that player. show false: off
+class NetworkPlayerCarHealthBar : public Packet
+{
+    DEFINE_PACKET_TYPE(NetworkPlayerCarHealthBar, ePacketType::NETWORK_PLAYER_CAR_HEALTH_BAR, ePacketChannel::SCRIPT);
+
+public:
+    playerid_t forWhoPlayerId{};
+    bool show = false;
+    uint16_t varOffset = 0;  // the counter's global in main.scm, a byte offset in ScriptSpace
+    char gxt[8]{};
+    vehicleid_t car1{};
+    vehicleid_t car2{};
+
+private:
+    template <typename Stream>
+    bool Serialize(Stream& stream)
+    {
+        serialize_playerid(stream, forWhoPlayerId);
+        serialize_bool(stream, show);
+        if (show)
+        {
+            serialize_uint16(stream, varOffset);
+            serialize_string(stream, gxt, 8);
+            gxt[ARRAY_SIZE(gxt) - 1] = '\0';
+            serialize_vehicleid(stream, car1);
+            serialize_vehicleid(stream, car2);
+        }
+        return true;
+    }
+};
+
 }  // namespace Packets::Scripts

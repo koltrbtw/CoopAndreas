@@ -26,6 +26,9 @@ public:
     static void HandlePedPacket(const Packets::Peds::PedVehicleExit& packet);
     static bool ApplyPendingPedExit(CNetworkPed* pNetworkPed);
 
+    // the vehicle a VEHICLE_ENTER of ours went for (the button's hooks, or a script's enter task seen in Process)
+    static inline CVehicle* ms_pEnterSentVehicle = nullptr;
+
 private:
     static void SendOut(CPlayerPed* pPlayerPed, vehicleid_t vehicleid);
 

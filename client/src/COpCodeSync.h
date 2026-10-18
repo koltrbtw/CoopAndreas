@@ -79,6 +79,9 @@ public:
 	static inline bool ms_abLoadingMissionAudio[4];
 	
     static inline uint32_t ms_iFreeSyncedScript = 0;
+    // Coop.PauseSyncingThisScript: a part of the host's own (a help scene with his camera), EnableSyncingThisScript
+    // resumes it on the next run
+    static inline bool ms_abSyncedScriptPaused[256]{};
     static inline char ms_aszSyncedScripts[256][8];
 
     static inline OpcodeParameter scriptParamsBuffer[NUM_SYNCED_PARAMS];
@@ -89,4 +92,6 @@ public:
 	static void HandlePacket(const uint8_t* buffer, int bufferSize);
 	static std::vector<uint8_t> COpCodeSync::SerializeOpcode(int idx, int& outSize);
 	static bool COpCodeSync::IsOpcodeSyncable(int opcode, int* opcodeIdx = nullptr, bool ignoreOpCodeSync = false);
+    // a command of a script every client runs on its own (a shop, a gym) is being processed now (not a replay)
+    static bool IsInUnsyncedScriptCommand();
 };

@@ -4,6 +4,8 @@
 #include "CNetworkVehicle.h"
 #include "CNetworkPed.h"
 #include "CTrainSync.h"
+#include "CWorldGridSync.h"
+#include "COpCodeSync.h"
 #include <CEntryExit.h>
 #include <CEntryExitMarkerSync.h>
 #include <CEntryExitTransitionSync.h>
@@ -98,8 +100,11 @@ static void __cdecl CWorld__Add_Hook(CEntity* entity)
         {
             CPed* ped = (CPed*)entity;
 
-            // the train driver: every client puts its own one into its copy of the train
-            if (ped->m_nPedType > 1 && !CTrainSync::ms_bCreatingTrain)
+            // the train driver: every client puts its own one into its copy of the train. A ped of a local script
+            // inside (the shopkeeper of CLOTH, the gym trainer): every client's script makes its own, networked the
+            // others saw two
+            bool bLocalScriptPed = CGame::currArea != 0 && COpCodeSync::IsInUnsyncedScriptCommand();
+            if (ped->m_nPedType > 1 && !CTrainSync::ms_bCreatingTrain && !bLocalScriptPed)
             {
                 CNetworkPed* networkPed = CNetworkPed::CreateHosted(ped);
             }
@@ -131,7 +136,10 @@ void __cdecl WorldHooks::CWorld__Remove_Hook(CEntity* entity)
             GetPacketFactory().Send(packet);
             logger::info("vehicle %s clone removed by the game", to_string(packet.vehicleid).c_str());
 
-            // the game deletes the vehicle itself
+            // the game deletes the vehicle itself, and the peds in it: the mission cleanup keeps a car only with our
+            // own player inside, a remote one driving it (SWEET4's Greenwood on a fail) lost his CPlayerPed - the radar
+            // pin of that player read it (crash). Out first, as our own removals do
+            CNetworkVehicle::TakeOutNetworkPlayers(vehicle);
             vehicle->CleanUpOldReference(reinterpret_cast<CEntity**>(&networkVehicle->m_pVehicle));
             networkVehicle->m_pVehicle = nullptr;
             CNetworkVehicleManager::Remove(networkVehicle);

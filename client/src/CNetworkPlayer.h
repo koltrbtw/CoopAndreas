@@ -33,7 +33,10 @@ public:
 
 	bool m_bExtrapolating = false;
 
-	bool m_bRequestedDuckTask = false;
+	// the owner crouches: the clone's DuckJustDown is "pressed" while it differs, its own player code (aiming or not)
+	// gets it down or up; a mismatch since then (its CanPedDuck refused) is put right directly
+	bool m_bOwnerDucking = false;
+	unsigned int m_nDuckMismatchTime = 0;
 
 	bool m_bIsHost = false;
 
@@ -41,6 +44,7 @@ public:
 	// sender's, the late on foot / early vehicle updates of the sender must not pull the ped out or warp it in
 	vehicleid_t m_enterVehicleId;
 	unsigned int m_nEnterVehicleTime = 0;
+	bool m_bEnterVehicleWalk = false; // a script's walk to the door, slower than a run
 	// CTimer time of the last VEHICLE_EXIT that started our copy of the leave task, the sender is out before it
 	unsigned int m_nLeaveVehicleTime = 0;
 	// the vehicle of the last VEHICLE_EXIT (out) and CTimer time it came: a vehicle update the sender sent before it
@@ -62,6 +66,10 @@ public:
 	CVector m_vecTargetContactOffset{};
 	int m_nEpoch = -1;
 	uint8_t m_nLastStateFlags = 0;  // CPedStateSync flags of the last on foot update
+	bool m_bHiddenWhileChanging = false;  // CClothesChangeSync: one of us is changing clothes
+	uint8_t m_nLastAreaCode = 0;  // CPopulationHandover: the interior it was in, since when
+	unsigned int m_nAreaChangeTime = 0;
+	int m_nObjectsBroken = 0;  // the host: of the objects the mission made for this player (CNetworkPlayerObjects)
 
 	~CNetworkPlayer();
 	CNetworkPlayer(playerid_t id, CVector position);
@@ -85,8 +93,8 @@ public:
 	// still on the way out by our copy of the leave task
 	bool IsLeavingVehicle(CVehicle* vehicle);
 	void WarpIntoVehiclePassenger(CVehicle* vehicle, int seatid);
-	void EnterVehiclePassenger(CVehicle* vehicle, int seatid);
-	void OnEnterVehicle(vehicleid_t vehicleid);
+	void EnterVehiclePassenger(CVehicle* vehicle, int seatid, bool bWalk = false);
+	void OnEnterVehicle(vehicleid_t vehicleid, bool bWalk = false);
 	// still on the way in by the enter task of the last VEHICLE_ENTER
 	bool IsEnteringVehicle(CVehicle* vehicle);
 	// sat in the vehicle of the last VEHICLE_ENTER, no vehicle update of the sender yet: it may still be on the way in

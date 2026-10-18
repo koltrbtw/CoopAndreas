@@ -93,6 +93,8 @@ const SSyncedOpCode syncedOpcodes[] = {
     {0x06AB, true, {eSyncedParamType::PED}},  // hide_char_weapon_for_scripted_cutscene [Char] {state} [bool]
     {0x07A7, true, {eSyncedParamType::PED}},  // task_jetpack {handle} [Char]
     {COMMAND_GIVE_WEAPON_TO_CHAR, true, {eSyncedParamType::PED}},
+    // the ammo a mission gave a network player for its part (SWEET2's endless pistol) set back after it
+    {COMMAND_SET_CHAR_AMMO, true, {eSyncedParamType::PED}},
     {COMMAND_SET_CURRENT_CHAR_WEAPON, true, {eSyncedParamType::PED}},
     {COMMAND_REMOVE_WEAPON_FROM_CHAR, true, {eSyncedParamType::PED}},
 
@@ -161,6 +163,9 @@ const SSyncedOpCode syncedOpcodes[] = {
     {COMMAND_WARP_CHAR_FROM_CAR_TO_COORD, true, {eSyncedParamType::PED}},
     {COMMAND_WARP_CHAR_INTO_CAR, true, {eSyncedParamType::PED, eSyncedParamType::VEHICLE}},
     {COMMAND_WARP_CHAR_INTO_CAR_AS_PASSENGER, true, {eSyncedParamType::PED, eSyncedParamType::VEHICLE}},
+    // a car scene's camera inside the car films through the hole: a client syncing the car kept the windscreen, its
+    // glass hid the weapons (drawn after the scene) in the hands of the passengers behind it (SWEET4)
+    {COMMAND_POP_CAR_PANEL, true, {eSyncedParamType::VEHICLE}},  // pop_car_panel [Car] {panelId} [int] {visibility} [bool]
 
     // Explosions
     {0x070C, true, {eSyncedParamType::VEHICLE}},  // explode_car_in_cutscene [Car]
@@ -179,6 +184,15 @@ const SSyncedOpCode syncedOpcodes[] = {
     {0x01B4, true, {eSyncedParamType::PLAYER}},  // set_player_control[Player] {state}[bool]
     {COMMAND_ADD_SCORE, true, {eSyncedParamType::PLAYER}},
 
+    // Wanted level: what the mission gives or takes from the host's player every player gets (the stars after the
+    // drive-by of SWEET4, each loses his own), the limits and the free resprays of the mission are everyone's
+    {COMMAND_ALTER_WANTED_LEVEL, true, {eSyncedParamType::PLAYER}},
+    {COMMAND_ALTER_WANTED_LEVEL_NO_DROP, true, {eSyncedParamType::PLAYER}},
+    {COMMAND_CLEAR_WANTED_LEVEL, true, {eSyncedParamType::PLAYER}},
+    {COMMAND_SET_MAX_WANTED_LEVEL},
+    {COMMAND_SET_FREE_RESPRAYS},
+    {COMMAND_SET_WANTED_MULTIPLIER},
+
     {COMMAND_REQUEST_MODEL}};
 
 static uint8_t textLengthBuffer[NUM_SYNCED_PARAMS];
@@ -189,6 +203,7 @@ static uint16_t textParamCount = 0;
 
 static uint32_t lastOpCodeProcessed;
 static CRunningScript* lastProcessedScript;
+static bool bInScriptCommand = false;
 
 static uint8_t currentStringIdx = 0;
 
@@ -212,6 +227,23 @@ void __fastcall CRunningScript__ReadTextLabelFromScript_Hook_SwitchParametersCon
     currentStringIdx++;
 }
 
+bool COpCodeSync::IsInUnsyncedScriptCommand()
+{
+    if (!bInScriptCommand || bProcessingNetworkOpcode || !lastProcessedScript)
+    {
+        return false;
+    }
+
+    for (size_t i = 0; i < ms_iFreeSyncedScript; ++i)
+    {
+        if (strnicmp(ms_aszSyncedScripts[i], lastProcessedScript->m_szName, 7) == 0)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 /// <param name="opcodeIdx">syncedOpcodes index</param>
 bool COpCodeSync::IsOpcodeSyncable(int opcode, int* opcodeIdx, bool ignoreOpCodeSync)
 {
@@ -223,7 +255,7 @@ bool COpCodeSync::IsOpcodeSyncable(int opcode, int* opcodeIdx, bool ignoreOpCode
         {
             if (strnicmp(ms_aszSyncedScripts[i], lastProcessedScript->m_szName, 7) == 0)
             {
-                bScriptSynced = true;
+                bScriptSynced = !ms_abSyncedScriptPaused[i];
                 break;
             }
         }
@@ -400,6 +432,7 @@ std::vector<uint8_t> COpCodeSync::SerializeOpcode(int idx, int& outSize)
                         {
                             param.entityType = eSyncedParamType::PLAYER;
                             param.playerid = networkPlayer->m_playerId;
+                            logger::info("opcode sync: %04X for %s", lastOpCodeProcessed, networkPlayer->GetName().c_str());
                         }
                         else
                             param.SetValue(-1);
@@ -652,6 +685,18 @@ void COpCodeSync::HandlePacket(const uint8_t* buffer, int bufferSize)
                                     if (!ped->IsVTableValid())
                                         return;
 
+                                    // a clone gets in by its syncer's PED_VEHICLE_ENTER (the copy of the task the
+                                    // syncer's game really runs); the script's task on top came on another channel,
+                                    // replaced the copy or was replaced by it and stood at the door
+                                    // a shoot task the same way: it aims by bAiming and fires by PED_SHOT_SYNC
+                                    if ((header.opcode == COMMAND_TASK_ENTER_CAR_AS_PASSENGER ||
+                                            header.opcode == COMMAND_TASK_ENTER_CAR_AS_DRIVER ||
+                                            header.opcode == COMMAND_TASK_SHOOT_AT_COORD) &&
+                                        !networkPed->m_bSyncing)
+                                    {
+                                        return;
+                                    }
+
                                     param.value = CPools::GetPedRef(ped);
                                     /*if (header.opcode == 0x0605)
                                         CChat::AddMessage("Parsed ped id %s...",
@@ -679,6 +724,7 @@ void COpCodeSync::HandlePacket(const uint8_t* buffer, int bufferSize)
                                 if (auto playerPed = FindPlayerPed(0))
                                 {
                                     param.value = CPools::GetPedRef(playerPed);
+                                    logger::info("opcode sync: %04X for us", header.opcode);
                                 }
                             }
                             else
@@ -852,6 +898,20 @@ void COpCodeSync::HandlePacket(const uint8_t* buffer, int bufferSize)
 
     switch (header.opcode)
     {
+        // the weapon's model as the mission loaded it on the host: unloaded here the ped got the weapon with nothing
+        // in his hand (SWEET4's homies in the car scene)
+        case COMMAND_GIVE_WEAPON_TO_CHAR:
+        case COMMAND_SET_CURRENT_CHAR_WEAPON:
+        {
+            int nWeapon = scriptParamsBuffer[1].value;
+            int nModel = nWeapon > WEAPON_UNARMED && nWeapon <= WEAPON_FLARE ? CUtil::GetWeaponModelById(nWeapon) : -1;
+            if (nModel > 0 && CStreaming::ms_aInfoForModel[nModel].m_nLoadState != LOADSTATE_LOADED)
+            {
+                CStreaming::RequestModel(nModel, eStreamingFlags::GAME_REQUIRED | eStreamingFlags::PRIORITY_REQUEST);
+                CStreaming::LoadAllRequestedModels(false);
+            }
+            break;
+        }
         case COMMAND_TASK_PLAY_ANIM:
         case COMMAND_TASK_CHAR_SLIDE_TO_COORD_AND_PLAY_ANIM:
         case COMMAND_TASK_PLAY_ANIM_NON_INTERRUPTABLE:
@@ -911,9 +971,11 @@ void __declspec(naked) FinishedOpcodeProcessing_Hook()
     {
         mov lastOpCodeProcessed, ecx
         mov lastProcessedScript, esi
+        mov bInScriptCommand, 1
 
         mov ecx, esi
         call edx
+        mov bInScriptCommand, 0
 
         push eax
         call BuildAndSendOpcode

@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "DamageHooks.h"
+#include <eEventType.h>
 
 // a clone: a remote player's ped or a ped someone else syncs
 static bool IsClone(CPed* pPed)
@@ -42,6 +43,14 @@ static void __fastcall CPed__KillPedWithCar_Hook(CPed* This, SKIP_EDX, CVehicle*
 // updates, its death in PED_DIED
 static bool __stdcall ShouldDropEvent(CPed* pPed, void* pEvent)
 {
+    // a hit and run (CEventVehicleHitAndRun, the vehicle at +0x10) of a vehicle deleted since: a clone gone or handed
+    // over while the event waited in the global group. Its copy for every ped near registered a reference to nothing
+    if (pEvent && plugin::CallVirtualMethodAndReturn<int, 1>(pEvent) == EVENT_VEHICLE_HIT_AND_RUN &&
+        !*reinterpret_cast<CVehicle**>(static_cast<uint8_t*>(pEvent) + 0x10))
+    {
+        return true;
+    }
+
     if (!pPed || !CNetwork::m_bAuthenticated)
     {
         return false;
@@ -81,6 +90,17 @@ static void __declspec(naked) CEventGroup__Add_Hook()
     }
 }
 
+// the CEventVehicleHitAndRun ctor (0x4AE990), from its Clone (0x4B7100): the global event group hands its events to
+// every ped by clones (0x4AB9C0), the vehicle of a hit and run may be deleted by then (its reference cleared) - a crash
+// in CEntity::RegisterReference (0x571B73) on a null entity. The clone is dropped then (ShouldDropEvent)
+static void __fastcall CEntity__RegisterReference_IfAny_Hook(CEntity* This, SKIP_EDX, CEntity** ppEntity)
+{
+    if (This)
+    {
+        This->RegisterReference(ppEntity);
+    }
+}
+
 // CTaskSimpleDead::ProcessPed (0x630755, 0x63075C): the weapons and the money a body leaves are made by the game of
 // its owner; every clone made its own, with its own random amount
 static void __fastcall CPed__CreateDeadPedWeaponPickups_Hook(CPed* This)
@@ -105,6 +125,7 @@ void DamageHooks::InjectHooks()
     patch::RedirectCall(0x63075C, CPed__CreateDeadPedMoney_Hook);
 
     patch::RedirectJump(0x4AB420, CEventGroup__Add_Hook);
+    patch::RedirectCall(0x4AE9D3, CEntity__RegisterReference_IfAny_Hook);
 
     // every call of CEventDamage::AffectsPed (sa-disasm xref 0x4B35A0) and its vtable slot
     for (uintptr_t address : {0x439055, 0x4813CD, 0x4BA06F, 0x5680B8, 0x568271, 0x5E2F57, 0x5E3020, 0x5F0CBB, 0x5F0F25,

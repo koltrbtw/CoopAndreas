@@ -149,5 +149,6 @@ bool CPassengerEnter::EnterNearestVehicle(CPlayerPed* pPlayerPed)
     packet.bForce = false;
     packet.bPassenger = true;
     GetPacketFactory().Send(packet);
+    CVehicleExitSync::ms_pEnterSentVehicle = pMinVehicle;
     return true;
 }

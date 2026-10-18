@@ -79,17 +79,29 @@ PACKET_HANDLER(ePacketType::PLAYER_ONFOOT_UPDATE, Packets::Players::OnFootUpdate
 
     CUtil::SetPlayerJetpack(pNetworkPlayer, pOnFootUpdate->bHasJetpack);
 
-    if (CUtil::IsDucked(pNetworkPlayer->m_pPed) != pOnFootUpdate->bDucking)
+    // the clone's own player code ducks it (CPad__DuckJustDown_Hook); still different 300 ms on (CanPedDuck refused it
+    // here: a sprint state, a weapon skill) - directly
+    constexpr unsigned int DUCK_MISMATCH_TIME = 300;
+    pNetworkPlayer->m_bOwnerDucking = pOnFootUpdate->bDucking;
+    if (CUtil::IsDucked(pNetworkPlayer->m_pPed) == pOnFootUpdate->bDucking)
+    {
+        pNetworkPlayer->m_nDuckMismatchTime = 0;
+    }
+    else if (pNetworkPlayer->m_nDuckMismatchTime == 0)
+    {
+        pNetworkPlayer->m_nDuckMismatchTime = CTimer::m_snTimeInMilliseconds;
+    }
+    else if (CTimer::m_snTimeInMilliseconds - pNetworkPlayer->m_nDuckMismatchTime > DUCK_MISMATCH_TIME)
     {
         if (pOnFootUpdate->bDucking)
         {
             pNetworkPlayer->m_pPed->m_pIntelligence->SetTaskDuckSecondary(0);
-            // abort fighting and jumping tasks maybe?
         }
         else
         {
             pNetworkPlayer->m_pPed->m_pIntelligence->ClearTaskDuckSecondary();
         }
+        pNetworkPlayer->m_nDuckMismatchTime = 0;
     }
 
     pNetworkPlayer->m_pPed->m_nFightingStyle = pOnFootUpdate->iFightingStyle;
@@ -230,6 +242,15 @@ PACKET_HANDLER(ePacketType::PLAYER_BULLET_SHOT, Packets::Players::PlayerBulletSh
     }
 
     if (victim && !victim->IsVTableValid())
+    {
+        victim = nullptr;
+    }
+
+    // a mission object here is ours alone (the host's mission ones aren't synced, CNetworkPlayerObjects gives each
+    // player his own): the shot was at the sender's copy, if any
+    if (victim && victim->m_nType == ENTITY_TYPE_OBJECT &&
+        (static_cast<CObject*>(victim)->m_nObjectType == OBJECT_MISSION ||
+            static_cast<CObject*>(victim)->m_nObjectType == OBJECT_MISSION2))
     {
         victim = nullptr;
     }
