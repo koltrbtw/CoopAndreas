@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "CPedStateSync.h"
+#include "CClothesChangeSync.h"
 #include <CFireManager.h>
 
 // sizes and ctors (gta-reversed, the allocations at their callers): CTaskComplexInWater 0xC, CTaskSimpleChoking 0x1C,
@@ -27,6 +28,7 @@ uint8_t CPedStateSync::Collect(CPed* pPed)
     flags |= HasTask(pPed, TASK_SIMPLE_SWIM) ? STATE_SWIMMING : 0;
     flags |= HasTask(pPed, TASK_SIMPLE_CHOKING) ? STATE_CHOKING : 0;
     flags |= HasTask(pPed, TASK_SIMPLE_CLIMB) ? STATE_CLIMBING : 0;
+    flags |= pPed == FindPlayerPed(0) && CClothesChangeSync::IsLocalPlayerChanging() ? STATE_CHANGING_CLOTHES : 0;
     flags |= HasTask(pPed, TASK_COMPLEX_USE_MOBILE_PHONE) ? STATE_USING_PHONE : 0;
     return flags;
 }

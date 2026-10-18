@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "CClothesChangeSync.h"
 #include "StatsHooks.h"
 #include "../CStatsSync.h"
 
@@ -66,7 +67,7 @@ void __fastcall CPed__Dress_Hook(CPed* This, SKIP_EDX)
 
 	if (CNetwork::m_bAuthenticated)
 	{
-		if (This == FindPlayerPed(0))
+		if (This == FindPlayerPed(0) && !CClothesChangeSync::HoldRebuild())
 		{
 			Packets::Players::RebuildPlayer packet{};
 			packet.clothesDesc = *FindPlayerPed(0)->m_pPlayerData->m_pPedClothesDesc;

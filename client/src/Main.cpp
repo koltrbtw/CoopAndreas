@@ -3,6 +3,7 @@
 #include "CPacketBuffer.h"
 #include "CServerTime.h"
 #include "stdafx.h"
+#include "CClothesChangeSync.h"
 #include "CPedAnimSync.h"
 #include "CSniperDot.h"
 #include "CCutsceneMgr.h"
@@ -247,6 +248,7 @@ public:
 
                 CNetworkPedManager::Process();
                 CPlayerPositionSync::Process();
+                CClothesChangeSync::Process();
                 CPedAnimSync::Process();
                 CNetworkVehicleManager::Process();
                 CSniperDot::Process();

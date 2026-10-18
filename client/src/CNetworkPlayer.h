@@ -66,6 +66,7 @@ public:
 	CVector m_vecTargetContactOffset{};
 	int m_nEpoch = -1;
 	uint8_t m_nLastStateFlags = 0;  // CPedStateSync flags of the last on foot update
+	bool m_bHiddenWhileChanging = false;  // CClothesChangeSync: one of us is changing clothes
 	uint8_t m_nLastAreaCode = 0;  // CPopulationHandover: the interior it was in, since when
 	unsigned int m_nAreaChangeTime = 0;
 

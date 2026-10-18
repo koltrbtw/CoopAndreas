@@ -10,6 +10,7 @@ public:
     static constexpr uint8_t STATE_SWIMMING = 2;
     static constexpr uint8_t STATE_CHOKING = 4;
     static constexpr uint8_t STATE_CLIMBING = 8;
+    static constexpr uint8_t STATE_CHANGING_CLOTHES = 16;  // a player only, CClothesChangeSync
     // on the phone (TASK_USE_MOBILE_PHONE of a call, a script): the clone takes out its own and talks
     static constexpr uint8_t STATE_USING_PHONE = 32;
 
