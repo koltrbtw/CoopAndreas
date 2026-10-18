@@ -343,4 +343,36 @@ private:
         return true;
     }
 };
+
+// the health bar of the mission cars for one player, see CMissionCarHealthBar; host -> that player. show false: off
+class NetworkPlayerCarHealthBar : public Packet
+{
+    DEFINE_PACKET_TYPE(NetworkPlayerCarHealthBar, ePacketType::NETWORK_PLAYER_CAR_HEALTH_BAR, ePacketChannel::SCRIPT);
+
+public:
+    playerid_t forWhoPlayerId{};
+    bool show = false;
+    uint16_t varOffset = 0;  // the counter's global in main.scm, a byte offset in ScriptSpace
+    char gxt[8]{};
+    vehicleid_t car1{};
+    vehicleid_t car2{};
+
+private:
+    template <typename Stream>
+    bool Serialize(Stream& stream)
+    {
+        serialize_playerid(stream, forWhoPlayerId);
+        serialize_bool(stream, show);
+        if (show)
+        {
+            serialize_uint16(stream, varOffset);
+            serialize_string(stream, gxt, 8);
+            gxt[ARRAY_SIZE(gxt) - 1] = '\0';
+            serialize_vehicleid(stream, car1);
+            serialize_vehicleid(stream, car2);
+        }
+        return true;
+    }
+};
+
 }  // namespace Packets::Scripts

@@ -8,6 +8,7 @@
 #include <CTaskSequenceSync.h>
 #include <CNetworkPlayerObjects.h>
 #include <CNetworkCameraScene.h>
+#include <CMissionCarHealthBar.h>
 
 PACKET_HANDLER(ePacketType::ON_MISSION_FLAG_SYNC, Packets::Scripts::OnMissionFlagSync* pOnMissionFlagSync)
 {
@@ -143,6 +144,18 @@ PACKET_HANDLER(ePacketType::NETWORK_PLAYER_CAMERA_SCENE, Packets::Scripts::Netwo
 {
 	CNetworkCameraScene::Start(pScene->camPos, pScene->lookAt, pScene->text, pScene->help, pScene->delay,
 		pScene->duration);
+}
+
+PACKET_HANDLER(ePacketType::NETWORK_PLAYER_CAR_HEALTH_BAR, Packets::Scripts::NetworkPlayerCarHealthBar* pBar)
+{
+	if (pBar->show)
+	{
+		CMissionCarHealthBar::Set(pBar->varOffset, pBar->gxt, pBar->car1, pBar->car2);
+	}
+	else
+	{
+		CMissionCarHealthBar::Clear();
+	}
 }
 
 PACKET_HANDLER(ePacketType::NETWORK_PLAYER_OBJECT_BROKEN, Packets::Scripts::NetworkPlayerObjectBroken* pBroken)

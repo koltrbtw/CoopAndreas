@@ -6,6 +6,7 @@
 #include "CClothesChangeSync.h"
 #include "CNetworkPlayerObjects.h"
 #include "CNetworkCameraScene.h"
+#include "CMissionCarHealthBar.h"
 #include "CPedAnimSync.h"
 #include "CSniperDot.h"
 #include "CCutsceneMgr.h"
@@ -265,6 +266,7 @@ public:
                 CClothesChangeSync::Process();
                 CNetworkPlayerObjects::Process();
                 CNetworkCameraScene::Process();
+                CMissionCarHealthBar::Process();
                 CLocalPlayer::ProcessVehicleWeapon();
                 CPedAnimSync::Process();
                 CNetworkVehicleManager::Process();
