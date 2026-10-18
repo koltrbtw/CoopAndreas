@@ -3,8 +3,7 @@
 
 :SWEET6
 script_name 'SWEET6'
-Coop.AddChatMessage("{ffff00}[CoopAndreas Warning]{ffffff} This mission is currently unsupported and not recommended to play!")
-Coop.AddChatMessage("{ffff00}[CoopAndreas Warning]{ffffff} It may cause desyncs, crashes, or other unexpected behavior!")
+Coop.EnableSyncingThisScript()
 
 gosub @SWEET6_47
 if 
@@ -18,7 +17,17 @@ terminate_this_script
 
 :SWEET6_47
 Stat.RegisterMissionGiven
+$NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2] = Coop.CollectNetworkPlayersForTheMission()
 $onmission = 1
+300@ = 0 // free seats in the host's lowrider for the network players
+301@ = 0
+302@ = 0
+303@ = 0
+304@ = 0
+305@ = 0
+306@ = 0 // the lowrider blip for the way to the meet is shown to the network players
+307@ = 0.0 // the point a network player is moved to
+308@ = 0.0
 34@ = 0
 35@ = 0
 36@ = 0
@@ -91,6 +100,7 @@ gosub @SWEET6_24661
 goto @SWEET6_458
 
 :SWEET6_458
+gosub @SWEET6_COOP_UPDATE
 gosub @SWEET6_28502
 
 :SWEET6_465
@@ -364,6 +374,18 @@ goto @SWEET6_1967
 :SWEET6_1991
 Text.Print('S6_01', 10000, 1)
 105@ = Blip.AddForCoord(2653.016, -2009.172, 12.5547)
+
+// the host is back at Grove Street after the cutscene
+Coop.TeleportPlayersToHostSafely($NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2])
+
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.UpdateCheckpointForNetworkPlayer(2653.016, -2009.172, 12.5547, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int]) // the lowrider garage
+        Coop.PrintNowForNetworkPlayer('S6_01', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 35@ += 1
 
 :SWEET6_2034
@@ -386,8 +408,21 @@ if
   35@ == 0
 goto_if_false @SWEET6_2354
 43@ = 0
-if 
+302@ = 1 // all the network players are at the garage
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if not Char.LocateAnyMeans3D($NETWORK_PLAYER[$temp_int], 0, 2653.016, -2009.172, 12.5547, 12.0, 12.0, 4.0)
+        then
+            302@ = 0
+        end
+    end
+end
+
+if and
   Char.LocateAnyMeans3D($scplayer, 1, 2653.016, -2009.172, 12.5547, 4.0, 4.0, 4.0)
+  302@ == 1
 goto_if_false @SWEET6_2305
 if 
   Char.IsInAnyCar($scplayer)
@@ -413,6 +448,13 @@ Player.SetControl($player1, False)
 if 
   43@ == 1
 goto_if_false @SWEET6_2305
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+    end
+end
 if 
   Blip.DoesExist(105@)
 goto_if_false @SWEET6_2298
@@ -753,6 +795,7 @@ switch_start 62@ total_jumps 4 default_jump 0 @SWEET6_4597 jumps 0 @SWEET6_4375 
 set_var_text_label s$audio_string = 'LOWR_KA'
 set_var_int_to_constant $audio_sound_file = 22833
 start_new_script @AUDIOL 79@ 0 1 1 0 
+gosub @SWEET6_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(22834, 2)
 62@ += 1
@@ -762,6 +805,7 @@ goto @SWEET6_4597
 set_var_text_label s$audio_string = 'LOWR_KB'
 set_var_int_to_constant $audio_sound_file = 22834
 start_new_script @AUDIOL 79@ 0 1 2 1 
+gosub @SWEET6_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(22835, 1)
 62@ += 1
@@ -771,6 +815,7 @@ goto @SWEET6_4597
 set_var_text_label s$audio_string = 'LOWR_KC'
 set_var_int_to_constant $audio_sound_file = 22835
 start_new_script @AUDIOL 79@ 0 1 1 1 
+gosub @SWEET6_COOP_PRINT_AUDIO_LINE
 62@ += 1
 goto @SWEET6_4597
 
@@ -871,6 +916,7 @@ switch_start 62@ total_jumps 5 default_jump 0 @SWEET6_5524 jumps 0 @SWEET6_5236 
 set_var_text_label s$audio_string = 'LOWR_KD'
 set_var_int_to_constant $audio_sound_file = 22836
 start_new_script @AUDIOL 79@ 0 1 2 0 
+gosub @SWEET6_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(22837, 1)
 62@ += 1
@@ -880,6 +926,7 @@ goto @SWEET6_5524
 set_var_text_label s$audio_string = 'LOWR_KE'
 set_var_int_to_constant $audio_sound_file = 22837
 start_new_script @AUDIOL 79@ 0 1 1 1 
+gosub @SWEET6_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(22838, 2)
 62@ += 1
@@ -889,6 +936,7 @@ goto @SWEET6_5524
 set_var_text_label s$audio_string = 'LOWR_KF'
 set_var_int_to_constant $audio_sound_file = 22838
 start_new_script @AUDIOL 79@ 0 1 2 1 
+gosub @SWEET6_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(22839, 1)
 62@ += 1
@@ -898,6 +946,7 @@ goto @SWEET6_5524
 set_var_text_label s$audio_string = 'LOWR_KG'
 set_var_int_to_constant $audio_sound_file = 22839
 start_new_script @AUDIOL 79@ 0 1 1 1 
+gosub @SWEET6_COOP_PRINT_AUDIO_LINE
 62@ += 1
 goto @SWEET6_5524
 
@@ -1117,6 +1166,13 @@ Blip.Remove(105@)
 105@ = Blip.AddForCoord(2645.112, -2045.745, 12.607)
 Garage.Activate('MODLAST')
 Text.PrintNow('S6_38', 7000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('S6_38', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 35@ += 1
 
 :SWEET6_6719
@@ -1428,6 +1484,29 @@ goto @SWEET6_8647
 
 :SWEET6_8681
 Zone.SwitchAudio('LOWRIDE', True)
+
+// the lowrider has free passenger seats for the network players, they can use their own cars otherwise
+300@ = 0
+if
+    not Car.IsDead(71@)
+then
+    300@ = Car.GetMaximumNumberOfPassengers(71@)
+end
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        303@($temp_int,3i) = 0 // car_blip_removed
+        if
+            300@ > 0
+        then
+            Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 71@, true, BlipDisplay.MarkerOnly, BlipColor.Blue, 3)
+        end
+        Coop.UpdateCheckpointForNetworkPlayer(1793.068, -1904.254, 12.3989, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int]) // the lowrider meet
+        Coop.PrintNowForNetworkPlayer('S6_03', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
+306@ = 1
 35@ += 1
 
 :SWEET6_8701
@@ -2325,6 +2404,13 @@ if
   950 > 44@
 goto_if_false @SWEET6_15556
 Text.PrintNow('S6_32', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('S6_32', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 130@ = 1
 43@ = 7
 
@@ -2333,6 +2419,13 @@ goto @SWEET6_15593
 
 :SWEET6_15563
 Text.PrintNow('S6_32', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('S6_32', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 130@ = 1
 43@ = 7
 
@@ -2360,6 +2453,13 @@ if
   Char.HasBeenDamagedByChar(80@(43@,22i), $scplayer)
 goto_if_false @SWEET6_15732
 Text.PrintNow('S6_04', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('S6_04', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 130@ = 1
 43@ = 22
 
@@ -2368,6 +2468,13 @@ goto @SWEET6_15769
 
 :SWEET6_15739
 Text.PrintNow('S6_04', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('S6_04', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 130@ = 1
 43@ = 22
 
@@ -2449,8 +2556,21 @@ goto_if_false @SWEET6_16330
 if 
   Char.IsInCar($scplayer, 71@)
 goto_if_false @SWEET6_16330
-if 
+302@ = 1 // all the network players are at the meet
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if not Char.LocateAnyMeans3D($NETWORK_PLAYER[$temp_int], 0, 1793.068, -1904.254, 12.3989, 12.0, 12.0, 4.0)
+        then
+            302@ = 0
+        end
+    end
+end
+
+if and
   Char.LocateInCar3D($scplayer, 1793.068, -1904.254, 12.3989, 4.0, 4.0, 4.0, True)
+  302@ == 1
 goto_if_false @SWEET6_16323
 if 
   Car.IsOnAllWheels(71@)
@@ -2475,6 +2595,7 @@ goto_if_false @SWEET6_16316
 set_var_text_label s$audio_string = 'LOWR_AK'
 set_var_int_to_constant $audio_sound_file = 22806
 start_new_script @AUDIOL -1 0 0 1 0 
+gosub @SWEET6_COOP_PRINT_AUDIO_LINE
 280@ += 1
 Text.PrintHelp('S6_40')
 
@@ -2576,6 +2697,17 @@ goto_if_false @SWEET6_16769
 Car.ResetHydraulics(71@)
 
 :SWEET6_16769
+306@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        Coop.ClearAllEntityBlipsForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+    end
+end
+// the lowrider and the meet cars are moved, keep the network players aside
+gosub @SWEET6_COOP_MOVE_ASIDE
 World.SetCarDensityMultiplier(0.0)
 World.SetPedDensityMultiplier(0.0)
 World.ClearArea(1, 1793.068, -1904.254, 12.3989, 30.0)
@@ -2737,6 +2869,7 @@ goto_if_false @SWEET6_17898
 set_var_text_label s$audio_string = 'LOWR_BA'
 set_var_int_to_constant $audio_sound_file = 22808
 start_new_script @AUDIOL 98@ 0 1 1 0 
+gosub @SWEET6_COOP_PRINT_AUDIO_LINE
 
 :SWEET6_17898
 if 
@@ -2745,6 +2878,7 @@ goto_if_false @SWEET6_17957
 set_var_text_label s$audio_string = 'LOWR_BB'
 set_var_int_to_constant $audio_sound_file = 22809
 start_new_script @AUDIOL 98@ 0 1 1 0 
+gosub @SWEET6_COOP_PRINT_AUDIO_LINE
 
 :SWEET6_17957
 if 
@@ -2753,6 +2887,7 @@ goto_if_false @SWEET6_18016
 set_var_text_label s$audio_string = 'LOWR_BC'
 set_var_int_to_constant $audio_sound_file = 22810
 start_new_script @AUDIOL 98@ 0 1 1 0 
+gosub @SWEET6_COOP_PRINT_AUDIO_LINE
 
 :SWEET6_18016
 wait 1000
@@ -3272,6 +3407,8 @@ Char.Delete(80@(43@,22i))
 goto @SWEET6_21021
 
 :SWEET6_21082
+// the lowrider is moved and its passenger is deleted for the girl, the meet is recreated, keep the network players aside
+gosub @SWEET6_COOP_MOVE_ASIDE
 if 
   not Car.DoesExist(71@)
 goto_if_false @SWEET6_21138
@@ -3803,6 +3940,8 @@ goto_if_false @SWEET6_24950
 Char.Delete(102@)
 
 :SWEET6_24950
+// the lowrider is moved and the girl takes a free seat, the meet is recreated, keep the network players aside
+gosub @SWEET6_COOP_MOVE_ASIDE
 if 
   not Car.DoesExist(71@)
 goto_if_false @SWEET6_25006
@@ -3985,12 +4124,14 @@ goto_if_false @SWEET6_26716
 set_var_text_label s$audio_string = 'LOWR_CA'
 set_var_int_to_constant $audio_sound_file = 22811
 start_new_script @AUDIOL 101@ 0 1 1 0 
+gosub @SWEET6_COOP_PRINT_AUDIO_LINE
 goto @SWEET6_26757
 
 :SWEET6_26716
 set_var_text_label s$audio_string = 'LOWR_CB'
 set_var_int_to_constant $audio_sound_file = 22812
 start_new_script @AUDIOL 101@ 0 1 1 0 
+gosub @SWEET6_COOP_PRINT_AUDIO_LINE
 
 :SWEET6_26757
 TIMERA = 0
@@ -4006,12 +4147,14 @@ goto_if_false @SWEET6_26860
 set_var_text_label s$audio_string = 'LOWR_DA'
 set_var_int_to_constant $audio_sound_file = 22813
 start_new_script @AUDIOL 101@ 0 1 1 0 
+gosub @SWEET6_COOP_PRINT_AUDIO_LINE
 goto @SWEET6_26901
 
 :SWEET6_26860
 set_var_text_label s$audio_string = 'LOWR_DB'
 set_var_int_to_constant $audio_sound_file = 22814
 start_new_script @AUDIOL 101@ 0 1 1 0 
+gosub @SWEET6_COOP_PRINT_AUDIO_LINE
 
 :SWEET6_26901
 TIMERA = 0
@@ -4177,6 +4320,7 @@ if
   not Car.IsDead(71@)
 goto_if_false @SWEET6_27738
 Car.ResetHydraulics(71@)
+gosub @SWEET6_COOP_LEAVE_LOWRIDER
 World.ClearArea(1, 1784.757, -1890.923, 12.399, 25.0)
 Car.SetCoordinates(71@, 1784.757, -1889.923, 12.399)
 Car.SetHeading(71@, 90.0)
@@ -4331,6 +4475,13 @@ goto @SWEET6_28482
 
 :SWEET6_28459
 Text.PrintNow('S6_33', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('S6_33', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 37@ = 1
 
 :SWEET6_28482
@@ -4361,6 +4512,13 @@ if
   Car.IsDead(71@)
 goto_if_false @SWEET6_28607
 Text.PrintNow('S6_34', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('S6_34', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 37@ = 1
 
 :SWEET6_28607
@@ -5564,8 +5722,171 @@ DecisionMaker.Remove(66@)
 DecisionMaker.Remove(67@)
 World.SetPedDensityMultiplier(1.0)
 World.SetCarDensityMultiplier(1.0)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        Coop.ClearAllEntityBlipsForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+    end
+end
 $timer_mobile_start = Clock.GetGameTimer()
 $onmission = 0
 Mission.Finish
 return 
+
+:SWEET6_COOP_UPDATE
+// the lowrider blip for the way to the meet is not needed anymore when the player found a car
+if
+    306@ == 1
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                303@($temp_int,3i) == 0
+            then
+                if
+                    Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+                then
+                    303@($temp_int,3i) = 1
+                    Coop.ClearAllEntityBlipsForNetworkPlayer($NETWORK_PLAYER[$temp_int]) // 71@ can be replaced by another hydraulic car
+                end
+            end
+        end
+    end
+end
+
+// the mod garage door does not close while another ped is in the car or at the door, keep the network players out
+if and
+    34@ == 2
+    35@ == 19
+then
+    if
+        Char.LocateAnyMeans2D($scplayer, 0, 2645.112, -2045.745, 12.0, 12.0)
+    then
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                301@ = 0
+                if
+                    Char.LocateAnyMeans2D($NETWORK_PLAYER[$temp_int], 0, 2645.112, -2045.745, 8.0, 8.0)
+                then
+                    301@ = 1
+                end
+                if
+                    not Car.IsDead(71@)
+                then
+                    if
+                        Char.IsInCar($NETWORK_PLAYER[$temp_int], 71@)
+                    then
+                        301@ = 1
+                    end
+                end
+                if
+                    301@ == 1
+                then
+                    // the sidewalk the mechanic walks on, by the garage driveway
+                    if
+                        $temp_int == 0
+                    then
+                        307@ = 2641.231
+                        308@ = -2020.621
+                    end
+                    if
+                        $temp_int == 1
+                    then
+                        307@ = 2641.862
+                        308@ = -2018.108
+                    end
+                    if
+                        $temp_int == 2
+                    then
+                        307@ = 2641.743
+                        308@ = -2015.496
+                    end
+                    if
+                        Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+                    then
+                        Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 307@, 308@, 12.6446)
+                    else
+                        Char.SetCoordinates($NETWORK_PLAYER[$temp_int], 307@, 308@, 12.6446)
+                    end
+                end
+            end
+        end
+    end
+end
+return
+
+:SWEET6_COOP_PRINT_AUDIO_LINE
+// the dialogue subtitles are printed by AUDIOL, which is not synced
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer(s$audio_string, 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
+return
+
+:SWEET6_COOP_GET_ASIDE_POINT
+// the entry of the meet lot, out of the way of the meet cars and the contest
+if
+    $temp_int == 0
+then
+    307@ = 1800.98
+    308@ = -1895.78
+end
+if
+    $temp_int == 1
+then
+    307@ = 1802.02
+    308@ = -1894.7
+end
+if
+    $temp_int == 2
+then
+    307@ = 1799.94
+    308@ = -1896.86
+end
+return
+
+:SWEET6_COOP_MOVE_ASIDE
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        gosub @SWEET6_COOP_GET_ASIDE_POINT
+        if
+            Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+        then
+            Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 307@, 308@, 12.4046)
+        else
+            Char.SetCoordinates($NETWORK_PLAYER[$temp_int], 307@, 308@, 12.4046)
+        end
+    end
+end
+return
+
+:SWEET6_COOP_LEAVE_LOWRIDER
+if
+    not Car.IsDead(71@)
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                Char.IsInCar($NETWORK_PLAYER[$temp_int], 71@)
+            then
+                gosub @SWEET6_COOP_GET_ASIDE_POINT
+                Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 307@, 308@, 12.4046)
+            end
+        end
+    end
+end
+return
 
