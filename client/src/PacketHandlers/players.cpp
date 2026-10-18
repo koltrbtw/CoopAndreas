@@ -100,6 +100,7 @@ PACKET_HANDLER(ePacketType::PLAYER_ONFOOT_UPDATE, Packets::Players::OnFootUpdate
 
     CPedAnimSync::Apply(pNetworkPlayer->m_pPed, pOnFootUpdate->idleAnims, pOnFootUpdate->idleAnimCount,
         ANIM_GROUP_PLAYIDLES);
+    CPedStateSync::Apply(pNetworkPlayer->m_pPed, pOnFootUpdate->stateFlags, pNetworkPlayer->m_nLastStateFlags);
 
     pNetworkPlayer->m_onFootSnapshotInterpolated = *pOnFootUpdate;
 }

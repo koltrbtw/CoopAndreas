@@ -61,6 +61,7 @@ public:
 	vehicleid_t m_targetContactVehicle{};
 	CVector m_vecTargetContactOffset{};
 	int m_nEpoch = -1;
+	uint8_t m_nLastStateFlags = 0;  // CPedStateSync flags of the last on foot update
 
 	~CNetworkPlayer();
 	CNetworkPlayer(playerid_t id, CVector position);

@@ -218,6 +218,7 @@ PACKET_HANDLER(ePacketType::PED_ONFOOT, Packets::Peds::PedOnFoot* pPedOnFoot)
     pPed->m_nFightingStyle = pPedOnFoot->fightingStyle;
 
     CPedAnimSync::Apply(pPed, pPedOnFoot->anims, pPedOnFoot->animCount);
+    CPedStateSync::Apply(pPed, pPedOnFoot->stateFlags, pNetworkPed->m_nLastStateFlags);
 }
 
 PACKET_HANDLER(ePacketType::PED_DRIVER_UPDATE, Packets::Peds::PedDriverUpdate* pPedDriverUpdate)
