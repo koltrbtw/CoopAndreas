@@ -929,6 +929,20 @@ void CDebugCommands::RunCommand(const std::string& line)
         ms_moves.clear();
         ms_nSnapsAtStart = CPlayerPositionSync::ms_nSnaps;
     }
+    else if (command == "delete-car")
+    {
+        // the script way (DELETE_CAR) on the watched vehicle, ours or a clone
+        for (CNetworkVehicle* pWatched : CNetworkVehicleManager::m_pVehicles)
+        {
+            if (to_string(pWatched->m_vehicleId) == ms_watchedVehicle && pWatched->m_pVehicle)
+            {
+                int car = CPools::GetVehicleRef(pWatched->m_pVehicle);
+                plugin::Command<Commands::DELETE_CAR>(car);
+                logger::info("stand debug: deleted car %d", car);
+                break;
+            }
+        }
+    }
     else if (command == "tow")
     {
         // a tractor in front of the watched vehicle (a trailer), the player drives it, the trailer hitched at once;

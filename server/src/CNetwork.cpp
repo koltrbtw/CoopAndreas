@@ -264,6 +264,15 @@ void CNetwork::HandlePlayerConnected(ENetPeer* pENetPeer, Packets::System::Playe
     }
 
     CNetworkPlayerManager::AssignHostToFirstPlayer();
+
+    // the host is announced on a change only: a later one didn't know it (a borrowed mission vehicle never went back)
+    CNetworkPlayer* pHost = CNetworkPlayerManager::GetHost();
+    if (pHost && pHost != pNewNetworkPlayer)
+    {
+        Packets::System::PlayerAssignHost playerAssignHost{};
+        playerAssignHost.playerid = pHost->m_playerId;
+        GetPacketFactory().Send(playerAssignHost, pNewNetworkPlayer);
+    }
 }
 
 void CNetwork::SendPacketNoAuth_ENet(ENetPeer* pENetPeer, const uint8_t* data, int dataSize,

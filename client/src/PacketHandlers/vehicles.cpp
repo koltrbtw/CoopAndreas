@@ -61,6 +61,15 @@ PACKET_HANDLER(ePacketType::VEHICLE_REMOVE, Packets::Vehicles::VehicleRemove* pV
     CNetworkVehicle* pNetworkVehicle = CNetworkVehicleManager::GetVehicle(pVehicleRemove->vehicleid);
     if (pNetworkVehicle)
     {
+        // ours: the host's script deleted this mission vehicle, it goes like a clone (the game vehicle too); not from
+        // under our player
+        CPlayerPed* pPlayer = FindPlayerPed(0);
+        CVehicle* pVehicle = pNetworkVehicle->m_pVehicle;
+        if (pNetworkVehicle->m_bSyncing && pVehicle &&
+            !(pPlayer && pPlayer->m_nPedFlags.bInVehicle && pPlayer->m_pVehicle == pVehicle))
+        {
+            pNetworkVehicle->m_bSyncing = false;
+        }
         CNetworkVehicleManager::Remove(pNetworkVehicle);
         delete pNetworkVehicle;
     }
