@@ -7,6 +7,9 @@ clear_global_var_bit_const $iAgentFlags bit 10
 
 :MOB_GF_38
 wait 150
+if 
+  Coop.IsHost()
+goto_if_false @MOB_GF_38
 ENTEXT_214()
 if 
   Player.IsPlaying($player1)
@@ -737,6 +740,7 @@ $cell_index_start -= 1
 $audio_slot_mobile = 1
 MOB_GF_2311()
 Text.PrintNow($mobile_print_labels($cell_index_start,20s), 10000, 1)
+gosub @MOB_GF_COOP_SUBTITLE
 MOB_GF_2625()
 if 
   $players_skipping_the_call == 2
@@ -751,6 +755,7 @@ goto_if_false @MOB_GF_3513
 $audio_slot_mobile = 2
 MOB_GF_2311()
 Text.PrintNow($mobile_print_labels($cell_index_start,20s), 10000, 1)
+gosub @MOB_GF_COOP_SUBTITLE
 MOB_GF_2625()
 goto @MOB_GF_3520
 
@@ -781,3 +786,23 @@ goto @MOB_GF_3335
 Text.ClearPrints
 return 
 
+
+// the call rings for the host only (Coop.IsHost above), its audio reaches the others: the subtitle too
+:MOB_GF_COOP_SUBTITLE
+3@, 4@, 5@ = Coop.CollectNetworkPlayersForTheMission()
+if
+    Coop.IsNetworkPlayerActorValid(3@)
+then
+    Coop.PrintNowForNetworkPlayer($mobile_print_labels($cell_index_start,20s), 10000, 1, 3@)
+end
+if
+    Coop.IsNetworkPlayerActorValid(4@)
+then
+    Coop.PrintNowForNetworkPlayer($mobile_print_labels($cell_index_start,20s), 10000, 1, 4@)
+end
+if
+    Coop.IsNetworkPlayerActorValid(5@)
+then
+    Coop.PrintNowForNetworkPlayer($mobile_print_labels($cell_index_start,20s), 10000, 1, 5@)
+end
+return
