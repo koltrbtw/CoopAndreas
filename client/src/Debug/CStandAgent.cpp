@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "CStandAgent.h"
+#include "CStandFrames.h"
 #include <mutex>
 #include <thread>
 #include <ws2tcpip.h>
@@ -101,6 +102,7 @@ void CStandAgent::Init()
     }
 
     logger::info("stand agent: hub %s:%d, stand %s", g_host.c_str(), g_nPort, g_stand.c_str());
+    CStandFrames::Init(g_stand, CCore::ms_nRunIndex);
     std::thread(Run).detach();
 }
 
@@ -130,8 +132,8 @@ void CStandAgent::Run()
     inet_pton(AF_INET, g_host.c_str(), &addr.sin_addr);
 
     char hello[128];
-    sprintf_s(hello, "HELLO {\"stand\":%s,\"n\":%d,\"pid\":%lu}\n", JsonString(g_stand).c_str(), CCore::ms_nRunIndex,
-        GetCurrentProcessId());
+    sprintf_s(hello, "HELLO {\"stand\":%s,\"n\":%d,\"pid\":%lu,\"frames\":true}\n", JsonString(g_stand).c_str(),
+        CCore::ms_nRunIndex, GetCurrentProcessId());
 
     // the hub may be down for a rebuild: retry forever, nothing is kept for it meanwhile but the latest state
     while (true)
@@ -219,6 +221,13 @@ void CStandAgent::Run()
                     uint32_t id = strtoul(line.c_str() + 4, &pRest, 10);
                     std::lock_guard lock(g_mutex);
                     g_commands.emplace_back(id, *pRest == ' ' ? pRest + 1 : "");
+                }
+                // FRAMES <fps> <width>: the hub watches (CStandFrames)
+                else if (line.rfind("FRAMES ", 0) == 0)
+                {
+                    int fps = 0, width = 0;
+                    sscanf_s(line.c_str() + 7, "%d %d", &fps, &width);
+                    CStandFrames::SetDemand(fps, width);
                 }
             }
         }
@@ -339,6 +348,7 @@ std::string CStandAgent::BuildState()
     add("onMission", boolean(CTheScripts::IsPlayerOnAMission()));
     add("clock", num("\"%02d:%02d\"", CClock::ms_nGameClockHours, CClock::ms_nGameClockMinutes));
     add("fps", num("%.0f", CTimer::game_FPS));
+    add("frames", CStandFrames::StateJson());
 
     int nPeds = 0, nOurPeds = 0;
     for (auto pNetworkPed : CNetworkPedManager::m_pPeds)

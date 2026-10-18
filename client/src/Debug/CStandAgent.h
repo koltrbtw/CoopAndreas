@@ -7,8 +7,8 @@
 // debug instances started by the dev stand hub (--hub <host:port> --stand <id>): a TCP line channel to it, kept by a
 // thread of its own and reconnected when the hub restarts. The hub sends stand commands (CDebugCommands) and gets
 // their log lines back, the client sends its state twice a second. Without --hub nothing runs.
-//   client -> hub:  HELLO {"stand","n","pid"}   STATE {...}   REPLY {"id","output"}
-//   hub -> client:  CMD <id> <command line>
+//   client -> hub:  HELLO {"stand","n","pid","frames"}   STATE {...}   REPLY {"id","output"}
+//   hub -> client:  CMD <id> <command line>   FRAMES <fps> <width> (CStandFrames)
 class CStandAgent
 {
 public:
