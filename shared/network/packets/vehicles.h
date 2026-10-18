@@ -356,6 +356,7 @@ public:
     int8_t seatid = 0;  // 3bits
     bool bForce = false;
     bool bPassenger = false;
+    bool bWalk = false;  // a script's walk to the door (SET_NEXT_DESIRED_MOVE_STATE), the copy walks too
 
 private:
     template <typename Stream>
@@ -366,6 +367,7 @@ private:
         serialize_int(stream, seatid, -1, 7);  // TODO test properly
         serialize_bool(stream, bForce);
         serialize_bool(stream, bPassenger);
+        serialize_bool(stream, bWalk);
 
         return true;
     }

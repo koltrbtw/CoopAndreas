@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "CPedAnimSync.h"
 #include <CAnimManager.h>
+#include <CCarEnterExit.h>
 #include <CAnimBlendStaticAssociation.h>
 
 using namespace Packets::Vehicles;
@@ -145,6 +146,56 @@ void CVehicleExitSync::Process()
         ms_bLeaveSent = false;
     }
     ms_vehicleId = vehicleid;
+
+    // a script's leave / enter task of ours (a mission's TASK_LEAVE_ANY_CAR, TASK_ENTER_CAR_AS_PASSENGER replayed for
+    // us): only the button's are hooked, the clones got a warp out and a warp in after the scene
+    auto& taskManager = pPlayerPed->m_pIntelligence->m_TaskMgr;
+    if (vehicleid.valid() && !ms_bLeaveSent)
+    {
+        auto pLeave = static_cast<CTaskComplexLeaveCar*>(taskManager.FindActiveTaskByType(TASK_COMPLEX_LEAVE_CAR));
+        if (pLeave && pLeave->m_pTargetVehicle == pVehicle)
+        {
+            SendLeave(pVehicle);
+        }
+    }
+
+    CTaskComplexEnterCar* pEnter = nullptr;
+    for (int taskType : {TASK_COMPLEX_ENTER_CAR_AS_PASSENGER, TASK_COMPLEX_ENTER_CAR_AS_DRIVER})
+    {
+        if (!pEnter)
+        {
+            pEnter = static_cast<CTaskComplexEnterCar*>(taskManager.FindActiveTaskByType(taskType));
+        }
+    }
+    CVehicle* pEnterVehicle = pEnter && !pVehicle ? pEnter->m_pTargetVehicle : nullptr;
+    if (pEnterVehicle && pEnterVehicle != ms_pEnterSentVehicle)
+    {
+        if (CNetworkVehicle* pNetworkEnter = CNetworkVehicleManager::GetVehicle(pEnterVehicle))
+        {
+            bool bPassenger = pEnter->GetTaskType() == TASK_COMPLEX_ENTER_CAR_AS_PASSENGER;
+            // a passenger's target is a door id (CCarEnterExit), the packet takes the passenger index
+            int nDoor = pEnter->m_nTargetDoor ? pEnter->m_nTargetDoor : pEnter->m_nTargetSeat;
+            Packets::Vehicles::VehicleEnter packet{};
+            packet.vehicleid = pNetworkEnter->m_vehicleId;
+            packet.bPassenger = bPassenger;
+            packet.seatid = bPassenger ? static_cast<int8_t>(std::clamp(
+                                             CCarEnterExit::ComputePassengerIndexFromCarDoor(pEnterVehicle, nDoor), 0, 7))
+                                       : 0;
+            packet.bWalk = pEnter->m_nMoveState == PEDMOVE_WALK;
+            GetPacketFactory().Send(packet);
+            logger::info("our enter task %d into %s (seat %d, door %d, target seat %d) sent", pEnter->GetTaskType(),
+                to_string(packet.vehicleid).c_str(), packet.seatid, pEnter->m_nTargetDoor, pEnter->m_nTargetSeat);
+        }
+    }
+    // kept while the task switches its subtasks (a frame with no enter task), forgotten once in a vehicle
+    if (pVehicle)
+    {
+        ms_pEnterSentVehicle = nullptr;
+    }
+    else if (pEnterVehicle)
+    {
+        ms_pEnterSentVehicle = pEnterVehicle;
+    }
 }
 
 void CVehicleExitSync::Reset()

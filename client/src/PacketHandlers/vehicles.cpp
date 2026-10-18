@@ -288,11 +288,11 @@ PACKET_HANDLER(ePacketType::VEHICLE_ENTER, Packets::Vehicles::VehicleEnter* pVeh
         pTask->m_fThrustStrafe = 0.0f;
     }
 
-    pNetworkPlayer->OnEnterVehicle(pVehicleEnter->vehicleid);
+    pNetworkPlayer->OnEnterVehicle(pVehicleEnter->vehicleid, pVehicleEnter->bWalk);
 
     if (pVehicleEnter->bPassenger)
     {
-        pNetworkPlayer->EnterVehiclePassenger(pVehicle, pVehicleEnter->seatid);
+        pNetworkPlayer->EnterVehiclePassenger(pVehicle, pVehicleEnter->seatid, pVehicleEnter->bWalk);
     }
     else
     {
@@ -304,6 +304,10 @@ PACKET_HANDLER(ePacketType::VEHICLE_ENTER, Packets::Vehicles::VehicleEnter* pVeh
         {
             pPlayerPed->m_nPedFlags.CantBeKnockedOffBike = 1;  // 1 - never
             auto pTask = new CTaskComplexEnterCarAsDriver(pVehicle);
+            if (pVehicleEnter->bWalk)
+            {
+                pTask->m_nMoveState = PEDMOVE_WALK;
+            }
             pPlayerPed->m_pIntelligence->m_TaskMgr.SetTask(pTask, TASK_PRIMARY_PRIMARY, false);
         }
     }

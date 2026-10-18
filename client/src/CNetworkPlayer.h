@@ -41,6 +41,7 @@ public:
 	// sender's, the late on foot / early vehicle updates of the sender must not pull the ped out or warp it in
 	vehicleid_t m_enterVehicleId;
 	unsigned int m_nEnterVehicleTime = 0;
+	bool m_bEnterVehicleWalk = false; // a script's walk to the door, slower than a run
 	// CTimer time of the last VEHICLE_EXIT that started our copy of the leave task, the sender is out before it
 	unsigned int m_nLeaveVehicleTime = 0;
 	// the vehicle of the last VEHICLE_EXIT (out) and CTimer time it came: a vehicle update the sender sent before it
@@ -87,8 +88,8 @@ public:
 	// still on the way out by our copy of the leave task
 	bool IsLeavingVehicle(CVehicle* vehicle);
 	void WarpIntoVehiclePassenger(CVehicle* vehicle, int seatid);
-	void EnterVehiclePassenger(CVehicle* vehicle, int seatid);
-	void OnEnterVehicle(vehicleid_t vehicleid);
+	void EnterVehiclePassenger(CVehicle* vehicle, int seatid, bool bWalk = false);
+	void OnEnterVehicle(vehicleid_t vehicleid, bool bWalk = false);
 	// still on the way in by the enter task of the last VEHICLE_ENTER
 	bool IsEnteringVehicle(CVehicle* vehicle);
 	// sat in the vehicle of the last VEHICLE_ENTER, no vehicle update of the sender yet: it may still be on the way in

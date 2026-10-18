@@ -22,6 +22,7 @@ static void __fastcall CTaskComplexEnterCarAsDriver__Ctor_Hook(
     packet.seatid = 0;
     packet.vehicleid = networkVehicle->m_vehicleId;
     GetPacketFactory().Send(packet);
+    CVehicleExitSync::ms_pEnterSentVehicle = vehicle;
 
     plugin::CallMethod<0x6402F0, CTaskComplexEnterCarAsDriver*, CVehicle*>(This, vehicle);
 }

@@ -1029,6 +1029,16 @@ void CNetworkVehicle::ProcessExtras()
     {
         nInUse |= GetDoorsOfEnterTask(pNetworkPlayer->m_pPed, m_pVehicle);
     }
+    // our copies of an npc's enter (PED_VEHICLE_ENTER): the syncer's ped is a ping ahead, its door would open and
+    // shut under our copy's open door anim
+    for (auto pNetworkPed : CNetworkPedManager::m_pPeds)
+    {
+        if (!pNetworkPed->m_bSyncing && pNetworkPed->m_enterVehicleId == m_vehicleId &&
+            pNetworkPed->IsEnteringVehicle(m_pVehicle))
+        {
+            nInUse |= GetDoorsOfEnterTask(pNetworkPed->m_pPed, m_pVehicle);
+        }
+    }
     for (int i = 0; i < 6; i++)
     {
         if (nFlags & DOOR_ENTER_EXIT_FLAGS[i])

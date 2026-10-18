@@ -652,6 +652,18 @@ void COpCodeSync::HandlePacket(const uint8_t* buffer, int bufferSize)
                                     if (!ped->IsVTableValid())
                                         return;
 
+                                    // a clone gets in by its syncer's PED_VEHICLE_ENTER (the copy of the task the
+                                    // syncer's game really runs); the script's task on top came on another channel,
+                                    // replaced the copy or was replaced by it and stood at the door
+                                    // a shoot task the same way: it aims by bAiming and fires by PED_SHOT_SYNC
+                                    if ((header.opcode == COMMAND_TASK_ENTER_CAR_AS_PASSENGER ||
+                                            header.opcode == COMMAND_TASK_ENTER_CAR_AS_DRIVER ||
+                                            header.opcode == COMMAND_TASK_SHOOT_AT_COORD) &&
+                                        !networkPed->m_bSyncing)
+                                    {
+                                        return;
+                                    }
+
                                     param.value = CPools::GetPedRef(ped);
                                     /*if (header.opcode == 0x0605)
                                         CChat::AddMessage("Parsed ped id %s...",

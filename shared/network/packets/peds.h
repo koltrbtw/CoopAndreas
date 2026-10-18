@@ -387,7 +387,7 @@ public:
     pedid_t pedid{};
     vehicleid_t vehicleid{};
     bool passenger = false;
-    int8_t seat = 0;  // CTaskComplexEnterCar::m_nTargetSeat of a passenger
+    int8_t seat = 0;  // CTaskComplexEnterCar::m_nTargetSeat of a passenger: a door id, 0 any
 
 private:
     template <typename Stream>
@@ -399,7 +399,7 @@ private:
         serialize_bool(stream, passenger);
         if (passenger)
         {
-            serialize_int(stream, seat, 0, 7);
+            serialize_int(stream, seat, 0, 18);
         }
         return true;
     }
