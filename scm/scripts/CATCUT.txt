@@ -3,6 +3,7 @@
 
 :CATCUT
 script_name 'CATCUT'
+Coop.EnableSyncingThisScript()
 gosub @CATCUT_302
 if 
   has_deatharrest_been_executed 
@@ -41,6 +42,7 @@ return
 
 :CATCUT_302
 Stat.RegisterMissionGiven
+$NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2] = Coop.CollectNetworkPlayersForTheMission()
 $onmission = 1
 Text.LoadMissionText('BCESAR2')
 wait 0
@@ -98,6 +100,8 @@ gosub @CATCUT_47
 Char.SetCoordinates($scplayer, -2042.129, -2528.791, 29.625)
 Char.SetHeading($scplayer, 284.27)
 Streaming.LoadScene(-2042.129, -2528.791, 29.625)
+// the network players watched the cut scene where they were, the phone call is by the host at the trailer
+Coop.TeleportPlayersToHostSafely($NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2])
 Camera.RestoreJumpcut
 Camera.DoFade(1, 1000)
 
@@ -225,6 +229,13 @@ if
   Audio.HasMissionAudioLoaded(MissionAudioSlot.Slot1)
 goto_if_false @CATCUT_1136
 Text.PrintNow($catcut_chat(35@,8s), 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer($catcut_chat(35@,8s), 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 36@ = 2
 
