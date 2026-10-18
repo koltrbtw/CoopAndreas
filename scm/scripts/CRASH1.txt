@@ -3,6 +3,8 @@
 
 :CRASH1
 script_name 'CRASH1'
+Coop.EnableSyncingThisScript()
+
 gosub @CRASH1_47
 if 
   has_deatharrest_been_executed 
@@ -15,7 +17,23 @@ terminate_this_script
 
 :CRASH1_47
 Stat.RegisterMissionGiven
+$NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2] = Coop.CollectNetworkPlayersForTheMission()
 $onmission = 1
+362@ = 0 // the checkpoint shown to the network players: 1 the molotovs, 2 the house, 3 its door, 4 the extinguisher, 5 the back room, 6 the exit, 7 denise's home
+363@ = 0
+364@ = 0 // all the network players are at denise's home
+365@ = 0 // the network players were moved into the house with the host
+366@ = 0 // a network player was moved in or out of the house
+367@ = 0.0 // the point a network player is moved to
+368@ = 0.0
+369@ = 0.0
+370@ = 0.0 // its heading
+371@ = 0 // the network players got the extinguisher
+372@ = 0 // denise's blip is shown to the network players
+373@ = 0
+374@ = 0
+375@ = 0
+376@ = -1 // the car the network players are taken out of
 34@ = 0
 35@ = 0
 36@ = 0
@@ -141,6 +159,7 @@ gosub @CRASH1_39065
 
 :CRASH1_1199
 wait 0
+gosub @CRASH1_COOP_UPDATE
 if 
 is_ps2_keyboard_key_pressed 83
 goto_if_false @CRASH1_1232
@@ -284,6 +303,13 @@ if
   35@ == 0
 goto_if_false @CRASH1_1900
 Text.PrintNow('CRA1_00', 15000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CRA1_00', 15000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 gosub @CRASH1_16457
 349@ = 0
 204@ = 0
@@ -297,6 +323,7 @@ if
   Pickup.HasBeenCollected(132@)
 goto_if_false @CRASH1_1969
 Blip.Remove(128@)
+gosub @CRASH1_COOP_GIVE_MOLOTOVS // whoever took the box, everyone gets the molotovs
 349@ = 0
 set_lvar_int_to_lvar_int 204@ = 45@
 204@ += 5000
@@ -313,6 +340,13 @@ if
   35@ == 3
 goto_if_false @CRASH1_2055
 Text.PrintNow('CRA1_01', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CRA1_01', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 122@ = Blip.AddForCoord(2351.904, -1170.826, 28.5)
 35@ += 1
 
@@ -391,6 +425,13 @@ if
   35@ == 1
 goto_if_false @CRASH1_2533
 Text.PrintNow('CRA1_02', 6000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CRA1_02', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 set_lvar_int_to_lvar_int 204@ = 45@
 204@ += 7000
 35@ += 1
@@ -429,6 +470,13 @@ if
   209@ == 5
 goto_if_false @CRASH1_2733
 Text.PrintNow('CRA1_04', 3000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CRA1_04', 3000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 35@ = 99
 
 :CRASH1_2733
@@ -724,6 +772,13 @@ gosub @CRASH1_25459
 56@ = 0
 gosub @CRASH1_33143
 Text.PrintNow('CRA1_05', 4600, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CRA1_05', 4600, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 set_lvar_int_to_lvar_int 200@ = 45@
 200@ += 4300
 35@ += 1
@@ -796,6 +851,13 @@ gosub @CRASH1_28246
 set_lvar_int_to_lvar_int 206@ = 45@
 206@ += 9000
 Text.Print('CRA1_06', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintForNetworkPlayer('CRA1_06', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 35@ += 1
 
 :CRASH1_4824
@@ -888,6 +950,13 @@ gosub @CRASH1_28246
 set_lvar_int_to_lvar_int 206@ = 45@
 206@ += 9000
 Text.Print('CRA1_06', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintForNetworkPlayer('CRA1_06', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 35@ = 9
 
 :CRASH1_5367
@@ -1352,6 +1421,13 @@ if
 goto_if_false @CRASH1_8070
 339@ = 0
 Text.PrintNow('CRA1_10', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CRA1_10', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :CRASH1_8070
 World.ClearArea(0, 255@, 256@, 257@, 3.0)
@@ -1363,6 +1439,13 @@ if
 goto_if_false @CRASH1_8158
 327@ = 1
 Text.PrintNow('CRA1_09', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CRA1_09', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Text.PrintHelp('FIRE_EX')
 
 :CRASH1_8158
@@ -2104,6 +2187,13 @@ goto @CRASH1_12765
 
 :CRASH1_12735
 Text.PrintNow('CRA1_10', 8000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CRA1_10', 8000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Player.SetControl($player1, True)
 336@ = 1
 
@@ -2231,8 +2321,9 @@ if
   35@ == 2
 goto_if_false @CRASH1_13773
 351@ = 0
-if 
+if and
   Char.LocateAnyMeans3D(95@, 1, 258@, 259@, 260@, 3.0, 3.0, 3.0)
+  364@ == 1
 goto_if_false @CRASH1_13580
 351@ = 1
 Player.SetControl($player1, False)
@@ -2489,6 +2580,13 @@ if
 goto_if_false @CRASH1_15122
 336@ = 1
 Text.PrintNow('CRA1_12', 7000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CRA1_12', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Char.RemoveFromGroup(95@)
 Char.ClearTasksImmediately(95@)
 Task.StandStill(95@, -2)
@@ -2592,6 +2690,8 @@ if
 goto_if_false @CRASH1_15693
 $car = Char.StoreCarIsInNoSave($scplayer)
 Char.WarpFromCarToCoord($scplayer, 2351.733, -1179.042, 26.9753)
+set_lvar_int_to_var_int 376@ = $car
+gosub @CRASH1_COOP_LEAVE_CAR // the car is deleted below
 Car.Delete($car)
 
 :CRASH1_15693
@@ -3236,22 +3336,57 @@ switch_start 214@ total_jumps 5 default_jump 0 @CRASH1_20660 jumps 0 @CRASH1_205
 
 :CRASH1_20545
 Text.PrintNow('CRA1_30', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CRA1_30', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @CRASH1_20660
 
 :CRASH1_20568
 Text.PrintNow('CRA1_31', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CRA1_31', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @CRASH1_20660
 
 :CRASH1_20591
 Text.PrintNow('CRA1_32', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CRA1_32', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @CRASH1_20660
 
 :CRASH1_20614
 Text.PrintNow('CRA1_33', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CRA1_33', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @CRASH1_20660
 
 :CRASH1_20637
 Text.PrintNow('CRA1_34', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CRA1_34', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @CRASH1_20660
 
 :CRASH1_20660
@@ -3305,6 +3440,13 @@ Blip.Remove(123@(213@,5i))
   213@ >= 5
 goto_if_false @CRASH1_20938
 Text.PrintNow('CRA1_03', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CRA1_03', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 313@ = 1
 
 :CRASH1_21013
@@ -3315,6 +3457,7 @@ if or
   Pickup.HasBeenCollected(133@)
   Pickup.HasBeenCollected(134@)
 goto_if_false @CRASH1_21166
+gosub @CRASH1_COOP_GIVE_MOLOTOVS // whoever took the spare box, everyone gets more molotovs
 213@ = 0
 
 :CRASH1_21043
@@ -4269,6 +4412,13 @@ return
 
 :CRASH1_28246
 Text.PrintNow('CRA1_07', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CRA1_07', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 $g_Crash1_counterKM1 = 100
 set_lvar_int_to_lvar_int 202@ = 45@
 202@ += 3000
@@ -4322,6 +4472,13 @@ Char.FreezePosition(95@, False)
 211@ = 99
 Hud.ClearCounter($g_Crash1_counterKM1)
 Text.PrintNow('CRA1_50', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CRA1_50', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 340@ = 1
 285@ = 180.0
 Char.SetHeading(95@, 285@)
@@ -4941,6 +5098,13 @@ if
   56@ == 1
 goto_if_false @CRASH1_32588
 Text.PrintNow(69@(51@,9s), 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer(69@(51@,9s), 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :CRASH1_32588
 57@(47@,3i) = 3
@@ -5007,6 +5171,20 @@ goto_if_false @CRASH1_32853
 return 
 
 :CRASH1_32855
+// the conversation is over, its subtitles are cleared for the network players as well
+for 375@ = 0 to 8
+    if
+        is_int_lvar_greater_than_int_lvar 52@ > 375@
+    then
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                Coop.ClearThisPrintForNetworkPlayer(69@(375@,9s), $NETWORK_PLAYER[$temp_int])
+            end
+        end
+    end
+end
 set_local_var_bit_lvar 54@ bit 49@
 49@ = 0
 48@ = 0
@@ -5923,6 +6101,14 @@ Hud.SetRadarZoom(50)
 Game.ShowBlipsOnAllLevels(True)
 Text.ClearThisPrint('CRA1_06')
 Text.ClearThisPrint('CRA1_10')
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.ClearThisPrintForNetworkPlayer('CRA1_06', $NETWORK_PLAYER[$temp_int])
+        Coop.ClearThisPrintForNetworkPlayer('CRA1_10', $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :CRASH1_38825
 return 
@@ -6004,6 +6190,11 @@ Streaming.LoadScene(1038.17, -1335.221, 12.5493)
 Char.SetCoordinates($scplayer, 1038.17, -1335.221, 12.5493)
 Char.SetHeading($scplayer, 0.0)
 Camera.SetBehindPlayer
+
+// the host is put outside the donut shop after the cutscene, bring the network players to him; the police car
+// next to him seats all three of them, no spare car
+Coop.TeleportPlayersToHostSafely($NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2])
+
 100@ = Car.Create(596, 1032.438, -1330.931, 12.3864)
 Car.SetHeading(100@, 270.0)
 Car.LockDoors(100@, CarLock.Unlocked)
@@ -6266,6 +6457,13 @@ if and
   Char.IsDead(95@)
 goto_if_false @CRASH1_41289
 Text.PrintNow('CRA1_51', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CRA1_51', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :CRASH1_41289
 return 
@@ -6429,8 +6627,447 @@ Object.SetDynamic($g_BD_DOOR, False)
 Object.SetCollisionDamageEffect($g_BD_DOOR, False)
 Object.SetProofs($g_BD_DOOR, True, True, True, True, True)
 Object.DontRemove($g_BD_DOOR)
+// the network players left inside the house are brought out, the area is synced once the host is outside or dead
+gosub @CRASH1_COOP_BRING_OUT
+if
+    366@ == 1
+then
+    374@ = Streaming.GetAreaVisible()
+    if or
+        374@ == 0
+        not Player.IsPlaying($player1)
+    then
+        Streaming.SetAreaVisible(0)
+    end
+end
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        Coop.ClearAllEntityBlipsForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+    end
+end
 $timer_mobile_start = Clock.GetGameTimer()
 $onmission = 0
 Mission.Finish
 return 
+
+:CRASH1_COOP_UPDATE
+// the network players get the checkpoint of the host's current destination blip
+363@ = 0
+if
+    34@ == 1
+then
+    if
+        35@ == 1
+    then
+        if
+            Blip.DoesExist(128@)
+        then
+            363@ = 1 // the molotovs
+        end
+    end
+    if
+        35@ >= 4
+    then
+        if
+            Blip.DoesExist(122@)
+        then
+            363@ = 2 // the house
+        end
+    end
+end
+if
+    34@ == 3
+then
+    if
+        Blip.DoesExist(122@)
+    then
+        363@ = 3 // its door
+    end
+end
+if
+    34@ == 4
+then
+    if
+        Blip.DoesExist(122@)
+    then
+        363@ = 4 // the extinguisher
+    end
+end
+if
+    34@ == 5
+then
+    if
+        Blip.DoesExist(122@)
+    then
+        if
+            324@ == 1
+        then
+            363@ = 5 // the back room
+        else
+            363@ = 6 // the exit
+        end
+    end
+end
+if
+    34@ == 7
+then
+    if
+        Blip.DoesExist(122@)
+    then
+        363@ = 7 // denise's home
+    end
+end
+if
+    not is_int_lvar_equal_to_int_lvar 363@ == 362@
+then
+    set_lvar_int_to_lvar_int 362@ = 363@
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+            if
+                362@ == 1
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(1785.698, -1222.105, 16.9119, 1.5, 1.5, 1.5, $NETWORK_PLAYER[$temp_int]) // the molotovs
+            end
+            if
+                362@ == 2
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(2351.904, -1170.826, 26.97, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int]) // the house
+            end
+            if
+                362@ == 3
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(2352.037, -1170.318, 26.9702, 1.5, 1.5, 1.5, $NETWORK_PLAYER[$temp_int]) // its door
+            end
+            if
+                362@ == 4
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(2322.639, -1176.537, 1027.757, 1.5, 1.5, 1.5, $NETWORK_PLAYER[$temp_int]) // the extinguisher
+            end
+            if
+                362@ == 5
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(2319.717, -1178.556, 1030.969, 1.5, 1.5, 1.5, $NETWORK_PLAYER[$temp_int]) // the back room
+            end
+            if
+                362@ == 6
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(2353.085, -1181.1, 1026.97, 1.5, 1.5, 1.5, $NETWORK_PLAYER[$temp_int]) // the exit
+            end
+            if
+                362@ == 7
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(2402.307, -1727.53, 12.3906, 3.0, 3.0, 3.0, $NETWORK_PLAYER[$temp_int]) // denise's home
+            end
+        end
+    end
+end
+
+// the host went into the burning house (area 5) through its door or came out of it, move the network players with him
+if
+    314@ == 1
+then
+    if
+        365@ == 0
+    then
+        365@ = 1
+        gosub @CRASH1_COOP_PUT_INSIDE
+    end
+else
+    if
+        365@ == 1
+    then
+        365@ = 0
+        gosub @CRASH1_COOP_BRING_OUT
+        if
+            366@ == 1
+        then
+            Streaming.SetAreaVisible(0) // the host is outside already, this only syncs the area to the network players
+        end
+    end
+end
+
+// the network players get the extinguisher with the host; if one of them took it, the host gets one too, as the
+// mission waits for the host to have it
+if
+    371@ == 0
+then
+    if
+        Char.HasGotWeapon($scplayer, WeaponType.Extinguisher)
+    then
+        371@ = 1
+    else
+        if
+            317@ == 1
+        then
+            if
+                Pickup.HasBeenCollected(135@)
+            then
+                Char.GiveWeapon($scplayer, WeaponType.Extinguisher, 30000)
+                371@ = 1
+            end
+        end
+    end
+    if
+        371@ == 1
+    then
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                Char.GiveWeapon($NETWORK_PLAYER[$temp_int], WeaponType.Extinguisher, 30000)
+            end
+        end
+    end
+end
+
+// denise has a blip for the network players while the host has hers and she is alive
+372@ = 0
+if
+    34@ >= 4
+then
+    if
+        7 >= 34@
+    then
+        if
+            Blip.DoesExist(131@)
+        then
+            if
+                not Char.IsDead(95@)
+            then
+                372@ = 1
+            end
+        end
+    end
+end
+if
+    not is_int_lvar_equal_to_int_lvar 372@ == 373@
+then
+    set_lvar_int_to_lvar_int 373@ = 372@
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                373@ == 1
+            then
+                Coop.UpdateCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 95@, true, BlipDisplay.Both, BlipColor.Blue, 3) // denise
+            else
+                if // a deleted denise takes her blip with her
+                    Char.DoesExist(95@)
+                then
+                    Coop.RemoveCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 95@)
+                end
+            end
+        end
+    end
+end
+
+// the host's stop at denise's home waits for all the network players around it
+364@ = 1
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if not Char.LocateAnyMeans2D($NETWORK_PLAYER[$temp_int], 0, 2402.307, -1727.53, 20.0, 20.0)
+        then
+            364@ = 0
+        end
+    end
+end
+
+// denise gets into the host's car as his passenger on the way home, keep its front passenger seat free while she
+// follows him and is out of it
+if and
+    34@ == 7
+    326@ == 0
+    336@ == 0
+then
+    if
+        not Char.IsDead(95@)
+    then
+        if
+            Char.IsInAnyCar($scplayer)
+        then
+            376@ = Char.StoreCarIsInNoSave($scplayer)
+            if
+                not Char.IsInCar(95@, 376@)
+            then
+                gosub @CRASH1_COOP_FREE_DENISE_SEAT
+            end
+        end
+    end
+end
+return
+
+:CRASH1_COOP_GIVE_MOLOTOVS
+// the network players get the molotovs with the host; if one of them took the box, the host gets his too
+374@ = Char.GetAmmoInWeapon($scplayer, 18)
+if
+    374@ == 0
+then
+    Char.GiveWeapon($scplayer, WeaponType.Molotov, 20)
+end
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Char.GiveWeapon($NETWORK_PLAYER[$temp_int], WeaponType.Molotov, 20)
+    end
+end
+return
+
+:CRASH1_COOP_PUT_INSIDE
+// the network players outside are moved into the hall behind the door of the house (area 5), next to where the
+// host comes in; the ones who went in through the door themselves stay where they are
+366@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        367@, 368@, 369@ = Char.GetCoordinates($NETWORK_PLAYER[$temp_int])
+        if
+            900.0 > 369@
+        then
+            gosub @CRASH1_COOP_GET_INSIDE_POINT
+            if
+                Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+            then
+                Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 367@, 368@, 369@)
+            else
+                Char.SetCoordinates($NETWORK_PLAYER[$temp_int], 367@, 368@, 369@)
+            end
+            Char.SetHeading($NETWORK_PLAYER[$temp_int], 370@)
+            Char.SetAreaVisible($NETWORK_PLAYER[$temp_int], 5)
+            366@ = 1
+        end
+    end
+end
+if
+    366@ == 1
+then
+    Streaming.SetAreaVisible(5) // the host is inside already, this only syncs the area to the network players
+end
+return
+
+:CRASH1_COOP_BRING_OUT
+// the network players inside the house are brought out to its front yard, 366@ tells whether anyone was
+366@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        367@, 368@, 369@ = Char.GetCoordinates($NETWORK_PLAYER[$temp_int])
+        if
+            369@ > 900.0
+        then
+            gosub @CRASH1_COOP_GET_DOOR_POINT
+            Char.SetCoordinates($NETWORK_PLAYER[$temp_int], 367@, 368@, 26.45)
+            Char.SetHeading($NETWORK_PLAYER[$temp_int], 180.0)
+            Char.SetAreaVisible($NETWORK_PLAYER[$temp_int], 0)
+            366@ = 1
+        end
+    end
+end
+return
+
+:CRASH1_COOP_LEAVE_CAR
+// a network player in the car 376@ is taken out beside its left door
+if
+    Car.DoesExist(376@)
+then
+    if
+        not Car.IsDead(376@)
+    then
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                if
+                    Char.IsInCar($NETWORK_PLAYER[$temp_int], 376@)
+                then
+                    367@, 368@, 369@ = Car.GetOffsetInWorldCoords(376@, -2.5, 0.0, 0.0)
+                    Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 367@, 368@, 369@)
+                end
+            end
+        end
+    end
+end
+return
+
+:CRASH1_COOP_FREE_DENISE_SEAT
+// a network player in the front passenger seat of the host's car 376@ is taken out beside its right door
+if
+    not Car.IsDead(376@)
+then
+    if
+        not Car.IsPassengerSeatFree(376@, 0)
+    then
+        374@ = Car.GetCharInPassengerSeat(376@, 0)
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                if
+                    is_int_var_equal_to_int_lvar $NETWORK_PLAYER[$temp_int] == 374@
+                then
+                    367@, 368@, 369@ = Car.GetOffsetInWorldCoords(376@, 2.5, 0.0, 0.0)
+                    Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 367@, 368@, 369@)
+                end
+            end
+        end
+    end
+end
+return
+
+:CRASH1_COOP_GET_INSIDE_POINT
+// the downstairs hall at the door, beside the host's spot and a few metres off the exit marker
+369@ = 1026.977
+370@ = 266.0
+if
+    $temp_int == 0
+then
+    367@ = 2350.4
+    368@ = -1182.2
+end
+if
+    $temp_int == 1
+then
+    367@ = 2349.0
+    368@ = -1182.2
+end
+if
+    $temp_int == 2
+then
+    367@ = 2349.7
+    368@ = -1183.5
+end
+return
+
+:CRASH1_COOP_GET_DOOR_POINT
+// the front yard west of the door, off the host's way out and the scene with denise at the door
+if
+    $temp_int == 0
+then
+    367@ = 2348.6
+    368@ = -1166.8
+end
+if
+    $temp_int == 1
+then
+    367@ = 2347.2
+    368@ = -1166.8
+end
+if
+    $temp_int == 2
+then
+    367@ = 2347.9
+    368@ = -1165.4
+end
+return
 
