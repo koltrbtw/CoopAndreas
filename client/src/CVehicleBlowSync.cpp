@@ -1,53 +1,23 @@
 #include "stdafx.h"
 #include "CVehicleBlowSync.h"
+#include "CVehicleVTables.h"
 
 // CVehicle::BlowUpCar(CEntity* damager, bool bHideExplosionFx), its vtable slot
 static constexpr unsigned int BLOW_UP_CAR_SLOT = 0xA4;
 
-// every vehicle class with its own vtable (CAutomobile and its heirs share 0x6B3780, a monster truck, a quad, a
-// trailer)
-static constexpr uintptr_t VEHICLE_VTABLES[] = {
-    0x871120,  // CAutomobile
-    0x8721A0,  // CBoat
-    0x871360,  // CBike
-    0x871948,  // CPlane
-    0x871680,  // CHeli
-    0x871528,  // CBmx
-    0x8717D8,  // CMonsterTruck
-    0x871AE8,  // CQuadBike
-    0x872370,  // CTrain
-    0x871C28,  // CTrailer
-};
+using BlowUpCar = void(__thiscall*)(CVehicle*, CEntity*, bool);
 
-struct BlowUpCarHook
-{
-    uintptr_t vtable;
-    uintptr_t original;
-};
+static void __fastcall CVehicle__BlowUpCar_Hook(CVehicle* This, SKIP_EDX, CEntity* pDamager, bool bHideExplosion);
 
-static BlowUpCarHook s_aHooks[std::size(VEHICLE_VTABLES)];
-
-static uintptr_t GetOriginal(CVehicle* pVehicle)
-{
-    uintptr_t vtable = *reinterpret_cast<uintptr_t*>(pVehicle);
-    for (const BlowUpCarHook& hook : s_aHooks)
-    {
-        if (hook.vtable == vtable)
-        {
-            return hook.original;
-        }
-    }
-    return 0;
-}
+static CVehicleVTables::Hook<decltype(&CVehicle__BlowUpCar_Hook)> s_blowUpCar;
 
 static void CallOriginal(CVehicle* pVehicle, CEntity* pDamager, bool bHideExplosion)
 {
-    if (uintptr_t original = GetOriginal(pVehicle))
+    if (BlowUpCar original = s_blowUpCar.Original<BlowUpCar>(pVehicle))
     {
-        reinterpret_cast<void(__thiscall*)(CVehicle*, CEntity*, bool)>(original)(pVehicle, pDamager, bHideExplosion);
+        original(pVehicle, pDamager, bHideExplosion);
     }
 }
-
 static void __fastcall CVehicle__BlowUpCar_Hook(CVehicle* This, SKIP_EDX, CEntity* pDamager, bool bHideExplosion)
 {
     CNetworkVehicle* pNetworkVehicle = CNetworkVehicleManager::GetVehicle(This);
@@ -78,12 +48,7 @@ static void __fastcall CVehicle__BlowUpCar_Hook(CVehicle* This, SKIP_EDX, CEntit
 
 void CVehicleBlowSync::InjectHooks()
 {
-    for (size_t i = 0; i < std::size(VEHICLE_VTABLES); i++)
-    {
-        uintptr_t slot = VEHICLE_VTABLES[i] + BLOW_UP_CAR_SLOT;
-        s_aHooks[i] = {VEHICLE_VTABLES[i], *reinterpret_cast<uintptr_t*>(slot)};
-        patch::SetPointer(slot, CVehicle__BlowUpCar_Hook);
-    }
+    s_blowUpCar.Install(BLOW_UP_CAR_SLOT, CVehicle__BlowUpCar_Hook);
 }
 
 void CVehicleBlowSync::HandlePacket(const Packets::Vehicles::VehicleBlown& packet)
