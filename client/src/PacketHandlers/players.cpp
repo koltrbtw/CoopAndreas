@@ -246,6 +246,15 @@ PACKET_HANDLER(ePacketType::PLAYER_BULLET_SHOT, Packets::Players::PlayerBulletSh
         victim = nullptr;
     }
 
+    // a mission object here is ours alone (the host's mission ones aren't synced, CNetworkPlayerObjects gives each
+    // player his own): the shot was at the sender's copy, if any
+    if (victim && victim->m_nType == ENTITY_TYPE_OBJECT &&
+        (static_cast<CObject*>(victim)->m_nObjectType == OBJECT_MISSION ||
+            static_cast<CObject*>(victim)->m_nObjectType == OBJECT_MISSION2))
+    {
+        victim = nullptr;
+    }
+
     pNetworkPlayer->m_pPed->GetWeapon().DoBulletImpact(
         owner, victim, &startPoint, &pPlayerBulletShot->endPos, &colPoint, incrementalHit);
 }

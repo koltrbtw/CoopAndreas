@@ -69,6 +69,7 @@ public:
 	bool m_bHiddenWhileChanging = false;  // CClothesChangeSync: one of us is changing clothes
 	uint8_t m_nLastAreaCode = 0;  // CPopulationHandover: the interior it was in, since when
 	unsigned int m_nAreaChangeTime = 0;
+	int m_nObjectsBroken = 0;  // the host: of the objects the mission made for this player (CNetworkPlayerObjects)
 
 	~CNetworkPlayer();
 	CNetworkPlayer(playerid_t id, CVector position);

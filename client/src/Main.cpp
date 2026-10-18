@@ -4,6 +4,7 @@
 #include "CServerTime.h"
 #include "stdafx.h"
 #include "CClothesChangeSync.h"
+#include "CNetworkPlayerObjects.h"
 #include "CPedAnimSync.h"
 #include "CSniperDot.h"
 #include "CCutsceneMgr.h"
@@ -261,6 +262,7 @@ public:
                 CNetworkPedManager::Process();
                 CPlayerPositionSync::Process();
                 CClothesChangeSync::Process();
+                CNetworkPlayerObjects::Process();
                 CLocalPlayer::ProcessVehicleWeapon();
                 CPedAnimSync::Process();
                 CNetworkVehicleManager::Process();

@@ -259,4 +259,53 @@ private:
     }
 };
 
+// a mission object of one player's own (the bottles of SWEET2: everyone shoots his own), host -> that player.
+// clear: remove all of his; broken: break his one at pos (the script breaks the host's, Smoke's shot in a cutscene)
+class NetworkPlayerObject : public Packet
+{
+    DEFINE_PACKET_TYPE(NetworkPlayerObject, ePacketType::NETWORK_PLAYER_OBJECT, ePacketChannel::SCRIPT);
+
+public:
+    playerid_t forWhoPlayerId{};
+    bool clear = false;
+    bool broken = false;
+    uint16_t model = 0;
+    CVector pos{};
+    float heading = 0.0f;
+
+private:
+    template <typename Stream>
+    bool Serialize(Stream& stream)
+    {
+        serialize_playerid(stream, forWhoPlayerId);
+        serialize_bool(stream, clear);
+        serialize_bool(stream, broken);
+        if (!clear)
+        {
+            serialize_uint16(stream, model);
+            serialize_float(stream, pos.x);
+            serialize_float(stream, pos.y);
+            serialize_float(stream, pos.z);
+            serialize_float(stream, heading);
+        }
+        return true;
+    }
+};
+
+// the player broke one of his objects, -> the host (senderPlayerid)
+class NetworkPlayerObjectBroken : public Packet
+{
+    DEFINE_PACKET_TYPE(NetworkPlayerObjectBroken, ePacketType::NETWORK_PLAYER_OBJECT_BROKEN, ePacketChannel::SCRIPT);
+
+public:
+    SenderPlayerId senderPlayerid{};
+
+private:
+    template <typename Stream>
+    bool Serialize(Stream& stream)
+    {
+        serialize_object(stream, senderPlayerid);
+        return true;
+    }
+};
 }  // namespace Packets::Scripts

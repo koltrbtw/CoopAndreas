@@ -6,6 +6,7 @@
 #include <CEntryExitMarkerSync.h>
 #include <COpCodeSync.h>
 #include <CTaskSequenceSync.h>
+#include <CNetworkPlayerObjects.h>
 
 PACKET_HANDLER(ePacketType::ON_MISSION_FLAG_SYNC, Packets::Scripts::OnMissionFlagSync* pOnMissionFlagSync)
 {
@@ -22,6 +23,7 @@ PACKET_HANDLER(ePacketType::ON_MISSION_FLAG_SYNC, Packets::Scripts::OnMissionFla
 		{
 			// cleanup
 			CNetworkCheckpoint::Remove();
+			CNetworkPlayerObjects::RemoveAll();
 			CNetworkEntityBlip::ClearEntityBlips();
 			TheCamera.SetWideScreenOff();
 			CPad::GetPad(0)->SetDrunkInputDelay(0);
@@ -119,6 +121,29 @@ PACKET_HANDLER(ePacketType::PLAY_MISSION_AUDIO, Packets::Scripts::PlayMissionAud
 
 	plugin::CallMethod<0x507290>(&AudioEngine, pPlayMissionAudio->slotid, pPlayMissionAudio->audioid); // CAudioEngine__PreloadMissionAudio
 	COpCodeSync::ms_abLoadingMissionAudio[pPlayMissionAudio->slotid] = true;
+}
+
+PACKET_HANDLER(ePacketType::NETWORK_PLAYER_OBJECT, Packets::Scripts::NetworkPlayerObject* pObject)
+{
+	if (pObject->clear)
+	{
+		CNetworkPlayerObjects::RemoveAll();
+		return;
+	}
+	if (pObject->broken)
+	{
+		CNetworkPlayerObjects::Break(pObject->pos);
+		return;
+	}
+	CNetworkPlayerObjects::Add(pObject->model, pObject->pos, pObject->heading);
+}
+
+PACKET_HANDLER(ePacketType::NETWORK_PLAYER_OBJECT_BROKEN, Packets::Scripts::NetworkPlayerObjectBroken* pBroken)
+{
+	if (auto pNetworkPlayer = CNetworkPlayerManager::GetPlayer(pBroken->senderPlayerid))
+	{
+		pNetworkPlayer->m_nObjectsBroken++;
+	}
 }
 
 PACKET_HANDLER(ePacketType::TELEPORT_PLAYER_SCRIPTED, Packets::Scripts::TeleportPlayerScripted* pTeleportPlayerScripted)
