@@ -95,6 +95,20 @@ void CNetworkPedManager::Update()
                 packet.roll = pVehicle->m_matrix->right;
                 packet.rot = pVehicle->m_matrix->up;
                 packet.velocity = pVehicle->m_vecMoveSpeed;
+                if (pVehicle->m_nStatus == STATUS_SIMPLE)
+                {
+                    // CCarCtrl::UpdateCarOnRails (0x436540) follows a flat curve over the nodes' x/y, its speed has
+                    // no z and PlaceOnRoadProperly puts the car on the road every frame. The clone keeps this speed
+                    // (onRails): it drove into a road going up and flew off one going down. The climb goes along
+                    // the car's forward axis, that one is pitched by the road
+                    const CVector& forward = pVehicle->m_matrix->up;
+                    float fFlat = forward.x * forward.x + forward.y * forward.y;
+                    if (fFlat > 0.01f)
+                    {
+                        float fAlong = (packet.velocity.x * forward.x + packet.velocity.y * forward.y) / fFlat;
+                        packet.velocity.z = fAlong * forward.z;
+                    }
+                }
                 packet.turnSpeed = pVehicle->m_vecTurnSpeed;
 
                 packet.pedHealth.iHealth = static_cast<uint8_t>(std::clamp(pPed->m_fHealth, 0.0f, 255.0f));

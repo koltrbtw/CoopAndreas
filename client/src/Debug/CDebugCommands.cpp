@@ -1320,6 +1320,13 @@ void CDebugCommands::RunCommand(const std::string& line)
     {
         ms_bPressG = true;
     }
+    else if (command == "watch-slopes")
+    {
+        int ms = 20000;
+        stream >> ms;
+        ms_nWatchSlopesUntil = CTimer::m_snTimeInMilliseconds + ms;
+        ms_slopes.clear();
+    }
     else if (command == "watch-anims")
     {
         int ms = 10000;
@@ -1383,6 +1390,11 @@ void CDebugCommands::Process()
             logger::info("stand debug: error of %s: %d frames mean %.3f max %.3f over 0.5 m %d", ms_watchedPed.c_str(),
                 static_cast<int>(ms_errors.size()), ms_errors.empty() ? 0.0f : fSum / ms_errors.size(), fMax, nFar);
         }
+    }
+
+    if (ms_nWatchSlopesUntil != 0)
+    {
+        ProcessWatchSlopes();
     }
 
     // watch-moves: a frame's move of the first remote player's clone, and its distance to the vehicle under it
@@ -1491,4 +1503,96 @@ void CDebugCommands::Process()
     {
         RunCommand(command);
     }
+}
+
+// watch-slopes: every frame, the height of an npc driven vehicle over the ground under it, put by the slope it drives
+// on (its forward axis pitched by more than 4 degrees, up or down by the way it goes). Each vehicle against its own
+// flat road height: a clone that scrapes up a hill is lower, one that flies off down a hill higher
+void CDebugCommands::ProcessWatchSlopes()
+{
+    CPlayerPed* pPlayer = FindPlayerPed(0);
+    for (auto pNetworkVehicle : CNetworkVehicleManager::m_pVehicles)
+    {
+        CVehicle* pVehicle = pNetworkVehicle->m_pVehicle;
+        if (!pVehicle || !pVehicle->m_matrix || pNetworkVehicle->m_bTrain || !pVehicle->m_pDriver ||
+            pVehicle->m_pDriver->IsPlayer() || pVehicle->m_nVehicleType != VEHICLE_AUTOMOBILE ||
+            (pVehicle->GetPosition() - pPlayer->GetPosition()).Magnitude() > 80.0f)
+        {
+            continue;
+        }
+
+        CVector pos = pVehicle->GetPosition();
+        CVector forward = pVehicle->m_matrix->up;
+        CVector speed = pVehicle->m_vecMoveSpeed;
+        float fFlatSpeed = speed.x * forward.x + speed.y * forward.y;
+        if (std::fabs(fFlatSpeed) < 0.05f)
+        {
+            continue;
+        }
+        bool bFound = false;
+        float fGround = CWorld::FindGroundZFor3DCoord(pos.x, pos.y, pos.z + 1.0f, &bFound, nullptr);
+        if (!bFound)
+        {
+            continue;
+        }
+
+        float fClimb = fFlatSpeed > 0.0f ? forward.z : -forward.z;
+        int nSlope = std::fabs(fClimb) < 0.03f ? 0 : fClimb > 0.07f ? 1 : fClimb < -0.07f ? 2 : -1;
+        if (nSlope < 0)
+        {
+            continue;
+        }
+
+        auto it = std::find_if(ms_slopes.begin(), ms_slopes.end(), [pVehicle](auto& e) { return e.first == pVehicle; });
+        if (it == ms_slopes.end())
+        {
+            ms_slopes.push_back({pVehicle, {}});
+            it = ms_slopes.end() - 1;
+        }
+        it->second.bClone = !pNetworkVehicle->m_bSyncing;
+        it->second.heights[nSlope].push_back(pos.z - fGround);
+    }
+
+    if (CTimer::m_snTimeInMilliseconds < ms_nWatchSlopesUntil)
+    {
+        return;
+    }
+    ms_nWatchSlopesUntil = 0;
+
+    for (int nClone = 0; nClone < 2; nClone++)
+    {
+        int nFrames[3] = {};
+        float fSum[3] = {}, fMin[3] = {1000.0f, 1000.0f, 1000.0f}, fMax[3] = {-1000.0f, -1000.0f, -1000.0f};
+        for (auto& [pVehicle, samples] : ms_slopes)
+        {
+            if (samples.bClone != (nClone == 1) || samples.heights[0].size() < 10)
+            {
+                continue;
+            }
+            float fFlat = 0.0f;
+            for (float h : samples.heights[0])
+            {
+                fFlat += h;
+            }
+            fFlat /= samples.heights[0].size();
+            for (int i = 1; i < 3; i++)
+            {
+                for (float h : samples.heights[i])
+                {
+                    float d = h - fFlat;
+                    nFrames[i]++;
+                    fSum[i] += d;
+                    fMin[i] = std::min(fMin[i], d);
+                    fMax[i] = std::max(fMax[i], d);
+                }
+            }
+        }
+        for (int i = 1; i < 3; i++)
+        {
+            logger::info("stand debug: slopes %s %s: %d frames, height against the flat road mean %.3f min %.3f max %.3f",
+                nClone ? "clones" : "ours", i == 1 ? "up" : "down", nFrames[i], nFrames[i] ? fSum[i] / nFrames[i] : 0.0f,
+                nFrames[i] ? fMin[i] : 0.0f, nFrames[i] ? fMax[i] : 0.0f);
+        }
+    }
+    ms_slopes.clear();
 }

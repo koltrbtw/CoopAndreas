@@ -60,6 +60,8 @@
 //   knife                       give the player a knife and take it in hand
 //   stab [clone]                behind the nearest ped (one someone else syncs with "clone"), a stealth kill
 //   watch-anims [ms]            log the active task and the anims of the players, the doors of the nearest car
+//   watch-slopes [ms]           npc driven vehicles: height over the ground going up / down a slope against the flat
+//                               road, ours and the clones apart (a clone scraping up a hill, flying down one)
 class CDebugCommands
 {
 public:
@@ -80,4 +82,12 @@ private:
     static inline float ms_fVehicleMoves = 0.0f;
     static inline unsigned int ms_nWatchErrorUntil = 0;
     static inline std::vector<float> ms_errors;  // the watched ped clone's distance to its last update
+    static inline unsigned int ms_nWatchSlopesUntil = 0;
+    struct SSlopeSamples
+    {
+        bool bClone = false;
+        std::vector<float> heights[3];  // flat, up, down: pos.z over the ground under it
+    };
+    static inline std::vector<std::pair<CVehicle*, SSlopeSamples>> ms_slopes;
+    static void ProcessWatchSlopes();
 };
