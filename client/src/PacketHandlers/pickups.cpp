@@ -11,3 +11,8 @@ PACKET_HANDLER(ePacketType::PICKUP_STATE, Packets::Pickups::PickupState* pState)
 {
     CPickupSync::HandleState(*pState);
 }
+
+PACKET_HANDLER(ePacketType::PICKUP_SPAWN, Packets::Pickups::PickupSpawn* pSpawn)
+{
+    CPickupSync::HandleSpawn(*pSpawn);
+}

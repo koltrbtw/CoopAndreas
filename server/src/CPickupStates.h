@@ -12,6 +12,7 @@ class CPickupStates
 public:
     static void HandleRequest(const Packets::Pickups::PickupCollectRequest& packet, CNetworkPlayer* pSender);
     static void HandleCollected(const Packets::Pickups::PickupCollected& packet, CNetworkPlayer* pSender);
+    static void HandleSpawn(const Packets::Pickups::PickupSpawn& packet, CNetworkPlayer* pSender);
     static void OnPlayerConnected(CNetworkPlayer* pNetworkPlayer);
     static void OnPlayerDisconnected(CNetworkPlayer* pNetworkPlayer);
 
@@ -28,8 +29,19 @@ private:
         server_time_t backAt = 0;
     };
 
+    // a dropped one with no timeout (a mission's body weapons) is kept this long for a later player
+    static constexpr server_time_t DROPPED_KEEP_TIME = 600000;
+
+    struct SDropped
+    {
+        Packets::Pickups::PickupSpawn spawn;
+        server_time_t goneAt = 0;
+    };
+
     static bool IsAway(const SEntry& entry);
     static int32_t GetRemaining(const SEntry& entry);
+
+    static inline std::unordered_map<Packets::Pickups::PickupKey, SDropped, Packets::Pickups::PickupKeyHash> ms_dropped;
 
     static inline std::unordered_map<Packets::Pickups::PickupKey, SEntry, Packets::Pickups::PickupKeyHash> ms_entries;
 };

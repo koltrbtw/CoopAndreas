@@ -15,3 +15,8 @@ PACKET_HANDLER(
 {
     CPickupStates::HandleCollected(*pCollected, pNetworkPlayer);
 }
+
+PACKET_HANDLER(ePacketType::PICKUP_SPAWN, Packets::Pickups::PickupSpawn* pSpawn, CNetworkPlayer* pNetworkPlayer)
+{
+    CPickupStates::HandleSpawn(*pSpawn, pNetworkPlayer);
+}

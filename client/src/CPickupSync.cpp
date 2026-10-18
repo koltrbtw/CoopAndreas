@@ -24,10 +24,17 @@ static unsigned int s_lastRequestTime = 0;
 static std::vector<SPending> s_pending;  // states of the pickups our scripts haven't made yet
 static unsigned int s_lastPendingCheck = 0;
 
+// what a body, a jetpack or a gang war drops: one game makes it, the others a copy
+static bool IsDropped(uint8_t type)
+{
+    return type == PICKUP_ONCE_TIMEOUT || type == PICKUP_ONCE_TIMEOUT_SLOW || type == PICKUP_MONEY ||
+           type == PICKUP_ONCE_FOR_MISSION;
+}
+
 static bool IsSynced(const CPickup& pickup)
 {
     return pickup.m_nPickupType == PICKUP_ON_STREET || pickup.m_nPickupType == PICKUP_ON_STREET_SLOW ||
-           pickup.m_nPickupType == PICKUP_ONCE;
+           pickup.m_nPickupType == PICKUP_ONCE || IsDropped(pickup.m_nPickupType);
 }
 
 static PickupKey GetKey(const CPickup& pickup)
@@ -100,10 +107,10 @@ static bool __fastcall CPickup__Update_Hook(
             // on street: CPickup::Update set the regeneration time; once: it removed the pickup
             PickupCollected packet{};
             packet.key = key;
+            bool bRegenerates = key.type == PICKUP_ON_STREET || key.type == PICKUP_ON_STREET_SLOW;
             packet.regenerationMs =
-                key.type == PICKUP_ONCE
-                    ? PickupCollected::FOREVER
-                    : static_cast<int32_t>(This->m_nRegenerationTime - CTimer::m_snTimeInMilliseconds);
+                bRegenerates ? static_cast<int32_t>(This->m_nRegenerationTime - CTimer::m_snTimeInMilliseconds)
+                             : PickupCollected::FOREVER;
             GetPacketFactory().Send(packet);
             s_grantUntil = 0;
             logger::info("pickup %d (type %d) collected, back in %d ms", key.model, key.type, packet.regenerationMs);
@@ -123,9 +130,87 @@ static bool __fastcall CPickup__Update_Hook(
     return false;
 }
 
+// a pickup our game dropped goes to the others
+static void SendSpawn(int handle)
+{
+    int index = handle & 0xFFFF;  // tPickupReference: (refIndex << 16) | index
+    if (!CNetwork::m_bAuthenticated || handle == -1 || index >= PICKUP_COUNT)
+    {
+        return;
+    }
+
+    CPickup& pickup = CPickups::aPickUps[index];
+    if (!IsDropped(pickup.m_nPickupType))
+    {
+        return;
+    }
+
+    PickupSpawn packet{};
+    packet.key = GetKey(pickup);
+    packet.ammo = pickup.m_nAmmo;
+    packet.isEmpty = pickup.m_nFlags.bEmpty;
+    packet.remainingMs = pickup.m_nPickupType == PICKUP_ONCE_FOR_MISSION
+                             ? PickupSpawn::NO_TIMEOUT
+                             : static_cast<int32_t>(pickup.m_nRegenerationTime - CTimer::m_snTimeInMilliseconds);
+    GetPacketFactory().Send(packet);
+}
+
+// CPickups::GenerateNewOne from CreateSomeMoney (0x458A58), DropJetPack (0x67B6DE), the gang war waves (0x445098,
+// 0x445AFD)
+static int __cdecl CPickups__GenerateNewOne_Hook(CVector coors, unsigned int modelId, unsigned char pickupType,
+    unsigned int ammo, unsigned int moneyPerDay, bool isEmpty, char* message)
+{
+    int handle = CPickups::GenerateNewOne(coors, modelId, pickupType, ammo, moneyPerDay, isEmpty, message);
+    SendSpawn(handle);
+    return handle;
+}
+
+// CPickups::GenerateNewOne_WeaponType from CPed::CreateDeadPedWeaponPickups (0x4592F7)
+static int __cdecl CPickups__GenerateNewOne_WeaponType_Hook(
+    CVector coors, eWeaponType weaponType, unsigned char pickupType, unsigned int ammo, bool isEmpty, char* message)
+{
+    int handle = CPickups::GenerateNewOne_WeaponType(coors, weaponType, pickupType, ammo, isEmpty, message);
+    SendSpawn(handle);
+    return handle;
+}
+
 void CPickupSync::InjectHooks()
 {
     patch::RedirectCall(0x45902E, CPickup__Update_Hook);
+
+    for (uintptr_t callSite : {0x458A58u, 0x67B6DEu, 0x445098u, 0x445AFDu})
+    {
+        patch::RedirectCall(callSite, CPickups__GenerateNewOne_Hook);
+    }
+    patch::RedirectCall(0x4592F7, CPickups__GenerateNewOne_WeaponType_Hook);
+}
+
+void CPickupSync::HandleSpawn(const PickupSpawn& packet)
+{
+    // a copy already (a late join list after a reconnect)
+    if (ForEachSlot(packet.key, [](CPickup&) {}))
+    {
+        return;
+    }
+
+    CStreaming::RequestModel(packet.key.model, 0);
+    CStreaming::LoadAllRequestedModels(false);
+
+    CVector position(packet.key.x / 8.0f, packet.key.y / 8.0f, packet.key.z / 8.0f);
+    int handle = CPickups::GenerateNewOne(
+        position, packet.key.model, packet.key.type, packet.ammo, 0, packet.isEmpty, nullptr);
+    int index = handle & 0xFFFF;
+    if (handle == -1 || index >= PICKUP_COUNT)
+    {
+        return;
+    }
+
+    // its own timeout from now (GenerateNewOne set the full one)
+    if (packet.remainingMs != PickupSpawn::NO_TIMEOUT)
+    {
+        CPickups::aPickUps[index].m_nRegenerationTime =
+            CTimer::m_snTimeInMilliseconds + static_cast<unsigned int>(packet.remainingMs);
+    }
 }
 
 void CPickupSync::HandleGrant(const PickupGrant& packet)
