@@ -3,6 +3,8 @@
 
 :LA1FIN2
 script_name 'LA1FIN2'
+Coop.EnableSyncingThisScript()
+
 gosub @LA1FIN2_339
 if 
   has_deatharrest_been_executed 
@@ -32,6 +34,24 @@ goto_if_false @LA1FIN2_339
 
 :LA1FIN2_339
 Stat.RegisterMissionGiven
+$NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2] = Coop.CollectNetworkPlayersForTheMission()
+500@ = -1 // the spare greenwood for the network players at cesar's car
+for 512@ = 0 to 2
+    501@(512@,3i) = 0 // spare_car_blip_removed
+end
+504@ = 0 // the checkpoint of the host's destination: 1 cesar's spot, 2 sweet
+505@ = 0 // the checkpoint shown to the network players
+506@ = 1 // all the network players are at the host's destination
+507@ = 0
+508@ = 0.0 // a point a network player is moved to
+509@ = 0.0
+510@ = 0.0
+511@ = -1 // the car the network players are kept out of
+512@ = 0
+513@ = -1 // the char whose blip the network players should see in the current slot
+for 512@ = 0 to 5
+    514@(512@,6i) = -1 // the ballas blips 243@-248@ shown to the network players
+end
 $onmission = 1
 84@ = 1
 494@ = 1
@@ -39,6 +59,7 @@ Game.SetScriptLimitToGangSize(0)
 
 :LA1FIN2_366
 wait 0
+gosub @LA1FIN2_COOP_UPDATE
 if 
 is_ps2_keyboard_key_pressed 72
 goto_if_false @LA1FIN2_390
@@ -170,6 +191,13 @@ if
 goto_if_false @LA1FIN2_1040
 34@ = 1
 Text.Print('LA1_16', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintForNetworkPlayer('LA1_16', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :LA1FIN2_1040
 return 
@@ -258,8 +286,12 @@ Camera.SetBehindPlayer
 Camera.RestoreJumpcut
 Char.SetCoordinates($scplayer, 2519.825, -1677.714, 13.7425)
 Char.SetHeading($scplayer, 67.0)
+
+// the host is put outside sweet's house after the cutscene, bring the network players to him
+gosub @LA1FIN2_COOP_BRING_TO_HOST
 Streaming.RequestModel(401)
 Streaming.RequestModel(330)
+Streaming.RequestModel(492) // the spare greenwood of the network players
 
 :LA1FIN2_1494
 if or
@@ -357,6 +389,13 @@ Task.UseMobilePhone($scplayer, False)
 Streaming.MarkModelAsNoLongerNeeded(330)
 113@ = 0
 Text.Print('LA1_33', 7000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintForNetworkPlayer('LA1_33', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Blip.Remove(50@)
 50@ = Blip.AddForCoord(1631.791, -1867.288, 12.5381)
 
@@ -364,8 +403,10 @@ Blip.Remove(50@)
 if 
   101@ == 0
 goto_if_false @LA1FIN2_2316
-if 
+// the host's stop at cesar's spot waits for all the network players around it
+if and
   Char.LocateAnyMeans3D($scplayer, 1, 1631.791, -1867.288, 12.5381, 4.0, 4.0, 4.0)
+  506@ == 1
 goto_if_false @LA1FIN2_2316
 Skip.Clear
 $lf2_skip_allowed = 1
@@ -388,6 +429,42 @@ Blip.SetAsFriendly(50@, True)
 
 :LA1FIN2_2293
 Text.Print('LA1_35', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintForNetworkPlayer('LA1_35', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
+
+// cesar's car has a single passenger seat, a car for the network players to follow the host to sweet in, on the
+// road east of cesar's spot and out of the area cleared for the cutscene
+507@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        507@ += 1
+    end
+end
+if and
+    507@ > 0
+    500@ == -1
+then
+    gosub @LA1FIN2_COOP_WAIT_GREENWOOD
+    World.ClearArea(1, 1645.3, -1869.64, 12.39, 4.0)
+    500@ = Car.Create(492, 1645.3, -1869.64, 12.39)
+    Car.SetHeading(500@, 90.0)
+    Car.SetHealth(500@, 1000)
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            501@($temp_int,3i) = 0 // spare_car_blip_removed
+            Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 500@, true, BlipDisplay.MarkerOnly, BlipColor.Blue, 3)
+        end
+    end
+end
 101@ = 1
 
 :LA1FIN2_2316
@@ -488,6 +565,13 @@ Car.MarkAsNoLongerNeeded(40@)
 Blip.Remove(50@)
 50@ = Blip.AddForCoord(1648.714, -1050.094, 22.9141)
 Text.Print('LA1_8', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintForNetworkPlayer('LA1_8', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 $l1f2_sweet_health = 100
 116@ = 1
 117@ = Math.RandomIntInRange(4000, 8000)
@@ -597,6 +681,13 @@ if
 goto_if_false @LA1FIN2_3416
 $l1f2_sweet_health = 0
 Text.Print('LA1_16', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintForNetworkPlayer('LA1_16', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 34@ = 1
 
 :LA1FIN2_3416
@@ -612,8 +703,10 @@ goto_if_false @LA1FIN2_3664
 if 
   255@ == 2
 goto_if_false @LA1FIN2_3664
-if 
+// the host's stop at sweet waits for all the network players around it
+if and
   Char.LocateAnyMeans3D($scplayer, 1, 1648.714, -1050.094, 22.9141, 4.0, 4.0, 4.0)
+  506@ == 1
 goto_if_false @LA1FIN2_3577
 if 
   not Char.IsDead(238@)
@@ -706,6 +799,17 @@ if
   101@ == 0
 goto_if_false @LA1FIN2_5066
 101@ = 1
+
+// the scene with sweet moves the cars by him and warps the host to him, the network players are taken out of their
+// cars and put east of the scene, behind its cameras
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        gosub @LA1FIN2_COOP_PUT_AT_SCENE
+    end
+end
 Player.SetControl($player1, False)
 Hud.SwitchWidescreen(True)
 Camera.SetFixedPosition(1646.703, -1046.744, 25.6308, 0.0, 0.0, 0.0)
@@ -1003,6 +1107,13 @@ Car.FreezePosition(237@, False)
 101@ = 0
 Text.ClearPrints
 Text.Print('LA1_31', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintForNetworkPlayer('LA1_31', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :LA1FIN2_6193
 return 
@@ -1029,6 +1140,13 @@ goto_if_false @LA1FIN2_6737
 46@ = Car.Create(413, 1553.697, -1046.83, 22.7992)
 Text.ClearPrints
 Text.Print('LA1_36', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintForNetworkPlayer('LA1_36', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 269@ = 0
 
 :LA1FIN2_6339
@@ -1292,6 +1410,13 @@ goto_if_false @LA1FIN2_8476
 47@ = Car.Create(413, 1525.366, -1022.267, 22.9105)
 Text.ClearPrints
 Text.Print('LA1_37', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintForNetworkPlayer('LA1_37', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 269@ = 0
 
 :LA1FIN2_8071
@@ -1468,6 +1593,13 @@ if
 goto_if_false @LA1FIN2_9339
 Text.ClearPrints
 Text.Print('LA1_38', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintForNetworkPlayer('LA1_38', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 gosub @LA1FIN2_12014
 99@ -= 3
 101@ = 9
@@ -1628,6 +1760,17 @@ Camera.SetVectorTrack(1583.904, -1144.799, 23.802, 1585.228, -1144.223, 23.802, 
 Hud.SwitchWidescreen(True)
 Player.SetControl($player1, False)
 Char.SetCoordinates($scplayer, 1647.222, -1053.363, 22.9815)
+
+// the police drive up to the host for the arrest, the network players are taken out of their cars and put east of
+// the scene again, out of the police cars' way
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.ClearAllEntityBlipsForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        gosub @LA1FIN2_COOP_PUT_AT_SCENE
+    end
+end
 Car.StartPlayback(122@, 162)
 101@ = 4
 set_lvar_int_to_lvar_int 102@ = TIMERA
@@ -2790,6 +2933,13 @@ if
   not is_int_lvar_equal_to_constant 391@(437@,40i) == 23000
 goto_if_false @LA1FIN2_18982
 Text.Print(311@(437@,40s), 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintForNetworkPlayer(311@(437@,40s), 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :LA1FIN2_18982
 436@ += 1
@@ -2924,6 +3074,9 @@ Char.SetCoordinates($scplayer, -2007.5, -2542.4, 35.7)
 Char.SetHeading($scplayer, 80.0)
 
 :LA1FIN2_19597
+// tenpenny drives the host out of los santos to the countryside, the network players go with him: out of the cars
+// deleted below to his spot now, next to him once the scene there is loaded
+gosub @LA1FIN2_COOP_LEAVE_ANY_CAR
 Car.Delete(47@)
 Car.Delete(122@)
 Car.Delete(123@)
@@ -2965,6 +3118,10 @@ Char.SetCoordinates($scplayer, -2011.438, -2501.287, 34.0624)
 Player.SetControl($player1, False)
 Streaming.LoadScene(-2011.438, -2501.287, 34.0624)
 World.ClearArea(1, -2011.438, -2501.287, 34.0624, 100.0)
+
+// the host is moved to the spot the cutscenes leave him at, the scene is loaded now: bring the network players next
+// to him
+gosub @LA1FIN2_COOP_BRING_TO_HOST
 Text.ClearHelp
 Char.RemoveAllWeapons($scplayer)
 Text.LoadMissionText('BCRASH1')
@@ -3238,9 +3395,287 @@ World.SetCarDensityMultiplier(1.0)
 Game.SwitchEmergencyServices(True)
 DecisionMaker.Remove(231@)
 Game.SetCreateRandomGangMembers(True)
+// the spare car is not needed anymore, the network players lose their checkpoints and blips
+if
+    500@ <> -1
+then
+    Car.MarkAsNoLongerNeeded(500@)
+end
+Streaming.MarkModelAsNoLongerNeeded(492)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        Coop.ClearAllEntityBlipsForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+    end
+end
 $onmission = 0
 $timer_mobile_start = Clock.GetGameTimer()
 Mission.Finish
 Game.SetScriptLimitToGangSize(99)
 return 
+
+:LA1FIN2_COOP_UPDATE
+if // the spare car blip is not needed anymore when the player found a car
+    500@ <> -1
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                501@($temp_int,3i) == 0
+            then
+                if or
+                    Car.IsDead(500@)
+                    Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+                then
+                    501@($temp_int,3i) = 1
+                    Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 500@)
+                end
+            end
+        end
+    end
+end
+
+// the network players get the checkpoint of the host's destination
+504@ = 0
+if and
+    100@ == 2
+    101@ == 0
+    113@ == 0
+then
+    504@ = 1 // cesar's spot, once cesar's call is over
+end
+if and
+    100@ == 4
+    101@ == 0
+then
+    504@ = 2 // sweet
+end
+if
+    not is_int_lvar_equal_to_int_lvar 504@ == 505@
+then
+    set_lvar_int_to_lvar_int 505@ = 504@
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+            if
+                505@ == 1
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(1631.791, -1867.288, 12.5381, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int]) // cesar's spot
+            end
+            if
+                505@ == 2
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(1648.714, -1050.094, 22.9141, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int]) // sweet
+            end
+        end
+    end
+end
+
+// the host's stops at cesar's spot and at sweet wait for all the network players around them
+506@ = 1
+if and
+    100@ == 2
+    101@ == 0
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if not Char.LocateAnyMeans2D($NETWORK_PLAYER[$temp_int], 0, 1631.791, -1867.288, 15.0, 15.0)
+            then
+                506@ = 0
+            end
+        end
+    end
+end
+if and
+    100@ == 4
+    101@ == 0
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if not Char.LocateAnyMeans2D($NETWORK_PLAYER[$temp_int], 0, 1648.714, -1050.094, 20.0, 20.0)
+            then
+                506@ = 0
+            end
+        end
+    end
+end
+
+// cesar's car has the host in it for the cutscene, which hides and freezes it: keep the network players out of it till
+// the host drives it away
+if
+    4 > 100@
+then
+    set_lvar_int_to_lvar_int 511@ = 40@
+    gosub @LA1FIN2_COOP_LEAVE_CAR
+end
+
+// a ballas 243@-248@ has a blip for the network players while the host has its blip 51@-56@ and it is alive, re-checked
+// every frame as the waves recreate them in the same variables
+for 512@ = 0 to 5
+    513@ = -1
+    if and
+        100@ >= 4
+        7 > 100@
+    then
+        if
+            Blip.DoesExist(51@(512@,6i))
+        then
+            if
+                not Char.IsDead(243@(512@,6i))
+            then
+                set_lvar_int_to_lvar_int 513@ = 243@(512@,6i)
+            end
+        end
+    end
+    gosub @LA1FIN2_COOP_SYNC_CHAR_BLIP
+end
+return
+
+:LA1FIN2_COOP_SYNC_CHAR_BLIP
+// shows the network players the blip of the char 513@ (-1: none) in the slot 512@, removing the slot's old one
+if // a variable the mission has not set yet
+    513@ == 0
+then
+    513@ = -1
+end
+if
+    not is_int_lvar_equal_to_int_lvar 514@(512@,6i) == 513@
+then
+    if
+        514@(512@,6i) <> -1
+    then
+        if // a removed char takes its blip with it
+            Char.DoesExist(514@(512@,6i))
+        then
+            for $temp_int = 0 to 2
+                if
+                    Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                then
+                    Coop.RemoveCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 514@(512@,6i))
+                end
+            end
+        end
+    end
+    if
+        513@ <> -1
+    then
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                Coop.UpdateCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 513@, false, BlipDisplay.BlipOnly, BlipColor.Red, 2)
+            end
+        end
+    end
+    set_lvar_int_to_lvar_int 514@(512@,6i) = 513@
+end
+return
+
+:LA1FIN2_COOP_LEAVE_CAR
+// a network player in the car 511@ is taken out beside its left door
+if and
+    511@ <> 0
+    511@ <> -1
+then
+    if
+        Car.DoesExist(511@)
+    then
+        if
+            not Car.IsDead(511@)
+        then
+            for $temp_int = 0 to 2
+                if
+                    Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                then
+                    if
+                        Char.IsInCar($NETWORK_PLAYER[$temp_int], 511@)
+                    then
+                        508@, 509@, 510@ = Car.GetOffsetInWorldCoords(511@, -2.5, 0.0, 0.0)
+                        Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 508@, 509@, 510@)
+                    end
+                end
+            end
+        end
+    end
+end
+return
+
+:LA1FIN2_COOP_LEAVE_ANY_CAR
+// the network players in a car are taken out of it at the host's spot
+507@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if
+            Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+        then
+            508@, 509@, 510@ = Char.GetCoordinates($scplayer)
+            Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 508@, 509@, 510@)
+            507@ = 1
+        end
+    end
+end
+if
+    507@ == 1
+then
+    wait 500 // let the warp out of the car reach them before a teleport
+end
+return
+
+:LA1FIN2_COOP_BRING_TO_HOST
+// the teleport moves the network players on foot, the ones in a car are taken out of it first
+gosub @LA1FIN2_COOP_LEAVE_ANY_CAR
+Coop.TeleportPlayersToHostSafely($NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2])
+return
+
+:LA1FIN2_COOP_PUT_AT_SCENE
+// the network player $temp_int is put east of the host's spot by sweet, behind the cameras of the scenes there
+if
+    $temp_int == 0
+then
+    508@ = 1654.5
+    509@ = -1052.0
+end
+if
+    $temp_int == 1
+then
+    508@ = 1655.0
+    509@ = -1049.5
+end
+if
+    $temp_int == 2
+then
+    508@ = 1654.0
+    509@ = -1054.5
+end
+if
+    Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+then
+    Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 508@, 509@, 22.9)
+else
+    Char.SetCoordinates($NETWORK_PLAYER[$temp_int], 508@, 509@, 22.9)
+end
+Char.SetHeading($NETWORK_PLAYER[$temp_int], 90.0)
+return
+
+:LA1FIN2_COOP_WAIT_GREENWOOD
+if
+    not Streaming.HasModelLoaded(492)
+then
+    Streaming.RequestModel(492)
+    wait 0
+    goto @LA1FIN2_COOP_WAIT_GREENWOOD
+end
+return
 
