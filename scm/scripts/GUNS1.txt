@@ -3,6 +3,8 @@
 
 :GUNS1
 script_name 'GUNS1'
+Coop.EnableSyncingThisScript()
+
 gosub @GUNS1_47
 if 
   has_deatharrest_been_executed 
@@ -15,7 +17,27 @@ terminate_this_script
 
 :GUNS1_47
 Stat.RegisterMissionGiven
+$NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2] = Coop.CollectNetworkPlayersForTheMission()
 $onmission = 1
+300@ = -1 // the spare car for the network players
+301@ = 0
+302@ = 0
+for 318@ = 0 to 2
+    303@(318@,3i) = 0 // van_blips_removed
+end
+306@ = 0 // 1: the network players drive to the house, 2: to the lockup
+307@ = 0.0 // the point a network player is moved to
+308@ = 0.0
+309@ = 0.0
+310@ = 0
+311@ = 0 // the old man's blip is shown to the network players
+312@ = 0 // the old man attacks
+313@ = -1
+314@ = 0
+315@ = 0 // the checkpoint shown to the network players: 1 the house, 2 the door, 3 the lockup, 4 pay'n'spray
+316@ = 0
+317@ = 0
+318@ = 0
 wait 0
 Camera.SetFadingColor(0, 0, 0)
 Camera.DoFade(0, 1000)
@@ -364,12 +386,14 @@ $hours, $minutes = Clock.GetTimeOfDay()
 Clock.SetTimeOfDay(22, 0)
 World.SwitchEntryExit('BURHOUS', False)
 Streaming.RequestModel(609)
+Streaming.RequestModel(466) // the spare car for the network players
 Streaming.RequestAnimation("CAR_CHAT")
 Streaming.LoadSpecialCharacter('RYDER2', 1)
 
 :GUNS1_3253
 if or
   not Streaming.HasModelLoaded(609)
+  not Streaming.HasModelLoaded(466)
   not Streaming.HasSpecialCharacterLoaded(1)
   not Streaming.HasAnimationLoaded("CAR_CHAT")
 goto_if_false @GUNS1_3296
@@ -484,6 +508,7 @@ if
 goto_if_false @GUNS1_4139
 Audio.PlayMissionAudio(255@)
 Text.PrintNow($ryd1_text(254@,82s), 10000, 1)
+gosub @GUNS1_COOP_PRINT_DIALOGUE
 257@ = 3
 
 :GUNS1_4139
@@ -634,6 +659,50 @@ Player.GiveClothesOutsideShop($player1, "BALACLAVA", "BALACLAVA", BodyPart.Speci
 Player.BuildModel($player1)
 Text.ClearThisBigPrint('BOXBURG')
 Text.Print('GUNS130', 5000, 1)
+
+// the van seats ryder and the host, a car for the network players who have no seat left in it
+301@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        301@ += 1
+    end
+end
+310@ = 0
+if
+    not Car.IsDead(102@)
+then
+    310@ = Car.GetMaximumNumberOfPassengers(102@)
+    310@ -= 1 // ryder
+end
+if
+    is_int_lvar_greater_than_int_lvar 301@ > 310@
+then
+    World.ClearArea(1, 2494.91, -1682.17, 12.32, 5.0)
+    300@ = Car.Create(466, 2494.91, -1682.17, 12.32)
+    Car.SetHeading(300@, 90.0)
+    Car.SetHealth(300@, 1000)
+end
+
+// the host is in the van at ryder's house after the cutscene
+Coop.TeleportPlayersToHostSafely($NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2])
+
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        303@($temp_int,3i) = 0 // van_blips_removed
+        Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 102@, true, BlipDisplay.MarkerOnly, BlipColor.Blue, 3)
+        if
+            300@ <> -1
+        then
+            Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 300@, true, BlipDisplay.MarkerOnly, BlipColor.Blue, 3)
+        end
+    end
+end
+306@ = 1
+
 Camera.DoFade(1, 1000)
 
 :GUNS1_4876
@@ -651,6 +720,7 @@ goto_if_false @GUNS1_4925
 
 :GUNS1_4925
 wait 0
+gosub @GUNS1_COOP_UPDATE
 if 
 is_ps2_keyboard_key_pressed 32
 goto_if_false @GUNS1_4975
@@ -733,6 +803,13 @@ goto @GUNS1_5278
 
 :GUNS1_5302
 Text.Print('GUNS125', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GUNS125', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @GUNS1_40642
 
 :GUNS1_5325
@@ -765,6 +842,13 @@ goto @GUNS1_5424
 
 :GUNS1_5448
 Text.Print('GUNS122', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GUNS122', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @GUNS1_40642
 
 :GUNS1_5471
@@ -779,6 +863,13 @@ if
   not Player.IsWearing($player1, "BALACLAVA", BodyPart.SpecialCostume)
 goto_if_false @GUNS1_5564
 Text.Print('RYD1_37', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RYD1_37', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @GUNS1_40642
 
 :GUNS1_5564
@@ -794,6 +885,13 @@ Blip.Remove(104@)
 Text.ClearPrints
 105@ = Blip.AddForCoord(2819.9, -1181.7, 25.15)
 Text.Print('GUNS130', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GUNS130', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 56@ = 1
 51@ = 2
 
@@ -931,6 +1029,13 @@ Blip.Remove(104@)
 55@ = 0
 Text.ClearPrints
 Text.Print('GUNS130', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GUNS130', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 105@ = Blip.AddForCoord(2819.9, -1181.7, 25.15)
 56@ = 1
 
@@ -1065,6 +1170,7 @@ if
 goto_if_false @GUNS1_7040
 Audio.PlayMissionAudio(255@)
 Text.PrintNow($ryd1_text(254@,82s), 10000, 1)
+gosub @GUNS1_COOP_PRINT_DIALOGUE
 43@ += 1
 257@ = 3
 
@@ -1292,6 +1398,13 @@ Char.StopFacialTalk(98@)
 
 :GUNS1_8225
 Text.Print('GUNS130', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GUNS130', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :GUNS1_8241
 goto @GUNS1_8248
@@ -1301,8 +1414,21 @@ if and
   59@ == 1
   56@ == 1
 goto_if_false @GUNS1_8410
-if 
+302@ = 1 // all the network players are at the house
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if not Char.LocateAnyMeans2D($NETWORK_PLAYER[$temp_int], 0, 2819.9, -1181.7, 15.0, 15.0)
+        then
+            302@ = 0
+        end
+    end
+end
+
+if and
   Char.LocateInCar3D($scplayer, 2819.9, -1181.7, 25.15, 4.0, 4.0, 2.5, True)
+  302@ == 1
 goto_if_false @GUNS1_8410
 Player.SetControl($player1, False)
 $car = Char.StoreCarIsInNoSave($scplayer)
@@ -1314,6 +1440,33 @@ Game.SetPoliceIgnorePlayer($player1, True)
 Text.ClearPrints
 World.ClearArea(1, 2819.9, -1181.7, 25.15, 30.0)
 51@ = 3
+306@ = 0
+315@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        Coop.ClearAllEntityBlipsForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+    end
+end
+// the van is locked and frozen for the scene at the house, get the network players out of it
+if
+    not Car.IsDead(102@)
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                Char.IsInCar($NETWORK_PLAYER[$temp_int], 102@)
+            then
+                gosub @GUNS1_COOP_GET_STREET_POINT
+                Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 307@, 308@, 24.4)
+            end
+        end
+    end
+end
 
 :GUNS1_8410
 if and
@@ -1351,6 +1504,13 @@ goto @GUNS1_8543
 
 :GUNS1_8567
 Text.Print('RYD1_35', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RYD1_35', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @GUNS1_40642
 
 :GUNS1_8590
@@ -1416,6 +1576,7 @@ if
 goto_if_false @GUNS1_8961
 Audio.PlayMissionAudio(255@)
 Text.PrintNow($ryd1_text(254@,82s), 10000, 1)
+gosub @GUNS1_COOP_PRINT_DIALOGUE
 257@ = 3
 
 :GUNS1_8961
@@ -1797,6 +1958,13 @@ Player.SetControl($player1, True)
 Hud.SwitchWidescreen(False)
 109@ = Blip.AddForCoord(2808.0, -1177.0, 26.0)
 Text.Print('RYD1_39', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RYD1_39', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 if 
   not Char.IsDead(98@)
 goto_if_false @GUNS1_11405
@@ -1859,6 +2027,27 @@ Streaming.SetAreaVisible(8)
 Char.SetHasUsedEntryExit($scplayer, 2807.96, -1176.236, 20.0)
 Char.SetCoordinates($scplayer, 2807.62, -1171.9, 1024.578)
 Char.SetHeading($scplayer, 0.0)
+
+// the host is put inside the house (area 8), the area is synced, move the network players inside next to him
+315@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        gosub @GUNS1_COOP_GET_INSIDE_POINT
+        if
+            Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+        then
+            Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 307@, 308@, 1024.578)
+        else
+            Char.SetCoordinates($NETWORK_PLAYER[$temp_int], 307@, 308@, 1024.578)
+        end
+        Char.SetHeading($NETWORK_PLAYER[$temp_int], 0.0)
+        Char.SetAreaVisible($NETWORK_PLAYER[$temp_int], 8)
+    end
+end
+
 167@ = 0.0
 $ryd1_noise_bar = 0
 Streaming.SetAreaVisible(8)
@@ -2026,6 +2215,13 @@ Hud.FreezeTimer(True)
 skip_cutscene_start_internal @GUNS1_13763
 Text.ClearHelp
 Text.PrintHelpForever('RYD1_92')
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintHelpForNetworkPlayer('RYD1_92', $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :GUNS1_12870
 if 
@@ -2055,6 +2251,13 @@ goto @GUNS1_12908
 :GUNS1_12968
 Text.ClearHelp
 Text.PrintHelpForever('RYD1_93')
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintHelpForNetworkPlayer('RYD1_93', $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :GUNS1_12981
 if 
@@ -2086,6 +2289,13 @@ Camera.SetFixedPosition(2815.59, -1169.15, 1029.45, 0.0, 0.0, 0.0)
 Camera.PointAtPoint(2820.48, -1173.33, 1028.01, SwitchType.JumpCut)
 Text.ClearHelp
 Text.PrintHelpForever('RYD1_94')
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintHelpForNetworkPlayer('RYD1_94', $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :GUNS1_13143
 if 
@@ -2159,6 +2369,13 @@ goto @GUNS1_13202
 
 :GUNS1_13451
 Text.PrintHelpForever('RYD1_95')
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintHelpForNetworkPlayer('RYD1_95', $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :GUNS1_13462
 if 
@@ -2323,6 +2540,13 @@ if
 goto_if_false @GUNS1_14535
 Text.ClearPrints
 Text.Print('RYD1_40', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RYD1_40', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Text.PrintWithNumber('RYD1_97', 3, 5000, 1)
 91@ = 1
 
@@ -2369,6 +2593,7 @@ Char.SetHeading(99@, 193.7598)
 Char.SetDecisionMaker(99@, 39@)
 DecisionMaker.Remove(40@)
 Char.SetRelationship(99@, RelationshipType.Hate, PedType.Player1)
+312@ = 1 // the old man attacks, show him to the network players
 127@ = Sequence.Open()
 Task.KillCharOnFoot(-1, $scplayer)
 Sequence.Close(127@)
@@ -2485,6 +2710,7 @@ if
 goto_if_false @GUNS1_15527
 Audio.PlayMissionAudio(255@)
 Text.PrintNow($ryd1_text(254@,82s), 10000, 1)
+gosub @GUNS1_COOP_PRINT_DIALOGUE
 257@ = 3
 
 :GUNS1_15527
@@ -2634,6 +2860,13 @@ goto @GUNS1_16208
 
 :GUNS1_16232
 Text.Print('RYD1_96', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RYD1_96', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @GUNS1_40642
 
 :GUNS1_16255
@@ -2943,6 +3176,7 @@ if
 goto_if_false @GUNS1_17918
 Audio.PlayMissionAudio(255@)
 Text.PrintNow($ryd1_text(254@,82s), 10000, 1)
+gosub @GUNS1_COOP_PRINT_DIALOGUE
 257@ = 3
 
 :GUNS1_17918
@@ -3140,6 +3374,13 @@ goto @GUNS1_19084
 
 :GUNS1_19054
 Text.Print('RYD1_36', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RYD1_36', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 278@ = 0
 277@ = 1
 
@@ -3233,6 +3474,7 @@ if
 goto_if_false @GUNS1_19534
 Audio.PlayMissionAudio(255@)
 Text.PrintNow($ryd1_text(254@,82s), 10000, 1)
+gosub @GUNS1_COOP_PRINT_DIALOGUE
 257@ = 3
 
 :GUNS1_19534
@@ -3362,6 +3604,7 @@ goto_if_false @GUNS1_20330
 Char.SetDecisionMaker(99@, 39@)
 DecisionMaker.Remove(40@)
 Char.SetRelationship(99@, RelationshipType.Hate, PedType.Player1)
+312@ = 1 // the old man attacks, show him to the network players
 Game.SetRelationship(RelationshipType.Hate, PedType.Mission1, PedType.Player1)
 
 :GUNS1_20330
@@ -3384,6 +3627,13 @@ Hud.SwitchWidescreen(False)
 Camera.RestoreJumpcut
 Char.SetProofs($scplayer, False, False, False, False, False)
 Text.Print('RYD1_44', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RYD1_44', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 43@ = 0
 goto @GUNS1_21930
 
@@ -3434,6 +3684,7 @@ if
 goto_if_false @GUNS1_20718
 Audio.PlayMissionAudio(255@)
 Text.PrintNow($ryd1_text(254@,82s), 10000, 1)
+gosub @GUNS1_COOP_PRINT_DIALOGUE
 257@ = 3
 
 :GUNS1_20718
@@ -3513,6 +3764,8 @@ Char.ClearTasks($scplayer)
 Char.SetCoordinates($scplayer, 2808.784, -1178.054, 24.3559)
 Char.SetHeading($scplayer, 231.7034)
 Streaming.SetAreaVisible(0)
+// the host is taken out of the house, bring the network players inside out too
+gosub @GUNS1_COOP_BRING_OUT
 Char.SetHasUsedEntryExit($scplayer, 2807.776, -1174.782, 20.0)
 Camera.SetFixedPosition(2807.473, -1176.315, 25.8373, 0.0, 0.0, 0.0)
 Camera.PointAtPoint(2808.318, -1176.847, 25.8125, SwitchType.JumpCut)
@@ -3521,6 +3774,7 @@ Streaming.LoadScene(2808.784, -1178.054, 24.0)
 if 
   not Car.IsDead(102@)
 goto_if_false @GUNS1_21311
+gosub @GUNS1_COOP_LEAVE_VAN // the van is deleted
 Car.Delete(102@)
 
 :GUNS1_21311
@@ -3597,6 +3851,7 @@ if
 goto_if_false @GUNS1_21697
 Audio.PlayMissionAudio(255@)
 Text.PrintNow($ryd1_text(254@,82s), 10000, 1)
+gosub @GUNS1_COOP_PRINT_DIALOGUE
 257@ = 3
 
 :GUNS1_21697
@@ -3659,6 +3914,7 @@ Char.SetHeading(99@, 193.7598)
 Char.SetDecisionMaker(99@, 39@)
 DecisionMaker.Remove(40@)
 Char.SetRelationship(99@, RelationshipType.Hate, PedType.Player1)
+312@ = 1 // the old man attacks, show him to the network players
 127@ = Sequence.Open()
 Task.KillCharOnFoot(-1, $scplayer)
 Sequence.Close(127@)
@@ -3737,6 +3993,7 @@ if
 goto_if_false @GUNS1_22523
 Audio.PlayMissionAudio(255@)
 Text.PrintNow($ryd1_text(254@,82s), 10000, 1)
+gosub @GUNS1_COOP_PRINT_DIALOGUE
 257@ = 3
 
 :GUNS1_22523
@@ -3901,6 +4158,13 @@ goto @GUNS1_23282
 
 :GUNS1_23306
 Text.Print('RYD1_96', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RYD1_96', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @GUNS1_40642
 
 :GUNS1_23329
@@ -4049,6 +4313,7 @@ if
 goto_if_false @GUNS1_24113
 Audio.PlayMissionAudio(255@)
 Text.PrintNow($ryd1_text(254@,82s), 10000, 1)
+gosub @GUNS1_COOP_PRINT_DIALOGUE
 257@ = 3
 
 :GUNS1_24113
@@ -4066,10 +4331,24 @@ if
   97@ == 0
 goto_if_false @GUNS1_24215
 Text.PrintNow('GUNS147', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GUNS147', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @GUNS1_24231
 
 :GUNS1_24215
 Text.PrintNow('RYD1_2', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RYD1_2', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :GUNS1_24231
 if 
@@ -4103,6 +4382,14 @@ if
 goto_if_false @GUNS1_25602
 Car.FreezePosition(102@, False)
 Car.CloseAllDoors(102@)
+// the house is closed after this scene, bring the network players inside out to the van
+gosub @GUNS1_COOP_BRING_OUT
+if
+    314@ == 1
+then
+    Streaming.SetAreaVisible(0) // the host is outside already, this only syncs the area to the network players
+end
+gosub @GUNS1_COOP_FREE_RYDER_SEAT // ryder gets in next to the host
 Player.SetControl($player1, False)
 Hud.SwitchWidescreen(True)
 Camera.SetFixedPosition(2810.199, -1187.979, 25.1092, 0.0, 0.0, 0.0)
@@ -4197,6 +4484,7 @@ if
 goto_if_false @GUNS1_24960
 Audio.PlayMissionAudio(255@)
 Text.PrintNow($ryd1_text(254@,82s), 10000, 1)
+gosub @GUNS1_COOP_PRINT_DIALOGUE
 257@ = 3
 
 :GUNS1_24960
@@ -4295,6 +4583,7 @@ goto_if_false @GUNS1_25404
 if 
   not Char.IsInCar(98@, 102@)
 goto_if_false @GUNS1_25404
+gosub @GUNS1_COOP_FREE_RYDER_SEAT // ryder is warped into the front passenger seat
 Char.WarpIntoCarAsPassenger(98@, 102@, 0)
 
 :GUNS1_25404
@@ -4316,6 +4605,7 @@ Player.SetControl($player1, True)
 263@ = 0
 264@ = 1
 51@ = 8
+gosub @GUNS1_COOP_SHOW_VAN
 43@ = 0
 44@ = 0
 Game.SetPoliceIgnorePlayer($player1, False)
@@ -4323,6 +4613,13 @@ World.SetPedDensityMultiplier(1.0)
 World.SetCarDensityMultiplier(1.0)
 Text.ClearPrints
 Text.Print('GUNS124', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GUNS124', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 107@ = Blip.AddForCoord(2742.0, -2008.0, 13.0)
 68@ = 1
 
@@ -4379,6 +4676,13 @@ goto @GUNS1_25818
 
 :GUNS1_25842
 Text.Print('RYD1_32', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RYD1_32', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @GUNS1_40642
 goto @GUNS1_25897
 
@@ -4512,10 +4816,24 @@ if
   97@ == 0
 goto_if_false @GUNS1_26613
 Text.Print('RYD1_40', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RYD1_40', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @GUNS1_26629
 
 :GUNS1_26613
 Text.Print('RYD1_2', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RYD1_2', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :GUNS1_26629
 56@ = 1
@@ -4822,6 +5140,14 @@ wait 0
 goto @GUNS1_28206
 
 :GUNS1_28230
+// the host is out of the house with the guns, bring the network players still inside out too
+gosub @GUNS1_COOP_BRING_OUT
+if
+    314@ == 1
+then
+    Streaming.SetAreaVisible(0) // the host is outside already, this only syncs the area to the network players
+end
+gosub @GUNS1_COOP_LEAVE_VAN // ryder and the host get into the van
 Camera.RestoreJumpcut
 Hud.SetRadarZoom(0)
 Text.ClearPrints
@@ -5000,6 +5326,7 @@ if
 goto_if_false @GUNS1_29440
 Audio.PlayMissionAudio(255@)
 Text.PrintNow($ryd1_text(254@,82s), 10000, 1)
+gosub @GUNS1_COOP_PRINT_DIALOGUE
 257@ = 3
 
 :GUNS1_29440
@@ -5182,6 +5509,7 @@ goto_if_false @GUNS1_30583
 if 
   not Char.IsInCar(98@, 102@)
 goto_if_false @GUNS1_30556
+gosub @GUNS1_COOP_FREE_RYDER_SEAT // ryder is warped into the front passenger seat
 Char.WarpIntoCarAsPassenger(98@, 102@, 0)
 
 :GUNS1_30556
@@ -5202,6 +5530,13 @@ goto @GUNS1_29257
 :GUNS1_30604
 264@ = 0
 Text.Print('GUNS123', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GUNS123', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 106@ = Blip.AddSpriteForCoord(63, 2067.4, -1831.2, 13.5)
 71@ = 1
 69@ = 1
@@ -5330,6 +5665,13 @@ goto @GUNS1_31057
 :GUNS1_31288
 Text.ClearPrints
 Text.Print('GUNS124', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GUNS124', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 107@ = Blip.AddForCoord(2742.0, -2008.0, 13.0)
 68@ = 1
 
@@ -5343,6 +5685,7 @@ goto_if_false @GUNS1_31421
 if 
   not Char.IsInCar(98@, 102@)
 goto_if_false @GUNS1_31394
+gosub @GUNS1_COOP_FREE_RYDER_SEAT // ryder is warped into the front passenger seat
 Char.WarpIntoCarAsPassenger(98@, 102@, 0)
 
 :GUNS1_31394
@@ -5384,6 +5727,7 @@ World.SetCarDensityMultiplier(1.0)
 262@ = 0
 263@ = 0
 51@ = 8
+gosub @GUNS1_COOP_SHOW_VAN
 43@ = 0
 goto @GUNS1_32228
 
@@ -5418,6 +5762,7 @@ if
 goto_if_false @GUNS1_31789
 Audio.PlayMissionAudio(255@)
 Text.PrintNow($ryd1_text(254@,82s), 10000, 1)
+gosub @GUNS1_COOP_PRINT_DIALOGUE
 257@ = 3
 
 :GUNS1_31789
@@ -5503,6 +5848,13 @@ goto @GUNS1_32167
 :GUNS1_32149
 Text.ClearPrints
 Text.Print('RYD1_44', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RYD1_44', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :GUNS1_32167
 if 
@@ -5553,6 +5905,7 @@ if
   254@ <> 76
 goto_if_false @GUNS1_32418
 Text.PrintNow($ryd1_text(254@,82s), 10000, 1)
+gosub @GUNS1_COOP_PRINT_DIALOGUE
 
 :GUNS1_32418
 257@ = 3
@@ -6212,8 +6565,20 @@ if
 goto_if_false @GUNS1_39749
 Text.ClearPrints
 Text.Print('RYD1_34', 3000, 1)
-if 
+302@ = 1 // all the network players are at the lockup
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if not Char.LocateAnyMeans2D($NETWORK_PLAYER[$temp_int], 0, 2742.0, -2008.0, 15.0, 15.0)
+        then
+            302@ = 0
+        end
+    end
+end
+if and
   Char.LocateStoppedInCar3D($scplayer, 2741.241, -2011.274, 13.5869, 2.9, 3.2, 5.0, False)
+  302@ == 1
 goto_if_false @GUNS1_39672
 Player.SetControl($player1, False)
 Text.ClearPrints
@@ -6228,6 +6593,26 @@ goto @GUNS1_35915
 
 :GUNS1_35939
 World.ClearArea(1, 2741.241, -2011.274, 13.5869, 10.0)
+306@ = 0
+315@ = 0
+// the van is deleted and the scene is played outside the lockup, move the network players out of the way
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        Coop.ClearAllEntityBlipsForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        gosub @GUNS1_COOP_GET_LOCKUP_POINT
+        if
+            Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+        then
+            Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 307@, 308@, 12.6)
+        else
+            Char.SetCoordinates($NETWORK_PLAYER[$temp_int], 307@, 308@, 12.6)
+        end
+        Char.SetHeading($NETWORK_PLAYER[$temp_int], 180.0)
+    end
+end
 Hud.SwitchWidescreen(True)
 Blip.Remove(107@)
 Text.ClearPrints
@@ -6328,6 +6713,7 @@ if
 goto_if_false @GUNS1_36568
 Audio.PlayMissionAudio(255@)
 Text.PrintNow($ryd1_text(254@,82s), 10000, 1)
+gosub @GUNS1_COOP_PRINT_DIALOGUE
 257@ = 3
 
 :GUNS1_36568
@@ -6537,6 +6923,13 @@ goto @GUNS1_37702
 :GUNS1_37726
 Text.ClearHelp
 Text.PrintHelpForever('RYD1_88')
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintHelpForNetworkPlayer('RYD1_88', $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :GUNS1_37739
 if 
@@ -6566,6 +6959,13 @@ goto @GUNS1_37777
 :GUNS1_37837
 Text.ClearHelp
 Text.PrintHelpForever('RYD1_90')
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintHelpForNetworkPlayer('RYD1_90', $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :GUNS1_37850
 if 
@@ -6624,6 +7024,13 @@ goto @GUNS1_38152
 
 :GUNS1_38176
 Text.PrintHelpForever('RYD1_89')
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintHelpForNetworkPlayer('RYD1_89', $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :GUNS1_38187
 if 
@@ -6653,6 +7060,13 @@ goto @GUNS1_38225
 :GUNS1_38285
 Text.ClearHelp
 Text.PrintHelpForever('RYD1_91')
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintHelpForNetworkPlayer('RYD1_91', $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :GUNS1_38298
 if 
@@ -6770,6 +7184,7 @@ if
 goto_if_false @GUNS1_38915
 Audio.PlayMissionAudio(255@)
 Text.PrintNow($ryd1_text(254@,82s), 10000, 1)
+gosub @GUNS1_COOP_PRINT_DIALOGUE
 257@ = 3
 
 :GUNS1_38915
@@ -6997,6 +7412,13 @@ Text.ClearPrints
 69@ = 1
 Text.ClearPrints
 Text.Print('GUNS123', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GUNS123', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 if 
   78@ == 1
 goto_if_false @GUNS1_40227
@@ -7041,10 +7463,24 @@ if
 goto_if_false @GUNS1_40448
 wait 3000
 Text.Print('GUNS124', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GUNS124', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @GUNS1_40464
 
 :GUNS1_40448
 Text.Print('GUNS124', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GUNS124', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :GUNS1_40464
 if 
@@ -7171,6 +7607,368 @@ DecisionMaker.Remove(40@)
 DecisionMaker.Remove(41@)
 DecisionMaker.Remove(42@)
 Path.SwitchPedRoadsBackToOriginal(2775.0, -1196.4, 20.0, 2840.0, -1141.0, 35.0)
+if
+    300@ <> -1
+then
+    Car.MarkAsNoLongerNeeded(300@)
+end
+Streaming.MarkModelAsNoLongerNeeded(466)
+// the network players left inside the house are brought out when the host is outside
+317@ = Streaming.GetAreaVisible()
+if
+    317@ == 0
+then
+    gosub @GUNS1_COOP_BRING_OUT
+    if
+        314@ == 1
+    then
+        Streaming.SetAreaVisible(0) // the host is outside already, this only syncs the area to the network players
+    end
+end
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        Coop.ClearAllEntityBlipsForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+    end
+end
 Mission.Finish
 return 
 
+:GUNS1_COOP_UPDATE
+if // the van blips are not needed anymore when the player found a car
+    306@ > 0
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                303@($temp_int,3i) == 0
+            then
+                if
+                    Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+                then
+                    303@($temp_int,3i) = 1
+                    Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 102@)
+                    if
+                        300@ <> -1
+                    then
+                        Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 300@)
+                    end
+                end
+            end
+        end
+    end
+end
+
+// the network players get the checkpoint of the host's current destination blip
+316@ = 0
+if
+    Blip.DoesExist(105@)
+then
+    316@ = 1 // the house
+end
+if
+    Blip.DoesExist(109@)
+then
+    316@ = 2 // the door
+end
+if
+    Blip.DoesExist(107@)
+then
+    316@ = 3 // the lockup
+end
+if
+    Blip.DoesExist(106@)
+then
+    316@ = 4 // pay'n'spray
+end
+if
+    not is_int_lvar_equal_to_int_lvar 316@ == 315@
+then
+    set_lvar_int_to_lvar_int 315@ = 316@
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+            if
+                315@ == 1
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(2819.9, -1181.7, 25.15, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int]) // the house
+            end
+            if
+                315@ == 2
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(2807.96, -1176.236, 24.3824, 1.5, 1.5, 1.5, $NETWORK_PLAYER[$temp_int]) // the door
+            end
+            if
+                315@ == 3
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(2741.241, -2011.274, 13.0, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int]) // the lockup
+            end
+            if
+                315@ == 4
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(2067.4, -1831.2, 13.5, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int]) // pay'n'spray
+            end
+        end
+    end
+end
+
+if
+    not Car.IsDead(102@)
+then
+    // the van is locked for the loading only for the host, keep the network players out of it until the host gets in
+    317@ = 0
+    if and
+        51@ > 2
+        8 > 51@
+    then
+        if
+            not Char.IsInCar($scplayer, 102@)
+        then
+            317@ = 1
+        end
+    end
+    if
+        317@ == 1
+    then
+        gosub @GUNS1_COOP_LEAVE_VAN
+    end
+
+    // ryder takes the front passenger seat, keep it free while he is out of the van
+    if
+        not Char.IsDead(98@)
+    then
+        if
+            not Char.IsInCar(98@, 102@)
+        then
+            gosub @GUNS1_COOP_FREE_RYDER_SEAT
+        end
+    end
+end
+
+// the old man has a blip for the network players while he attacks and is alive
+318@ = 0
+if and
+    312@ == 1
+    7 > 51@
+then
+    if
+        not Char.IsDead(99@)
+    then
+        318@ = 1
+    end
+end
+if and
+    318@ == 1
+    311@ == 0
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            Coop.UpdateCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 99@, false, BlipDisplay.BlipOnly, BlipColor.Red, 2)
+        end
+    end
+    311@ = 1
+end
+if and
+    318@ == 0
+    311@ == 1
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            Coop.RemoveCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 99@)
+        end
+    end
+    311@ = 0
+end
+return
+
+:GUNS1_COOP_PRINT_DIALOGUE
+// the dialogue subtitles go to the network players too
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer($ryd1_text(254@,82s), 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
+return
+
+:GUNS1_COOP_SHOW_VAN
+// the van takes the guns to the lockup, point the network players to it
+if
+    not Car.IsDead(102@)
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            303@($temp_int,3i) = 0 // van_blips_removed
+            Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 102@, true, BlipDisplay.MarkerOnly, BlipColor.Blue, 3)
+        end
+    end
+    306@ = 2
+end
+return
+
+:GUNS1_COOP_LEAVE_VAN
+// a network player in the van is taken out in front of it
+if
+    not Car.IsDead(102@)
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                Char.IsInCar($NETWORK_PLAYER[$temp_int], 102@)
+            then
+                307@ = Car.GetOffsetInWorldCoords(308@, 309@, 102@, 0.0, 4.5, 0.0)
+                Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 307@, 308@, 309@)
+            end
+        end
+    end
+end
+return
+
+:GUNS1_COOP_FREE_RYDER_SEAT
+// a network player in ryder's front passenger seat is taken out in front of the van
+if
+    not Car.IsDead(102@)
+then
+    if
+        not Car.IsPassengerSeatFree(102@, 0)
+    then
+        313@ = Car.GetCharInPassengerSeat(102@, 0)
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                if
+                    is_int_var_equal_to_int_lvar $NETWORK_PLAYER[$temp_int] == 313@
+                then
+                    307@ = Car.GetOffsetInWorldCoords(308@, 309@, 102@, 0.0, 4.5, 0.0)
+                    Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 307@, 308@, 309@)
+                end
+            end
+        end
+    end
+end
+return
+
+:GUNS1_COOP_BRING_OUT
+// the network players inside the house are brought out to the front door, 314@ tells whether anyone was
+314@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        307@, 308@, 309@ = Char.GetCoordinates($NETWORK_PLAYER[$temp_int])
+        if
+            309@ > 900.0
+        then
+            gosub @GUNS1_COOP_GET_DOOR_POINT
+            Char.SetCoordinates($NETWORK_PLAYER[$temp_int], 307@, 308@, 24.4)
+            Char.SetHeading($NETWORK_PLAYER[$temp_int], 200.0)
+            Char.SetAreaVisible($NETWORK_PLAYER[$temp_int], 0)
+            314@ = 1
+        end
+    end
+end
+return
+
+:GUNS1_COOP_GET_STREET_POINT
+// in front of the house, beside the host's spot and out of the camera of the scene
+if
+    $temp_int == 0
+then
+    307@ = 2805.6
+    308@ = -1183.6
+end
+if
+    $temp_int == 1
+then
+    307@ = 2804.4
+    308@ = -1184.4
+end
+if
+    $temp_int == 2
+then
+    307@ = 2806.4
+    308@ = -1185.2
+end
+return
+
+:GUNS1_COOP_GET_INSIDE_POINT
+// the hall beside the host's spot, away from the exit and the crates
+if
+    $temp_int == 0
+then
+    307@ = 2808.9
+    308@ = -1171.6
+end
+if
+    $temp_int == 1
+then
+    307@ = 2809.9
+    308@ = -1171.0
+end
+if
+    $temp_int == 2
+then
+    307@ = 2809.2
+    308@ = -1170.0
+end
+return
+
+:GUNS1_COOP_GET_DOOR_POINT
+// in front of the house door, off the entrance marker
+if
+    $temp_int == 0
+then
+    307@ = 2806.0
+    308@ = -1179.6
+end
+if
+    $temp_int == 1
+then
+    307@ = 2804.8
+    308@ = -1179.0
+end
+if
+    $temp_int == 2
+then
+    307@ = 2807.2
+    308@ = -1180.6
+end
+return
+
+:GUNS1_COOP_GET_LOCKUP_POINT
+// outside the lockup, beside where the host and ryder end up
+if
+    $temp_int == 0
+then
+    307@ = 2743.0
+    308@ = -2000.0
+end
+if
+    $temp_int == 1
+then
+    307@ = 2744.2
+    308@ = -2001.4
+end
+if
+    $temp_int == 2
+then
+    307@ = 2738.4
+    308@ = -2000.2
+end
+return
