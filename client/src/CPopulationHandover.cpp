@@ -4,14 +4,14 @@
 #include "Hooks/WorldHooks.h"
 #include <CVisibilityPlugins.h>
 
-CNetworkPlayer* CPopulationHandover::FindNearestRemotePlayer(const CVector& position, float fMaxDistance)
+CNetworkPlayer* CPopulationHandover::FindNearestRemotePlayer(const CVector& position, float fMaxDistance, int nAreaCode)
 {
     CNetworkPlayer* pNearest = nullptr;
     float fNearestDistance = fMaxDistance;
 
     for (auto pNetworkPlayer : CNetworkPlayerManager::m_pPlayers)
     {
-        if (!pNetworkPlayer->m_pPed)
+        if (!pNetworkPlayer->m_pPed || (nAreaCode >= 0 && pNetworkPlayer->m_pPed->m_nAreaCode != nAreaCode))
         {
             continue;
         }
@@ -102,7 +102,7 @@ void CPopulationHandover::HandOverPed(CNetworkPed* pNetworkPed, CNetworkPlayer* 
     }
 }
 
-void CPopulationHandover::HandOverVehicle(CNetworkVehicle* pNetworkVehicle, CNetworkPlayer* pTarget)
+void CPopulationHandover::HandOverVehicle(CNetworkVehicle* pNetworkVehicle, CNetworkPlayer* pTarget, bool bWithTransform)
 {
     CVehicle* pVehicle = pNetworkVehicle->m_pVehicle;
 
@@ -111,6 +111,7 @@ void CPopulationHandover::HandOverVehicle(CNetworkVehicle* pNetworkVehicle, CNet
     Packets::Vehicles::VehicleHandoff handoff{};
     pNetworkVehicle->BecomeClone(&handoff);
     handoff.target = pTarget->m_playerId;
+    handoff.hasTransform = handoff.hasTransform && bWithTransform;
     GetPacketFactory().Send(handoff);
 
     pVehicle->m_nVehicleFlags.bFadeOut = false;
@@ -123,7 +124,7 @@ void CPopulationHandover::HandOverVehicle(CNetworkVehicle* pNetworkVehicle, CNet
     CNetworkVehicle* pNetworkTrailer = pTrailer ? CNetworkVehicleManager::GetVehicle(pTrailer) : nullptr;
     if (pNetworkTrailer && pNetworkTrailer->m_bSyncing)
     {
-        HandOverVehicle(pNetworkTrailer, pTarget);
+        HandOverVehicle(pNetworkTrailer, pTarget, bWithTransform);
     }
 }
 
@@ -240,10 +241,13 @@ static CNetworkPlayer* FindMigrationTarget(const CVector& position, unsigned int
     return fTargetDistance * fTargetDistance < fOwnerDistance * fOwnerDistance * CLOSER_FACTOR_SQ ? pTarget : nullptr;
 }
 
-// CColStore::HasCollisionLoaded
-static bool HasCollisionLoaded(const CVector& position, int nAreaCode)
+bool CPopulationHandover::HasGround(const CVector& position, int nAreaCode)
 {
-    return plugin::CallAndReturn<bool, 0x410CE0, const CVector&, int>(position, nAreaCode);
+    // the pair CMissionCleanup::CheckIfCollisionHasLoadedForMissionObjects (0x4652D0) waits for before it lets a
+    // script entity move: the collision files and the IPLs, whose buildings are the ground. Gone into an interior
+    // we keep the collision of the street, not the buildings
+    return plugin::CallAndReturn<bool, 0x410CE0, const CVector&, int>(position, nAreaCode) &&  // CColStore::HasCollisionLoaded
+           plugin::CallAndReturn<bool, 0x405600, const CVector&, int>(position, nAreaCode);    // CIplStore::HaveIplsLoaded
 }
 
 // where to give a mission entity we sync. The script keeps it wherever it is, also far from us: there our game has no
@@ -253,6 +257,7 @@ static bool HasCollisionLoaded(const CVector& position, int nAreaCode)
 static CNetworkPlayer* FindMissionTarget(CPhysical* pEntity, unsigned int nOwnershipChangeTime, bool bBorrowed)
 {
     constexpr unsigned int HOLD_TIME = 3000;  // no ping-pong right after a change
+    constexpr unsigned int AREA_SETTLE_TIME = 5000;
     // well inside the collision the game keeps around a player
     constexpr float MAX_TARGET_DISTANCE = 100.0f;
     constexpr float MAX_HOST_DISTANCE = 50.0f;
@@ -268,7 +273,10 @@ static CNetworkPlayer* FindMissionTarget(CPhysical* pEntity, unsigned int nOwner
     {
         for (auto pNetworkPlayer : CNetworkPlayerManager::m_pPlayers)
         {
+            // just out of an interior the host's game is still loading the street: it would fall there and come back
             if (pNetworkPlayer->m_bIsHost && pNetworkPlayer->m_pPed &&
+                pNetworkPlayer->m_pPed->m_nAreaCode == pEntity->m_nAreaCode &&
+                CTimer::m_snTimeInMilliseconds - pNetworkPlayer->m_nAreaChangeTime >= AREA_SETTLE_TIME &&
                 (pNetworkPlayer->m_pPed->GetPosition() - position).Magnitude() < MAX_HOST_DISTANCE)
             {
                 return pNetworkPlayer;
@@ -276,23 +284,50 @@ static CNetworkPlayer* FindMissionTarget(CPhysical* pEntity, unsigned int nOwner
         }
     }
 
-    if (HasCollisionLoaded(position, pEntity->m_nAreaCode))
+    CPlayerPed* pPlayer = FindPlayerPed(0);
+    if (pPlayer && pPlayer->m_nAreaCode == pEntity->m_nAreaCode &&
+        CPopulationHandover::HasGround(position, pEntity->m_nAreaCode))
     {
         return nullptr;
     }
 
-    return CPopulationHandover::FindNearestRemotePlayer(position, MAX_TARGET_DISTANCE);
+    // one in an interior has no street under it either
+    return CPopulationHandover::FindNearestRemotePlayer(position, MAX_TARGET_DISTANCE, pEntity->m_nAreaCode);
 }
 
-static bool HasPlayerInside(CVehicle* pVehicle)
+// a car the script left where nobody has ground any more (all of us inside): it would fall through the map. Held as
+// the game holds a script entity waiting for its collision, until our ground is back or someone near has it
+static void HoldForGround(CNetworkVehicle* pNetworkVehicle, bool bHold)
+{
+    CVehicle* pVehicle = pNetworkVehicle->m_pVehicle;
+    if (bHold == pNetworkVehicle->m_bHeldForGround)
+    {
+        return;
+    }
+
+    pNetworkVehicle->m_bHeldForGround = bHold;
+    pVehicle->m_bIsStaticWaitingForCollision = bHold;
+    if (bHold)
+    {
+        pVehicle->m_vecMoveSpeed = CVector{};
+        pVehicle->m_vecTurnSpeed = CVector{};
+    }
+    logger::info("mission vehicle %s %s", to_string(pNetworkVehicle->m_vehicleId).c_str(),
+        bHold ? "held, no ground under it" : "released, the ground is back");
+}
+
+// a player drives it (his game syncs it) or ours sits in it. Only other players as passengers: it goes to one of them
+// when our ground is gone, as an empty one (the host in an interior, someone waiting in the car outside)
+static bool IsKeptByPlayerInside(CVehicle* pVehicle)
 {
     if (pVehicle->m_pDriver && pVehicle->m_pDriver->IsPlayer())
     {
         return true;
     }
 
-    return std::any_of(std::begin(pVehicle->m_apPassengers), std::end(pVehicle->m_apPassengers),
-        [](CPed* pPassenger) { return pPassenger && pPassenger->IsPlayer(); });
+    CPlayerPed* pPlayer = FindPlayerPed(0);
+    return pPlayer && std::find(std::begin(pVehicle->m_apPassengers), std::end(pVehicle->m_apPassengers), pPlayer) !=
+                          std::end(pVehicle->m_apPassengers);
 }
 
 static void MigrateMissionEntities()
@@ -300,9 +335,15 @@ static void MigrateMissionEntities()
     for (auto pNetworkVehicle : std::vector<CNetworkVehicle*>(CNetworkVehicleManager::m_pVehicles))
     {
         CVehicle* pVehicle = pNetworkVehicle->m_pVehicle;
+        // someone else syncs it now or drives it: its ground is theirs
+        if (pVehicle && pNetworkVehicle->m_bHeldForGround && (!pNetworkVehicle->m_bSyncing || IsKeptByPlayerInside(pVehicle)))
+        {
+            HoldForGround(pNetworkVehicle, false);
+        }
+
         // a towed one goes with its tractor, a train has its own rules (CTrainSync)
         if (!pVehicle || !pNetworkVehicle->m_bSyncing || pNetworkVehicle->m_nCreatedBy != MISSION_VEHICLE ||
-            pNetworkVehicle->m_bTrain || pVehicle->m_pTractor || HasPlayerInside(pVehicle))
+            pNetworkVehicle->m_bTrain || pVehicle->m_pTractor || IsKeptByPlayerInside(pVehicle))
         {
             continue;
         }
@@ -310,10 +351,17 @@ static void MigrateMissionEntities()
         if (auto pTarget =
                 FindMissionTarget(pVehicle, pNetworkVehicle->m_nOwnershipChangeTime, pNetworkVehicle->m_bBorrowed))
         {
-            CPopulationHandover::HandOverVehicle(pNetworkVehicle, pTarget);
+            // our copy lies wherever our missing ground let it, the target's lies on its own
+            HoldForGround(pNetworkVehicle, false);
+            CPopulationHandover::HandOverVehicle(pNetworkVehicle, pTarget, false);
             logger::info("mission vehicle %s handed over to %s for its collision",
                 to_string(pNetworkVehicle->m_vehicleId).c_str(), to_string(pTarget->m_playerId).c_str());
+            continue;
         }
+
+        CPlayerPed* pPlayer = FindPlayerPed(0);
+        HoldForGround(pNetworkVehicle, !pPlayer || pPlayer->m_nAreaCode != pVehicle->m_nAreaCode ||
+                                           !CPopulationHandover::HasGround(pVehicle->GetPosition(), pVehicle->m_nAreaCode));
     }
 
     for (auto pNetworkPed : std::vector<CNetworkPed*>(CNetworkPedManager::m_pPeds))
@@ -381,6 +429,15 @@ void CPopulationHandover::Process()
             HandOverVehicle(pNetworkVehicle, pTarget);
             logger::info("vehicle %s migrated to the nearer %s", to_string(pNetworkVehicle->m_vehicleId).c_str(),
                 to_string(pTarget->m_playerId).c_str());
+        }
+    }
+
+    for (auto pNetworkPlayer : CNetworkPlayerManager::m_pPlayers)
+    {
+        if (pNetworkPlayer->m_pPed && pNetworkPlayer->m_pPed->m_nAreaCode != pNetworkPlayer->m_nLastAreaCode)
+        {
+            pNetworkPlayer->m_nLastAreaCode = pNetworkPlayer->m_pPed->m_nAreaCode;
+            pNetworkPlayer->m_nAreaChangeTime = CTimer::m_snTimeInMilliseconds;
         }
     }
 

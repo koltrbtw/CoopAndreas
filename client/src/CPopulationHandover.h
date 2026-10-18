@@ -14,12 +14,16 @@ public:
     // the generator removes a train once all of it is 220 m from the camera, see CTrainSync
     static constexpr float TRAIN_HANDOVER_DISTANCE = 200.0f;
 
-    static CNetworkPlayer* FindNearestRemotePlayer(const CVector& position, float fMaxDistance);
+    // nAreaCode >= 0: only a player in that area (an interior, the street)
+    static CNetworkPlayer* FindNearestRemotePlayer(const CVector& position, float fMaxDistance, int nAreaCode = -1);
+    // our game has the collision and the buildings there
+    static bool HasGround(const CVector& position, int nAreaCode);
     static bool TryHandOverPed(CPed* pPed);
     static bool TryHandOverVehicle(CVehicle* pVehicle);
     static bool TryHandOverTrain(CNetworkVehicle* pNetworkVehicle);
     static void HandOverPed(CNetworkPed* pNetworkPed, CNetworkPlayer* pTarget);
-    static void HandOverVehicle(CNetworkVehicle* pNetworkVehicle, CNetworkPlayer* pTarget);
+    // bWithTransform false: the target keeps its own copy where it is
+    static void HandOverVehicle(CNetworkVehicle* pNetworkVehicle, CNetworkPlayer* pTarget, bool bWithTransform = true);
 
     // every 500 ms: our ambient entities go to a player clearly closer to them
     // and our mission ones to a player near them when our game has no collision under them

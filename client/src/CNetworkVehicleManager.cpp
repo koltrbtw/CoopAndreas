@@ -3,6 +3,7 @@
 #include "CNetworkVehicle.h"
 #include <CKeySync.h>
 #include "CNetworkVehicleManager.h"
+#include "CPopulationHandover.h"
 
 CNetworkVehicle* CNetworkVehicleManager::GetVehicle(vehicleid_t vehicleid)
 {
@@ -207,7 +208,7 @@ static void WakeFloatingVehicle(CNetworkVehicle* pNetworkVehicle)
 
 	// woken over a ground without collision yet (the first seconds of a session) it fell through the map
 	if (CTimer::m_snTimeInMilliseconds - pVehicle->m_nCreationTime < MIN_AGE_TO_WAKE ||
-		!plugin::CallAndReturn<bool, 0x410CE0, const CVector&, int>(pVehicle->GetPosition(), pVehicle->m_nAreaCode))  // CColStore::HasCollisionLoaded
+		!CPopulationHandover::HasGround(pVehicle->GetPosition(), pVehicle->m_nAreaCode))
 	{
 		return;
 	}
