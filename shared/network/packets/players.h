@@ -123,6 +123,14 @@ public:
     int idleAnimCount = 0;  // ANIM_GROUP_PLAYIDLES: the clone's own CPlayerPed picks others at random
     SPedAnim idleAnims[MAX_IDLE_ANIMS]{};
 
+    // bumped by the sender when its position jumps (a teleport, a respawn, an interior): an update of an older one,
+    // late on its way, must not pull the clone back (CPlayerPositionSync)
+    uint8_t epoch = 0;
+    // standing on a network vehicle: the position in its frame, the clone follows its own copy of the vehicle
+    vehicleid_t contactVehicle{};
+    CVector contactOffset{};
+    static constexpr float MAX_CONTACT_OFFSET = 30.0f;
+
 private:
     template <typename Stream>
     bool Serialize(Stream& stream)
@@ -160,6 +168,21 @@ private:
         for (int i = 0; i < idleAnimCount; i++)
         {
             serialize_object(stream, idleAnims[i]);
+        }
+
+        serialize_uint8(stream, epoch);
+        bool hasContact = Stream::IsWriting && contactVehicle.valid();
+        serialize_bool(stream, hasContact);
+        if (hasContact)
+        {
+            serialize_vehicleid(stream, contactVehicle);
+            serialize_compressed_float(stream, contactOffset.x, -MAX_CONTACT_OFFSET, MAX_CONTACT_OFFSET, 0.01f);
+            serialize_compressed_float(stream, contactOffset.y, -MAX_CONTACT_OFFSET, MAX_CONTACT_OFFSET, 0.01f);
+            serialize_compressed_float(stream, contactOffset.z, -MAX_CONTACT_OFFSET, MAX_CONTACT_OFFSET, 0.01f);
+        }
+        else if (Stream::IsReading)
+        {
+            contactVehicle = vehicleid_t();  // the packet object is reused
         }
 
         return true;

@@ -27,6 +27,12 @@ PACKET_HANDLER(ePacketType::PLAYER_ONFOOT_UPDATE, Packets::Players::OnFootUpdate
         pPlayerPed = pNetworkPlayer->m_pPed;
     }
 
+    // sent before the sender's last jump (a teleport, a respawn), late on its way
+    if (!CPlayerPositionSync::IsCurrent(pNetworkPlayer, *pOnFootUpdate))
+    {
+        return;
+    }
+
     bool bLeaving = false;
     if (pPlayerPed->m_pVehicle != nullptr && pPlayerPed->m_nPedFlags.bInVehicle)
     {
@@ -62,7 +68,7 @@ PACKET_HANDLER(ePacketType::PLAYER_ONFOOT_UPDATE, Packets::Players::OnFootUpdate
 
     if (!bEntering && !bLeaving)
     {
-        pNetworkPlayer->m_pPed->SetPosn(pOnFootUpdate->vecPos);
+        CPlayerPositionSync::SetTarget(pNetworkPlayer, *pOnFootUpdate);
         pNetworkPlayer->m_pPed->m_vecMoveSpeed = pOnFootUpdate->vecMoveSpeed;
     }
 

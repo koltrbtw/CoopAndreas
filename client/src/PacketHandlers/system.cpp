@@ -91,6 +91,7 @@ PACKET_HANDLER(ePacketType::PLAYER_HANDSHAKE, Packets::System::PlayerHandshake* 
     CVehicleExitSync::Reset();
     CPlayerFallSync::Reset();
     CPedDeathSync::Reset();
+    CPlayerPositionSync::Reset();
 
     // stats are sent only when they change, so the server would not know the ones we already have
     CStatsSync::NotifyChanged();

@@ -50,6 +50,7 @@ void ApplyRemoteSnapshot(CNetworkPlayer* pNetworkPlayer, const Packets::Players:
 
     pNetworkPlayer->m_onFootSnapshotInterpolated.vecPos = packet.position;
     pNetworkPlayer->m_onFootSnapshotInterpolated.vecMoveSpeed = CVector();
+    CPlayerPositionSync::Warp(pNetworkPlayer, packet.position);
     pNetworkPlayer->m_onFootSnapshotInterpolated.currentRotation = packet.currentRotation;
     pNetworkPlayer->m_onFootSnapshotInterpolated.aimingRotation = packet.aimingRotation;
 }

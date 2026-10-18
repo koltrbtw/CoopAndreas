@@ -52,6 +52,16 @@ public:
 	// VEHICLE_EXIT (out) that waits for our copy of its leave or of its jacker, CVehicleExitSync::ProcessClones
 	std::optional<Packets::Vehicles::VehicleExit> m_pendingExit;
 
+	// on foot: the target CPlayerPositionSync pulls the clone to, in the frame of the vehicle the sender stands on if
+	// it does; the epoch of the last update taken (-1: none yet)
+	CVector m_vecTargetPos{};
+	CVector m_vecTargetVelocity{};
+	unsigned int m_nTargetPosTime = 0;
+	bool m_bHasTargetPos = false;
+	vehicleid_t m_targetContactVehicle{};
+	CVector m_vecTargetContactOffset{};
+	int m_nEpoch = -1;
+
 	~CNetworkPlayer();
 	CNetworkPlayer(playerid_t id, CVector position);
 
