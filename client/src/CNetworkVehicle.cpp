@@ -112,6 +112,39 @@ bool CNetworkVehicle::CreateVehicle(vehicleid_t vehicleid, int modelid, CVector 
     return true;
 }
 
+// a clone deleted under an enter task into it (our copy of an npc's or a player's, our own): the open door task went
+// on with the vehicle reference cleared, the event it raises (0x6568AB) took the null vehicle - a crash in
+// CEntity::RegisterReference (0x571B73) on the clone of that event (0x4AE9D3)
+static void AbortEnterTasksInto(CVehicle* pVehicle)
+{
+    auto abort = [pVehicle](CPed* pPed)
+    {
+        if (!pPed || pPed->m_nPedFlags.bInVehicle)
+        {
+            return;
+        }
+        for (int taskType : {TASK_COMPLEX_ENTER_CAR_AS_PASSENGER, TASK_COMPLEX_ENTER_CAR_AS_DRIVER})
+        {
+            auto pTask = static_cast<CTaskComplexEnterCar*>(pPed->m_pIntelligence->m_TaskMgr.FindActiveTaskByType(taskType));
+            if (pTask && pTask->m_pTargetVehicle == pVehicle)
+            {
+                pPed->m_pIntelligence->FlushImmediately(false);
+                return;
+            }
+        }
+    };
+
+    abort(FindPlayerPed(0));
+    for (auto pNetworkPlayer : CNetworkPlayerManager::m_pPlayers)
+    {
+        abort(pNetworkPlayer->m_pPed);
+    }
+    for (auto pNetworkPed : CNetworkPedManager::m_pPeds)
+    {
+        abort(pNetworkPed->m_pPed);
+    }
+}
+
 CNetworkVehicle::~CNetworkVehicle()
 {
     if (m_pVehicle)
@@ -140,6 +173,7 @@ CNetworkVehicle::~CNetworkVehicle()
             {
                 CRadar::ClearBlipForEntity(eBlipType::BLIP_CAR, CPools::GetVehicleRef(m_pVehicle));
             }
+            AbortEnterTasksInto(m_pVehicle);
             TakeOutNetworkPlayers(m_pVehicle);
             CWorld::Remove(m_pVehicle);
             //CWorld::RemoveReferencesToDeletedObject(m_pVehicle); // ?
