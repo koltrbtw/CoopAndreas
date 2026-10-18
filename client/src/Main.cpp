@@ -261,6 +261,7 @@ public:
                 CNetworkPedManager::Process();
                 CPlayerPositionSync::Process();
                 CClothesChangeSync::Process();
+                CLocalPlayer::ProcessVehicleWeapon();
                 CPedAnimSync::Process();
                 CNetworkVehicleManager::Process();
                 CSniperDot::Process();

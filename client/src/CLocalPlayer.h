@@ -13,5 +13,8 @@ public:
 	static void BuildTaskPacket(eTaskType type, bool toggle = true);
 
 	static bool GetIsHostingEntity(CEntity* pEntity);
+
+	// every frame: a drive-by gun given while we sit in a vehicle (a mission's Uzi) taken in hand as getting in does
+	static void ProcessVehicleWeapon();
 };
 
