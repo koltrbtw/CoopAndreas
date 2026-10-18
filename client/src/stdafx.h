@@ -135,6 +135,7 @@ using namespace plugin;
 #include "CPedStateSync.h"
 #include "CVehicleBlowSync.h"
 #include "CVehiclePushSync.h"
+#include "CVehicleCloneDamage.h"
 #include "CDriveBy.h"
 #include "CNetworkPedManager.h"
 #include "CDebugPedTasks.h"

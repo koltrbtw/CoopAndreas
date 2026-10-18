@@ -609,7 +609,8 @@ void CDebugCommands::RunCommand(const std::string& line)
     {
         stream >> ms_watchedVehicle;
     }
-    else if (command == "blow" || command == "vehicle-health" || command == "vehicle-state")
+    else if (command == "blow" || command == "vehicle-health" || command == "vehicle-state" || command == "burst" ||
+             command == "explode-car")
     {
         // the watched vehicle (watch-vehicle <id>), else the last `car`, else the nearest one: blows up through the
         // game's own BlowUpCar (CVehicleBlowSync takes it), gets a health (below 250 it burns, then blows up by its
@@ -639,6 +640,19 @@ void CDebugCommands::RunCommand(const std::string& line)
         {
             pVehicle->BlowUpCar(pPlayer, false);
         }
+        else if (command == "burst")
+        {
+            // as a spike strip or a shot: the game's own BurstTyre, 13..16 are the wheels 0..3 (0x6A32E6)
+            int wheel = 13;
+            stream >> wheel;
+            pVehicle->BurstTyre(static_cast<unsigned char>(wheel), true);
+        }
+        else if (command == "explode-car")
+        {
+            // a small explosion (a grenade) right next to it, here only (explosions are not synced)
+            CVector pos = pVehicle->GetPosition() + pVehicle->GetRight() * 3.0f;
+            CExplosion::AddExplosion(nullptr, pPlayer, EXPLOSION_GRENADE, pos, 0, true, -1.0f, false);
+        }
         else if (command == "vehicle-health")
         {
             float health = 1000.0f;
@@ -648,9 +662,19 @@ void CDebugCommands::RunCommand(const std::string& line)
         if (pNetworkVehicle)
         {
             CVector pos = pVehicle->GetPosition();
-            logger::info("stand debug: vehicle %s syncing %d status %d health %.0f at %.2f %.2f %.2f",
+            // the tyres of a car (CDamageManager wheel status: 0 ok, 1 burst, 2 missing), front left first
+            char szWheels[5] = "----";
+            if (pVehicle->m_nVehicleType == VEHICLE_AUTOMOBILE)
+            {
+                CDamageManager& damage = static_cast<CAutomobile*>(pVehicle)->m_damageManager;
+                for (int i = 0; i < 4; i++)
+                {
+                    szWheels[i] = static_cast<char>('0' + damage.GetWheelStatus(i));
+                }
+            }
+            logger::info("stand debug: vehicle %s syncing %d status %d health %.0f wheels %s at %.2f %.2f %.2f",
                 to_string(pNetworkVehicle->m_vehicleId).c_str(), pNetworkVehicle->m_bSyncing, pVehicle->m_nStatus,
-                pVehicle->m_fHealth, pos.x, pos.y, pos.z);
+                pVehicle->m_fHealth, szWheels, pos.x, pos.y, pos.z);
         }
     }
     else if (command == "push-vehicle")
