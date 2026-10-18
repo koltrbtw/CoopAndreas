@@ -3,6 +3,8 @@
 
 :CAT1
 script_name 'CAT1'
+Coop.EnableSyncingThisScript()
+
 gosub @CAT1_47
 if 
   has_deatharrest_been_executed 
@@ -15,6 +17,35 @@ terminate_this_script
 
 :CAT1_47
 $onmission = 1
+// the mission has no register_mission_given, collect the network players here
+$NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2] = Coop.CollectNetworkPlayersForTheMission()
+172@ = 0 // a network player is within 300 m of a robber the host chases
+173@ = 1 // all the network players are around catalina's place
+174@ = 0 // catalina's blip is shown to the network players
+175@ = 0.0 // a point
+176@ = 0.0
+177@ = 0.0
+178@ = -1 // the host's car
+179@ = -1 // the char in its front passenger seat
+180@ = 0 // a network player was taken out of a car
+for $temp_int = 0 to 2
+    181@($temp_int,3i) = -1 // the spare quad of each network player
+    184@($temp_int,3i) = 0 // spare_quad_blip_removed
+    187@($temp_int,3i) = 0 // the checkpoint shown to each network player: 0 none, 1-3 a briefcase, 4 catalina's place
+    190@($temp_int,3i) = -1 // the robber blips 88@-90@ shown to the network players
+end
+193@ = 0 // the checkpoint of the current network player
+194@ = -1 // the char whose blip the network players should see in the current slot
+195@ = 0 // a slot
+196@ = 0.0 // the distance to a briefcase
+197@ = 0.0 // the nearest one
+198@ = 0.0 // the network player's position, a point
+199@ = 0.0
+200@ = 0.0
+201@ = 0.0 // the offset of a spare quad beside the host's
+202@ = 0.0
+203@ = 0.0 // the heading of the host's quad
+204@ = -1 // the car the network players are kept out of
 Camera.DoFade(0, Fade.Out)
 34@ = 0
 35@ = 0
@@ -34,6 +65,7 @@ TIMERB = 0
 
 :CAT1_165
 wait 0
+gosub @CAT1_COOP_UPDATE
 if 
 is_ps2_keyboard_key_just_pressed 88
 goto_if_false @CAT1_260
@@ -570,6 +602,8 @@ Char.WarpFromCarToCoord($scplayer, 259.9737, -78.3268, 0.6181)
 Char.SetHeading($scplayer, 38.3173)
 
 :CAT1_3938
+// the host is put by the liquor store for the scene (the screen is faded out), bring the network players to him
+gosub @CAT1_COOP_BRING_TO_HOST
 79@ = Car.Create(471, 230.6799, -85.1536, 0.4296)
 Car.SetHeading(79@, 17.5494)
 Car.SetCruiseSpeed(79@, 20.0)
@@ -792,6 +826,7 @@ goto_if_false @CAT1_5863
 set_var_text_label s$audio_string = 'CAT1_AA'
 set_var_int_to_constant $audio_sound_file = 8800
 start_new_script @AUDIOL $catalina 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 if 
   $cat_counter == 0
@@ -852,6 +887,7 @@ set_var_int_to_constant $audio_sound_file = 8801
 
 :CAT1_6132
 start_new_script @AUDIOL $scplayer 0 1 2 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8803, 1)
 TIMERA = 0
@@ -870,6 +906,7 @@ goto_if_false @CAT1_6286
 set_var_text_label s$audio_string = 'CAT1_AD'
 set_var_int_to_constant $audio_sound_file = 8803
 start_new_script @AUDIOL $catalina 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(8804, 2)
 TIMERA = 0
@@ -888,6 +925,7 @@ goto_if_false @CAT1_6396
 set_var_text_label s$audio_string = 'CAT1_AE'
 set_var_int_to_constant $audio_sound_file = 8804
 start_new_script @AUDIOL $scplayer 0 1 2 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8805, 1)
 TIMERA = 0
@@ -1093,6 +1131,7 @@ goto_if_false @CAT1_7926
 set_var_text_label s$audio_string = 'CAT1_AF'
 set_var_int_to_constant $audio_sound_file = 8805
 start_new_script @AUDIOL 75@ 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(8806, 2)
 TIMERA = 0
@@ -1111,6 +1150,7 @@ goto_if_false @CAT1_8036
 set_var_text_label s$audio_string = 'CAT1_AG'
 set_var_int_to_constant $audio_sound_file = 8806
 start_new_script @AUDIOL $catalina 0 1 2 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8807, 1)
 TIMERA = 0
@@ -1339,6 +1379,7 @@ goto_if_false @CAT1_9154
 set_var_text_label s$audio_string = 'CAT1_AH'
 set_var_int_to_constant $audio_sound_file = 8807
 start_new_script @AUDIOL $catalina 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(9872, 2)
 TIMERA = 0
@@ -1387,6 +1428,7 @@ Sequence.Clear(49@)
 set_var_text_label s$audio_string = 'CATX_TD'
 set_var_int_to_constant $audio_sound_file = 9872
 start_new_script @AUDIOL $catalina 0 1 2 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8808, 1)
 TIMERA = 0
@@ -1447,6 +1489,7 @@ Sequence.Clear(49@)
 set_var_text_label s$audio_string = 'CAT1_BA'
 set_var_int_to_constant $audio_sound_file = 8808
 start_new_script @AUDIOL $catalina 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 TIMERA = 0
 35@ += 1
 
@@ -2084,6 +2127,9 @@ goto_if_false @CAT1_13291
 Char.WarpIntoCar($scplayer, 82@)
 
 :CAT1_13291
+// the host's quad has a single passenger seat (catalina's), a quad for each network player beside it to chase the
+// robbers on
+gosub @CAT1_COOP_CREATE_QUADS
 43@ = 0
 
 :CAT1_13298
@@ -2322,6 +2368,7 @@ goto_if_false @CAT1_14794
 set_var_text_label s$audio_string = 'CAT1_BA'
 set_var_int_to_constant $audio_sound_file = 8808
 start_new_script @AUDIOL $scplayer 0 1 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 
 :CAT1_14794
 if 
@@ -2330,6 +2377,7 @@ goto_if_false @CAT1_14853
 set_var_text_label s$audio_string = 'CAT1_BB'
 set_var_int_to_constant $audio_sound_file = 8809
 start_new_script @AUDIOL $scplayer 0 1 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 
 :CAT1_14853
 if 
@@ -2338,6 +2386,7 @@ goto_if_false @CAT1_14912
 set_var_text_label s$audio_string = 'CAT1_BC'
 set_var_int_to_constant $audio_sound_file = 8810
 start_new_script @AUDIOL $scplayer 0 1 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 
 :CAT1_14912
 World.SetPedDensityMultiplier(1.0)
@@ -2604,6 +2653,13 @@ if
   147@ > 30000
 goto_if_false @CAT1_16585
 Text.PrintNow('CAT108', 7000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CAT108', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 147@ = 0
 
 :CAT1_16585
@@ -2639,6 +2695,13 @@ if
   Char.IsDead($catalina)
 goto_if_false @CAT1_16841
 Text.PrintNow('LOSE2', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('LOSE2', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 37@ = 1
 
 :CAT1_16841
@@ -2681,8 +2744,10 @@ goto_if_false @CAT1_17028
 43@ = 1
 
 :CAT1_17028
-if 
+// the robbers get away only when no network player is chasing them either
+if and
   43@ == 0
+  172@ == 0
 goto_if_false @CAT1_17071
 if 
   125@ == 0
@@ -2753,60 +2818,70 @@ switch_continued 7 @CAT1_17820 8 @CAT1_17868 9 @CAT1_17916 -1 @CAT1_17964 -1 @CA
 set_var_text_label s$audio_string = 'CATX_UA'
 set_var_int_to_constant $audio_sound_file = 9889
 start_new_script @AUDIOL $catalina 0 1 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_17964
 
 :CAT1_17532
 set_var_text_label s$audio_string = 'CATX_UB'
 set_var_int_to_constant $audio_sound_file = 9890
 start_new_script @AUDIOL $catalina 0 1 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_17964
 
 :CAT1_17580
 set_var_text_label s$audio_string = 'CATX_UC'
 set_var_int_to_constant $audio_sound_file = 9891
 start_new_script @AUDIOL $catalina 0 1 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_17964
 
 :CAT1_17628
 set_var_text_label s$audio_string = 'CATX_UD'
 set_var_int_to_constant $audio_sound_file = 9892
 start_new_script @AUDIOL $catalina 0 1 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_17964
 
 :CAT1_17676
 set_var_text_label s$audio_string = 'CATX_UE'
 set_var_int_to_constant $audio_sound_file = 9893
 start_new_script @AUDIOL $catalina 0 1 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_17964
 
 :CAT1_17724
 set_var_text_label s$audio_string = 'CATX_UF'
 set_var_int_to_constant $audio_sound_file = 9894
 start_new_script @AUDIOL $catalina 0 1 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_17964
 
 :CAT1_17772
 set_var_text_label s$audio_string = 'CATX_UG'
 set_var_int_to_constant $audio_sound_file = 9895
 start_new_script @AUDIOL $catalina 0 1 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_17964
 
 :CAT1_17820
 set_var_text_label s$audio_string = 'CATX_UH'
 set_var_int_to_constant $audio_sound_file = 9896
 start_new_script @AUDIOL $catalina 0 1 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_17964
 
 :CAT1_17868
 set_var_text_label s$audio_string = 'CATX_UJ'
 set_var_int_to_constant $audio_sound_file = 9897
 start_new_script @AUDIOL $catalina 0 1 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_17964
 
 :CAT1_17916
 set_var_text_label s$audio_string = 'CATX_UK'
 set_var_int_to_constant $audio_sound_file = 9898
 start_new_script @AUDIOL $catalina 0 1 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_17964
 
 :CAT1_17964
@@ -2835,6 +2910,7 @@ goto @CAT1_18027
 
 :CAT1_18051
 Streaming.SetAreaVisible(149@)
+gosub @CAT1_COOP_AREA_OUTSIDE // the host's area is synced to the network players outside as well
 Char.FreezePosition($scplayer, False)
 $x, $y, $z = Char.GetCoordinates($scplayer)
 Streaming.LoadScene($x, $y, $z)
@@ -2847,6 +2923,13 @@ Camera.RestoreJumpcut
 Camera.SetBehindPlayer
 Char.Delete($catalina)
 Text.PrintNow('LOSE', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('LOSE', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 37@ = 1
 return 
 
@@ -2857,6 +2940,13 @@ goto_if_false @CAT1_18227
 Game.SetCreateRandomGangMembers(True)
 94@ = Blip.AddForCoord($catX, $catY, $catZ)
 Text.PrintNow('CAT112', 7000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CAT112', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 World.SetPedDensityMultiplier(1.0)
 World.SetCarDensityMultiplier(1.0)
 150@ = 0
@@ -2881,12 +2971,14 @@ goto_if_false @CAT1_18353
 set_var_text_label s$audio_string = 'CAT1_FA'
 set_var_int_to_constant $audio_sound_file = 8824
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_18394
 
 :CAT1_18353
 set_var_text_label s$audio_string = 'CAT1_FB'
 set_var_int_to_constant $audio_sound_file = 8825
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 
 :CAT1_18394
 62@ = 0
@@ -2925,6 +3017,7 @@ goto_if_false @CAT1_18739
 set_var_text_label s$audio_string = 'CAT_DA'
 set_var_int_to_constant $audio_sound_file = 8626
 start_new_script @AUDIOL $catalina 0 1 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 
 :CAT1_18739
 goto @CAT1_19793
@@ -2960,6 +3053,7 @@ goto_if_false @CAT1_18947
 set_var_text_label s$audio_string = 'CAT_DD'
 set_var_int_to_constant $audio_sound_file = 8629
 start_new_script @AUDIOL $catalina 0 1 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_19057
 
 :CAT1_18947
@@ -2969,12 +3063,14 @@ goto_if_false @CAT1_19016
 set_var_text_label s$audio_string = 'CAT_DC'
 set_var_int_to_constant $audio_sound_file = 8628
 start_new_script @AUDIOL $catalina 0 1 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_19057
 
 :CAT1_19016
 set_var_text_label s$audio_string = 'CAT_DB'
 set_var_int_to_constant $audio_sound_file = 8627
 start_new_script @AUDIOL $catalina 0 1 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 
 :CAT1_19057
 goto @CAT1_19793
@@ -2986,6 +3082,7 @@ goto_if_false @CAT1_19134
 set_var_text_label s$audio_string = 'CAT_DE'
 set_var_int_to_constant $audio_sound_file = 8630
 start_new_script @AUDIOL $catalina 0 1 2 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8631, 1)
 
@@ -2996,6 +3093,7 @@ goto @CAT1_19793
 set_var_text_label s$audio_string = 'CAT_DF'
 set_var_int_to_constant $audio_sound_file = 8631
 start_new_script @AUDIOL $scplayer 0 1 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(8632, 2)
 goto @CAT1_19793
@@ -3004,6 +3102,7 @@ goto @CAT1_19793
 set_var_text_label s$audio_string = 'CAT_DG'
 set_var_int_to_constant $audio_sound_file = 8632
 start_new_script @AUDIOL $catalina 0 1 2 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8633, 1)
 goto @CAT1_19793
@@ -3012,6 +3111,7 @@ goto @CAT1_19793
 set_var_text_label s$audio_string = 'CAT_DH'
 set_var_int_to_constant $audio_sound_file = 8633
 start_new_script @AUDIOL $catalina 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(8634, 2)
 goto @CAT1_19793
@@ -3020,6 +3120,7 @@ goto @CAT1_19793
 set_var_text_label s$audio_string = 'CAT_DI'
 set_var_int_to_constant $audio_sound_file = 8634
 start_new_script @AUDIOL $catalina 0 1 2 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8635, 1)
 goto @CAT1_19793
@@ -3028,6 +3129,7 @@ goto @CAT1_19793
 set_var_text_label s$audio_string = 'CAT_DJ'
 set_var_int_to_constant $audio_sound_file = 8635
 start_new_script @AUDIOL $catalina 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(8636, 2)
 goto @CAT1_19793
@@ -3036,6 +3138,7 @@ goto @CAT1_19793
 set_var_text_label s$audio_string = 'CAT_DK'
 set_var_int_to_constant $audio_sound_file = 8636
 start_new_script @AUDIOL $catalina 0 1 2 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8637, 1)
 goto @CAT1_19793
@@ -3044,6 +3147,7 @@ goto @CAT1_19793
 set_var_text_label s$audio_string = 'CAT_DL'
 set_var_int_to_constant $audio_sound_file = 8637
 start_new_script @AUDIOL $scplayer 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(8638, 2)
 goto @CAT1_19793
@@ -3052,6 +3156,7 @@ goto @CAT1_19793
 set_var_text_label s$audio_string = 'CAT_DM'
 set_var_int_to_constant $audio_sound_file = 8638
 start_new_script @AUDIOL $catalina 0 1 2 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8639, 1)
 goto @CAT1_19793
@@ -3060,6 +3165,7 @@ goto @CAT1_19793
 set_var_text_label s$audio_string = 'CAT_DN'
 set_var_int_to_constant $audio_sound_file = 8639
 start_new_script @AUDIOL $catalina 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(8640, 2)
 goto @CAT1_19793
@@ -3068,6 +3174,7 @@ goto @CAT1_19793
 set_var_text_label s$audio_string = 'CAT_DO'
 set_var_int_to_constant $audio_sound_file = 8640
 start_new_script @AUDIOL $scplayer 0 1 2 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8641, 1)
 goto @CAT1_19793
@@ -3076,6 +3183,7 @@ goto @CAT1_19793
 set_var_text_label s$audio_string = 'CAT_DP'
 set_var_int_to_constant $audio_sound_file = 8641
 start_new_script @AUDIOL $catalina 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_19793
 
 :CAT1_19779
@@ -3097,6 +3205,7 @@ switch_continued 7 @CAT1_20366 8 @CAT1_20425 9 @CAT1_20484 10 @CAT1_20543 11 @CA
 set_var_text_label s$audio_string = 'CAT_GA'
 set_var_int_to_constant $audio_sound_file = 8672
 start_new_script @AUDIOL $catalina 0 1 2 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8673, 1)
 goto @CAT1_20782
@@ -3105,6 +3214,7 @@ goto @CAT1_20782
 set_var_text_label s$audio_string = 'CAT_GB'
 set_var_int_to_constant $audio_sound_file = 8673
 start_new_script @AUDIOL $scplayer 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(8674, 2)
 goto @CAT1_20782
@@ -3113,6 +3223,7 @@ goto @CAT1_20782
 set_var_text_label s$audio_string = 'CAT_GC'
 set_var_int_to_constant $audio_sound_file = 8674
 start_new_script @AUDIOL $catalina 0 1 2 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8675, 1)
 goto @CAT1_20782
@@ -3121,6 +3232,7 @@ goto @CAT1_20782
 set_var_text_label s$audio_string = 'CAT_GD'
 set_var_int_to_constant $audio_sound_file = 8675
 start_new_script @AUDIOL $scplayer 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(8676, 2)
 goto @CAT1_20782
@@ -3129,6 +3241,7 @@ goto @CAT1_20782
 set_var_text_label s$audio_string = 'CAT_GE'
 set_var_int_to_constant $audio_sound_file = 8676
 start_new_script @AUDIOL $scplayer 0 1 2 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8677, 1)
 goto @CAT1_20782
@@ -3137,6 +3250,7 @@ goto @CAT1_20782
 set_var_text_label s$audio_string = 'CAT_GF'
 set_var_int_to_constant $audio_sound_file = 8677
 start_new_script @AUDIOL $catalina 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(8678, 2)
 goto @CAT1_20782
@@ -3145,6 +3259,7 @@ goto @CAT1_20782
 set_var_text_label s$audio_string = 'CAT_GG'
 set_var_int_to_constant $audio_sound_file = 8678
 start_new_script @AUDIOL $scplayer 0 1 2 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8679, 1)
 goto @CAT1_20782
@@ -3153,6 +3268,7 @@ goto @CAT1_20782
 set_var_text_label s$audio_string = 'CAT_GH'
 set_var_int_to_constant $audio_sound_file = 8679
 start_new_script @AUDIOL $catalina 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(8680, 2)
 goto @CAT1_20782
@@ -3161,6 +3277,7 @@ goto @CAT1_20782
 set_var_text_label s$audio_string = 'CAT_GI'
 set_var_int_to_constant $audio_sound_file = 8680
 start_new_script @AUDIOL $scplayer 0 1 2 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8681, 1)
 goto @CAT1_20782
@@ -3169,6 +3286,7 @@ goto @CAT1_20782
 set_var_text_label s$audio_string = 'CAT_GJ'
 set_var_int_to_constant $audio_sound_file = 8681
 start_new_script @AUDIOL $catalina 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(8682, 2)
 goto @CAT1_20782
@@ -3177,6 +3295,7 @@ goto @CAT1_20782
 set_var_text_label s$audio_string = 'CAT_GK'
 set_var_int_to_constant $audio_sound_file = 8682
 start_new_script @AUDIOL $catalina 0 1 2 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8683, 1)
 goto @CAT1_20782
@@ -3185,6 +3304,7 @@ goto @CAT1_20782
 set_var_text_label s$audio_string = 'CAT_GL'
 set_var_int_to_constant $audio_sound_file = 8683
 start_new_script @AUDIOL $catalina 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(8684, 2)
 goto @CAT1_20782
@@ -3193,6 +3313,7 @@ goto @CAT1_20782
 set_var_text_label s$audio_string = 'CAT_GM'
 set_var_int_to_constant $audio_sound_file = 8684
 start_new_script @AUDIOL $catalina 0 1 2 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8685, 1)
 goto @CAT1_20782
@@ -3201,6 +3322,7 @@ goto @CAT1_20782
 set_var_text_label s$audio_string = 'CAT_GN'
 set_var_int_to_constant $audio_sound_file = 8685
 start_new_script @AUDIOL $scplayer 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_20782
 
 :CAT1_20768
@@ -3222,6 +3344,7 @@ switch_continued 7 @CAT1_21355 14 @CAT1_21403 -1 @CAT1_21417 -1 @CAT1_21417 -1 @
 set_var_text_label s$audio_string = 'CAT_OA'
 set_var_int_to_constant $audio_sound_file = 8725
 start_new_script @AUDIOL $catalina 0 1 2 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8726, 1)
 goto @CAT1_21417
@@ -3230,6 +3353,7 @@ goto @CAT1_21417
 set_var_text_label s$audio_string = 'CAT_OB'
 set_var_int_to_constant $audio_sound_file = 8726
 start_new_script @AUDIOL $scplayer 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(8727, 2)
 goto @CAT1_21417
@@ -3238,6 +3362,7 @@ goto @CAT1_21417
 set_var_text_label s$audio_string = 'CAT_OC'
 set_var_int_to_constant $audio_sound_file = 8727
 start_new_script @AUDIOL $catalina 0 1 2 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8728, 1)
 goto @CAT1_21417
@@ -3246,6 +3371,7 @@ goto @CAT1_21417
 set_var_text_label s$audio_string = 'CAT_OD'
 set_var_int_to_constant $audio_sound_file = 8728
 start_new_script @AUDIOL $scplayer 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(8729, 2)
 goto @CAT1_21417
@@ -3254,6 +3380,7 @@ goto @CAT1_21417
 set_var_text_label s$audio_string = 'CAT_OE'
 set_var_int_to_constant $audio_sound_file = 8729
 start_new_script @AUDIOL $catalina 0 1 2 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8730, 1)
 goto @CAT1_21417
@@ -3262,6 +3389,7 @@ goto @CAT1_21417
 set_var_text_label s$audio_string = 'CAT_OF'
 set_var_int_to_constant $audio_sound_file = 8730
 start_new_script @AUDIOL $scplayer 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(8731, 2)
 goto @CAT1_21417
@@ -3270,6 +3398,7 @@ goto @CAT1_21417
 set_var_text_label s$audio_string = 'CAT_OG'
 set_var_int_to_constant $audio_sound_file = 8731
 start_new_script @AUDIOL $catalina 0 1 2 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8732, 1)
 goto @CAT1_21417
@@ -3278,6 +3407,7 @@ goto @CAT1_21417
 set_var_text_label s$audio_string = 'CAT_OH'
 set_var_int_to_constant $audio_sound_file = 8732
 start_new_script @AUDIOL $catalina 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_21417
 
 :CAT1_21403
@@ -3403,6 +3533,7 @@ goto @CAT1_22163
 
 :CAT1_22163
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 TIMERA = 0
 
 :CAT1_22189
@@ -3416,8 +3547,10 @@ goto_if_false @CAT1_22237
 goto @CAT1_22347
 
 :CAT1_22237
-if 
+// the host's stop at catalina's place waits for all the network players around it
+if and
   Char.LocateAnyMeans3D($scplayer, 1, $catX, $catY, $catZ, 3.0, 3.0, 3.0)
+  173@ == 1
 goto_if_false @CAT1_22347
 if 
   Char.IsInAnyCar($scplayer)
@@ -3527,6 +3660,7 @@ switch_continued 7 @CAT1_23392 8 @CAT1_23451 9 @CAT1_23510 10 @CAT1_23569 11 @CA
 set_var_text_label s$audio_string = 'CAT_EA'
 set_var_int_to_constant $audio_sound_file = 8642
 start_new_script @AUDIOL $catalina 0 1 2 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8643, 1)
 goto @CAT1_23835
@@ -3535,6 +3669,7 @@ goto @CAT1_23835
 set_var_text_label s$audio_string = 'CAT_EB'
 set_var_int_to_constant $audio_sound_file = 8643
 start_new_script @AUDIOL $catalina 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(8644, 2)
 goto @CAT1_23835
@@ -3543,6 +3678,7 @@ goto @CAT1_23835
 set_var_text_label s$audio_string = 'CAT_EC'
 set_var_int_to_constant $audio_sound_file = 8644
 start_new_script @AUDIOL $catalina 0 1 2 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8645, 1)
 goto @CAT1_23835
@@ -3551,6 +3687,7 @@ goto @CAT1_23835
 set_var_text_label s$audio_string = 'CAT_ED'
 set_var_int_to_constant $audio_sound_file = 8645
 start_new_script @AUDIOL $scplayer 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(8646, 2)
 goto @CAT1_23835
@@ -3559,6 +3696,7 @@ goto @CAT1_23835
 set_var_text_label s$audio_string = 'CAT_EE'
 set_var_int_to_constant $audio_sound_file = 8646
 start_new_script @AUDIOL $scplayer 0 1 2 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8647, 1)
 goto @CAT1_23835
@@ -3567,6 +3705,7 @@ goto @CAT1_23835
 set_var_text_label s$audio_string = 'CAT_EF'
 set_var_int_to_constant $audio_sound_file = 8647
 start_new_script @AUDIOL $catalina 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(8648, 2)
 goto @CAT1_23835
@@ -3575,6 +3714,7 @@ goto @CAT1_23835
 set_var_text_label s$audio_string = 'CAT_EG'
 set_var_int_to_constant $audio_sound_file = 8648
 start_new_script @AUDIOL $catalina 0 1 2 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8649, 1)
 goto @CAT1_23835
@@ -3583,6 +3723,7 @@ goto @CAT1_23835
 set_var_text_label s$audio_string = 'CAT_EH'
 set_var_int_to_constant $audio_sound_file = 8649
 start_new_script @AUDIOL $catalina 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(8650, 2)
 goto @CAT1_23835
@@ -3591,6 +3732,7 @@ goto @CAT1_23835
 set_var_text_label s$audio_string = 'CAT_EI'
 set_var_int_to_constant $audio_sound_file = 8650
 start_new_script @AUDIOL $scplayer 0 1 2 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8651, 1)
 goto @CAT1_23835
@@ -3599,6 +3741,7 @@ goto @CAT1_23835
 set_var_text_label s$audio_string = 'CAT_EJ'
 set_var_int_to_constant $audio_sound_file = 8651
 start_new_script @AUDIOL $scplayer 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(8652, 2)
 goto @CAT1_23835
@@ -3607,6 +3750,7 @@ goto @CAT1_23835
 set_var_text_label s$audio_string = 'CAT_EK'
 set_var_int_to_constant $audio_sound_file = 8652
 start_new_script @AUDIOL $scplayer 0 1 2 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8653, 1)
 goto @CAT1_23835
@@ -3615,6 +3759,7 @@ goto @CAT1_23835
 set_var_text_label s$audio_string = 'CAT_EL'
 set_var_int_to_constant $audio_sound_file = 8653
 start_new_script @AUDIOL $scplayer 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(8654, 2)
 152@ = 1
@@ -3661,6 +3806,7 @@ switch_start 62@ total_jumps 7 default_jump 0 @CAT1_24287 jumps 0 @CAT1_23930 1 
 set_var_text_label s$audio_string = 'CAT_HA'
 set_var_int_to_constant $audio_sound_file = 8686
 start_new_script @AUDIOL $catalina 0 1 2 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8687, 1)
 goto @CAT1_24287
@@ -3669,6 +3815,7 @@ goto @CAT1_24287
 set_var_text_label s$audio_string = 'CAT_HB'
 set_var_int_to_constant $audio_sound_file = 8687
 start_new_script @AUDIOL $scplayer 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(8688, 2)
 goto @CAT1_24287
@@ -3677,6 +3824,7 @@ goto @CAT1_24287
 set_var_text_label s$audio_string = 'CAT_HC'
 set_var_int_to_constant $audio_sound_file = 8688
 start_new_script @AUDIOL $scplayer 0 1 2 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8689, 1)
 goto @CAT1_24287
@@ -3685,6 +3833,7 @@ goto @CAT1_24287
 set_var_text_label s$audio_string = 'CAT_HD'
 set_var_int_to_constant $audio_sound_file = 8689
 start_new_script @AUDIOL $scplayer 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(8690, 2)
 goto @CAT1_24287
@@ -3693,6 +3842,7 @@ goto @CAT1_24287
 set_var_text_label s$audio_string = 'CAT_HE'
 set_var_int_to_constant $audio_sound_file = 8690
 start_new_script @AUDIOL $catalina 0 1 2 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8691, 1)
 goto @CAT1_24287
@@ -3701,6 +3851,7 @@ goto @CAT1_24287
 set_var_text_label s$audio_string = 'CAT_HF'
 set_var_int_to_constant $audio_sound_file = 8691
 start_new_script @AUDIOL $catalina 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_24287
 
 :CAT1_24273
@@ -3721,6 +3872,7 @@ switch_start 62@ total_jumps 4 default_jump 0 @CAT1_24562 jumps 0 @CAT1_24382 1 
 set_var_text_label s$audio_string = 'CAT_MA'
 set_var_int_to_constant $audio_sound_file = 8714
 start_new_script @AUDIOL $catalina 0 1 2 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8715, 1)
 goto @CAT1_24562
@@ -3729,6 +3881,7 @@ goto @CAT1_24562
 set_var_text_label s$audio_string = 'CAT_MB'
 set_var_int_to_constant $audio_sound_file = 8715
 start_new_script @AUDIOL $catalina 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(8716, 2)
 goto @CAT1_24562
@@ -3737,6 +3890,7 @@ goto @CAT1_24562
 set_var_text_label s$audio_string = 'CAT_MC'
 set_var_int_to_constant $audio_sound_file = 8716
 start_new_script @AUDIOL $catalina 0 1 2 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_24562
 
 :CAT1_24548
@@ -3757,6 +3911,7 @@ switch_start 62@ total_jumps 7 default_jump 0 @CAT1_25014 jumps 0 @CAT1_24657 1 
 set_var_text_label s$audio_string = 'CAT_PA'
 set_var_int_to_constant $audio_sound_file = 8733
 start_new_script @AUDIOL $catalina 0 1 2 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8734, 1)
 goto @CAT1_25014
@@ -3765,6 +3920,7 @@ goto @CAT1_25014
 set_var_text_label s$audio_string = 'CAT_PB'
 set_var_int_to_constant $audio_sound_file = 8734
 start_new_script @AUDIOL $scplayer 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(8735, 2)
 goto @CAT1_25014
@@ -3773,6 +3929,7 @@ goto @CAT1_25014
 set_var_text_label s$audio_string = 'CAT_PC'
 set_var_int_to_constant $audio_sound_file = 8735
 start_new_script @AUDIOL $scplayer 0 1 2 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8736, 1)
 goto @CAT1_25014
@@ -3781,6 +3938,7 @@ goto @CAT1_25014
 set_var_text_label s$audio_string = 'CAT_PD'
 set_var_int_to_constant $audio_sound_file = 8736
 start_new_script @AUDIOL $catalina 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(8737, 2)
 goto @CAT1_25014
@@ -3789,6 +3947,7 @@ goto @CAT1_25014
 set_var_text_label s$audio_string = 'CAT_PE'
 set_var_int_to_constant $audio_sound_file = 8737
 start_new_script @AUDIOL $catalina 0 1 2 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(8738, 1)
 goto @CAT1_25014
@@ -3797,6 +3956,7 @@ goto @CAT1_25014
 set_var_text_label s$audio_string = 'CAT_PF'
 set_var_int_to_constant $audio_sound_file = 8738
 start_new_script @AUDIOL $catalina 0 1 1 1 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_25014
 
 :CAT1_25000
@@ -3955,7 +4115,7 @@ goto_if_false @CAT1_25786
 if 
   not Char.IsGroupMember($catalina, $Players_Group)
 goto_if_false @CAT1_25779
-Text.Print('LEFTC', 4000, 1)
+Text.Print('LEFTC', 4000, 1) // catalina left the host's group, not forwarded to the network players
 if 
   not Blip.DoesExist(87@)
 goto_if_false @CAT1_25758
@@ -4027,6 +4187,13 @@ if
   Char.IsDead($catalina)
 goto_if_false @CAT1_26082
 Text.PrintNow('LOSE2', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('LOSE2', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 37@ = 1
 
 :CAT1_26082
@@ -4102,6 +4269,7 @@ goto @CAT1_26592
 
 :CAT1_26592
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 Char.ClearLastDamageEntity($catalina)
 
 :CAT1_26616
@@ -4492,18 +4660,21 @@ set_var_int_to_constant $audio_sound_file = 9800
 
 :CAT1_29127
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_29772
 
 :CAT1_29153
 set_var_text_label s$audio_string = 'CAT1_CB'
 set_var_int_to_constant $audio_sound_file = 8812
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_29772
 
 :CAT1_29201
 set_var_text_label s$audio_string = 'CAT1_CC'
 set_var_int_to_constant $audio_sound_file = 8813
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_29772
 
 :CAT1_29249
@@ -4520,6 +4691,7 @@ set_var_int_to_constant $audio_sound_file = 9803
 
 :CAT1_29318
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_29772
 
 :CAT1_29344
@@ -4536,6 +4708,7 @@ set_var_int_to_constant $audio_sound_file = 9806
 
 :CAT1_29413
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_29772
 
 :CAT1_29439
@@ -4552,6 +4725,7 @@ set_var_int_to_constant $audio_sound_file = 9807
 
 :CAT1_29508
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_29772
 
 :CAT1_29534
@@ -4568,6 +4742,7 @@ set_var_int_to_constant $audio_sound_file = 9802
 
 :CAT1_29603
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_29772
 
 :CAT1_29629
@@ -4584,12 +4759,14 @@ set_var_int_to_constant $audio_sound_file = 9801
 
 :CAT1_29698
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_29772
 
 :CAT1_29724
 set_var_text_label s$audio_string = 'CAT1_DD'
 set_var_int_to_constant $audio_sound_file = 8819
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_29772
 
 :CAT1_29772
@@ -4636,48 +4813,56 @@ switch_continued 7 @CAT1_30440 -1 @CAT1_30488 -1 @CAT1_30488 -1 @CAT1_30488 -1 @
 set_var_text_label s$audio_string = 'CATX_JA'
 set_var_int_to_constant $audio_sound_file = 9826
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_30488
 
 :CAT1_30152
 set_var_text_label s$audio_string = 'CATX_JB'
 set_var_int_to_constant $audio_sound_file = 9827
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_30488
 
 :CAT1_30200
 set_var_text_label s$audio_string = 'CATX_JC'
 set_var_int_to_constant $audio_sound_file = 9828
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_30488
 
 :CAT1_30248
 set_var_text_label s$audio_string = 'CATX_JD'
 set_var_int_to_constant $audio_sound_file = 9829
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_30488
 
 :CAT1_30296
 set_var_text_label s$audio_string = 'CATX_JE'
 set_var_int_to_constant $audio_sound_file = 9830
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_30488
 
 :CAT1_30344
 set_var_text_label s$audio_string = 'CATX_JF'
 set_var_int_to_constant $audio_sound_file = 9831
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_30488
 
 :CAT1_30392
 set_var_text_label s$audio_string = 'CATX_JG'
 set_var_int_to_constant $audio_sound_file = 9832
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_30488
 
 :CAT1_30440
 set_var_text_label s$audio_string = 'CATX_JH'
 set_var_int_to_constant $audio_sound_file = 9833
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_30488
 
 :CAT1_30488
@@ -4737,144 +4922,168 @@ switch_continued 16 @CAT1_31648 17 @CAT1_31696 18 @CAT1_31744 19 @CAT1_31792 20 
 set_var_text_label s$audio_string = 'CAT1_HA'
 set_var_int_to_constant $audio_sound_file = 8830
 start_new_script @AUDIOL $scplayer 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_32080
 
 :CAT1_30976
 set_var_text_label s$audio_string = 'CAT1_HC'
 set_var_int_to_constant $audio_sound_file = 8832
 start_new_script @AUDIOL $scplayer 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_32080
 
 :CAT1_31024
 set_var_text_label s$audio_string = 'CAT1_HD'
 set_var_int_to_constant $audio_sound_file = 8833
 start_new_script @AUDIOL $scplayer 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_32080
 
 :CAT1_31072
 set_var_text_label s$audio_string = 'CAT1_HE'
 set_var_int_to_constant $audio_sound_file = 8834
 start_new_script @AUDIOL $scplayer 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_32080
 
 :CAT1_31120
 set_var_text_label s$audio_string = 'CATX_TA'
 set_var_int_to_constant $audio_sound_file = 9869
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_32080
 
 :CAT1_31168
 set_var_text_label s$audio_string = 'CATX_TB'
 set_var_int_to_constant $audio_sound_file = 9870
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_32080
 
 :CAT1_31216
 set_var_text_label s$audio_string = 'CATX_TC'
 set_var_int_to_constant $audio_sound_file = 9871
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_32080
 
 :CAT1_31264
 set_var_text_label s$audio_string = 'CATX_TD'
 set_var_int_to_constant $audio_sound_file = 9872
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_32080
 
 :CAT1_31312
 set_var_text_label s$audio_string = 'CATX_TE'
 set_var_int_to_constant $audio_sound_file = 9873
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_32080
 
 :CAT1_31360
 set_var_text_label s$audio_string = 'CATX_TF'
 set_var_int_to_constant $audio_sound_file = 9874
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_32080
 
 :CAT1_31408
 set_var_text_label s$audio_string = 'CATX_TG'
 set_var_int_to_constant $audio_sound_file = 9875
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_32080
 
 :CAT1_31456
 set_var_text_label s$audio_string = 'CATX_TH'
 set_var_int_to_constant $audio_sound_file = 9876
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_32080
 
 :CAT1_31504
 set_var_text_label s$audio_string = 'CATX_TJ'
 set_var_int_to_constant $audio_sound_file = 9877
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_32080
 
 :CAT1_31552
 set_var_text_label s$audio_string = 'CATX_TK'
 set_var_int_to_constant $audio_sound_file = 9878
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_32080
 
 :CAT1_31600
 set_var_text_label s$audio_string = 'CATX_TL'
 set_var_int_to_constant $audio_sound_file = 9879
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_32080
 
 :CAT1_31648
 set_var_text_label s$audio_string = 'CATX_TM'
 set_var_int_to_constant $audio_sound_file = 9880
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_32080
 
 :CAT1_31696
 set_var_text_label s$audio_string = 'CATX_TN'
 set_var_int_to_constant $audio_sound_file = 9881
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_32080
 
 :CAT1_31744
 set_var_text_label s$audio_string = 'CATX_TO'
 set_var_int_to_constant $audio_sound_file = 9882
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_32080
 
 :CAT1_31792
 set_var_text_label s$audio_string = 'CATX_TP'
 set_var_int_to_constant $audio_sound_file = 9883
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_32080
 
 :CAT1_31840
 set_var_text_label s$audio_string = 'CATX_TQ'
 set_var_int_to_constant $audio_sound_file = 9884
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_32080
 
 :CAT1_31888
 set_var_text_label s$audio_string = 'CATX_TR'
 set_var_int_to_constant $audio_sound_file = 9885
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_32080
 
 :CAT1_31936
 set_var_text_label s$audio_string = 'CATX_TS'
 set_var_int_to_constant $audio_sound_file = 9886
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_32080
 
 :CAT1_31984
 set_var_text_label s$audio_string = 'CATX_TT'
 set_var_int_to_constant $audio_sound_file = 9887
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_32080
 
 :CAT1_32032
 set_var_text_label s$audio_string = 'CATX_TU'
 set_var_int_to_constant $audio_sound_file = 9888
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_32080
 
 :CAT1_32080
@@ -4902,24 +5111,28 @@ switch_start 43@ total_jumps 4 default_jump 0 @CAT1_32428 jumps 0 @CAT1_32236 1 
 set_var_text_label s$audio_string = 'CAT1_GA'
 set_var_int_to_constant $audio_sound_file = 8826
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_32428
 
 :CAT1_32284
 set_var_text_label s$audio_string = 'CAT1_GB'
 set_var_int_to_constant $audio_sound_file = 8827
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_32428
 
 :CAT1_32332
 set_var_text_label s$audio_string = 'CAT1_GC'
 set_var_int_to_constant $audio_sound_file = 8828
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_32428
 
 :CAT1_32380
 set_var_text_label s$audio_string = 'CAT1_GD'
 set_var_int_to_constant $audio_sound_file = 8829
 start_new_script @AUDIOL $catalina 0 0 1 0 
+gosub @CAT1_COOP_PRINT_AUDIO_LINE
 goto @CAT1_32428
 
 :CAT1_32428
@@ -5000,10 +5213,470 @@ DecisionMaker.Remove(145@)
 Streaming.UnloadSpecialCharacter(5)
 World.SetPedDensityMultiplier(1.0)
 World.SetCarDensityMultiplier(1.0)
+// the spare quads are not needed anymore, the network players lose their checkpoints and blips
+for $temp_int = 0 to 2
+    if
+        181@($temp_int,3i) <> -1
+    then
+        Car.MarkAsNoLongerNeeded(181@($temp_int,3i))
+        181@($temp_int,3i) = -1
+    end
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        Coop.ClearAllEntityBlipsForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+    end
+end
 $timer_mobile_start = Clock.GetGameTimer()
 $onmission = 0
 Mission.Finish
 return 
+
+:CAT1_COOP_UPDATE
+// the spare quad blip is not needed anymore when the player found a vehicle
+for $temp_int = 0 to 2
+    if
+        181@($temp_int,3i) <> -1
+    then
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                184@($temp_int,3i) == 0
+            then
+                if or
+                    Car.IsDead(181@($temp_int,3i))
+                    Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+                then
+                    184@($temp_int,3i) = 1
+                    Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 181@($temp_int,3i))
+                end
+            end
+        end
+    end
+end
+
+// the robbers' quads are driven by recordings in the scene and the robbers are warped back onto them in the chase,
+// keep the network players out of them while their robbers are alive (82@ becomes the host's quad)
+if
+    34@ == 1
+then
+    for 195@ = 0 to 3
+        set_lvar_int_to_lvar_int 204@ = 79@(195@,4i)
+        gosub @CAT1_COOP_LEAVE_CAR
+    end
+end
+if
+    34@ == 2
+then
+    for 195@ = 0 to 2
+        if
+            not Char.IsDead(72@(195@,4i))
+        then
+            set_lvar_int_to_lvar_int 204@ = 79@(195@,4i)
+            gosub @CAT1_COOP_LEAVE_CAR
+        end
+    end
+end
+
+// catalina gets into the host's vehicle as his passenger, keep its front passenger seat free while she follows him and
+// is out of it
+if or
+    34@ == 2
+    34@ == 4
+then
+    if
+        not Char.IsDead($catalina)
+    then
+        if and
+            Char.IsGroupMember($catalina, $Players_Group)
+            Char.IsInAnyCar($scplayer)
+        then
+            178@ = Char.StoreCarIsInNoSave($scplayer)
+            if
+                not Char.IsInCar($catalina, 178@)
+            then
+                gosub @CAT1_COOP_FREE_CATALINA_SEAT
+            end
+        end
+    end
+end
+
+// a robber 72@-74@ has a blip for the network players while the host has its blip 88@-90@ and it is alive
+for 195@ = 0 to 2
+    194@ = -1
+    if
+        34@ == 2
+    then
+        if
+            Blip.DoesExist(88@(195@,3i))
+        then
+            if
+                not Char.IsDead(72@(195@,4i))
+            then
+                set_lvar_int_to_lvar_int 194@ = 72@(195@,4i)
+            end
+        end
+    end
+    gosub @CAT1_COOP_SYNC_CHAR_BLIP
+end
+
+// the network players near a robber keep the host's "they got away" check off
+172@ = 0
+if
+    34@ == 2
+then
+    for 195@ = 0 to 2
+        if
+            not Char.IsDead(72@(195@,4i))
+        then
+            for $temp_int = 0 to 2
+                if
+                    Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                then
+                    if
+                        Char.LocateAnyMeansChar2D($NETWORK_PLAYER[$temp_int], 72@(195@,4i), 300.0, 300.0, False)
+                    then
+                        172@ = 1
+                    end
+                end
+            end
+        end
+    end
+end
+
+// catalina has a blip for the network players while the host has hers (she is out of his vehicle) and she is alive
+if and
+    34@ >= 2
+    34@ <> 3
+    Blip.DoesExist(87@)
+    not Char.IsDead($catalina)
+then
+    if
+        174@ == 0
+    then
+        174@ = 1
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                Coop.UpdateCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], $catalina, true, BlipDisplay.Both, BlipColor.Blue, 3) // catalina
+            end
+        end
+    end
+else
+    if
+        174@ == 1
+    then
+        174@ = 0
+        if // a removed catalina takes her blip with her
+            Char.DoesExist($catalina)
+        then
+            for $temp_int = 0 to 2
+                if
+                    Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                then
+                    Coop.RemoveCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], $catalina)
+                end
+            end
+        end
+    end
+end
+
+// each network player gets a checkpoint on the briefcase nearest to him while the host has to collect them (a pickup
+// collected by any player counts for the host), on catalina's place while the host has its blip
+for $temp_int = 0 to 2
+    193@ = 0
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if
+            34@ == 2
+        then
+            198@, 199@, 200@ = Char.GetCoordinates($NETWORK_PLAYER[$temp_int])
+            197@ = 100000.0
+            for 195@ = 0 to 2
+                if
+                    Pickup.DoesExist(95@(195@,3i))
+                then
+                    175@, 176@, 177@ = Pickup.GetCoordinates(95@(195@,3i))
+                    196@ = Math.GetDistanceBetweenCoords2D(198@, 199@, 175@, 176@)
+                    if
+                        is_float_lvar_greater_than_float_lvar 197@ > 196@
+                    then
+                        set_lvar_float_to_lvar_float 197@ = 196@
+                        set_lvar_int_to_lvar_int 193@ = 195@
+                        193@ += 1
+                    end
+                end
+            end
+        end
+        if and
+            34@ == 4
+            35@ == 1
+            Blip.DoesExist(94@)
+        then
+            193@ = 4
+        end
+        if
+            not is_int_lvar_equal_to_int_lvar 193@ == 187@($temp_int,3i)
+        then
+            set_lvar_int_to_lvar_int 187@($temp_int,3i) = 193@
+            Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+            if and
+                193@ >= 1
+                4 > 193@
+            then
+                set_lvar_int_to_lvar_int 195@ = 193@
+                195@ -= 1
+                175@, 176@, 177@ = Pickup.GetCoordinates(95@(195@,3i))
+                Coop.UpdateCheckpointForNetworkPlayer(175@, 176@, 177@, 1.0, 1.0, 2.0, $NETWORK_PLAYER[$temp_int]) // a briefcase
+            end
+            if
+                193@ == 4
+            then
+                Coop.UpdateCheckpointForNetworkPlayer($catX, $catY, $catZ, 3.0, 3.0, 3.0, $NETWORK_PLAYER[$temp_int]) // catalina's place
+            end
+        end
+    end
+end
+
+// the host's stop at catalina's place waits for all the network players around it
+173@ = 1
+if and
+    34@ == 4
+    35@ == 1
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                not Char.LocateAnyMeans2D($NETWORK_PLAYER[$temp_int], 0, $catX, $catY, 20.0, 20.0)
+            then
+                173@ = 0
+            end
+        end
+    end
+end
+return
+
+:CAT1_COOP_PRINT_AUDIO_LINE
+// the dialogue subtitles are printed by AUDIOL, which is not synced
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer(s$audio_string, 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
+return
+
+:CAT1_COOP_SYNC_CHAR_BLIP
+// shows the network players the blip of the char 194@ (-1: none) in the slot 195@, removing the slot's old one
+if // a variable the mission has not set yet
+    194@ == 0
+then
+    194@ = -1
+end
+if
+    not is_int_lvar_equal_to_int_lvar 190@(195@,3i) == 194@
+then
+    if
+        190@(195@,3i) <> -1
+    then
+        if // a removed char takes its blip with it
+            Char.DoesExist(190@(195@,3i))
+        then
+            for $temp_int = 0 to 2
+                if
+                    Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                then
+                    Coop.RemoveCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 190@(195@,3i))
+                end
+            end
+        end
+    end
+    if
+        194@ <> -1
+    then
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                Coop.UpdateCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 194@, false, BlipDisplay.Both, BlipColor.Red, 3) // a robber
+            end
+        end
+    end
+    set_lvar_int_to_lvar_int 190@(195@,3i) = 194@
+end
+return
+
+:CAT1_COOP_LEAVE_CAR
+// a network player in the car 204@ is taken out beside its left side
+if and
+    204@ <> 0
+    204@ <> -1
+then
+    if
+        Car.DoesExist(204@)
+    then
+        if
+            not Car.IsDead(204@)
+        then
+            for $temp_int = 0 to 2
+                if
+                    Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                then
+                    if
+                        Char.IsInCar($NETWORK_PLAYER[$temp_int], 204@)
+                    then
+                        175@, 176@, 177@ = Car.GetOffsetInWorldCoords(204@, -2.0, 0.0, 0.0)
+                        Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 175@, 176@, 177@)
+                    end
+                end
+            end
+        end
+    end
+end
+return
+
+:CAT1_COOP_FREE_CATALINA_SEAT
+// a network player in the front passenger seat of the host's vehicle 178@ is taken out beside its right side
+if
+    not Car.IsDead(178@)
+then
+    if
+        not Car.IsPassengerSeatFree(178@, 0)
+    then
+        179@ = Car.GetCharInPassengerSeat(178@, 0)
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                if
+                    is_int_var_equal_to_int_lvar $NETWORK_PLAYER[$temp_int] == 179@
+                then
+                    175@, 176@, 177@ = Car.GetOffsetInWorldCoords(178@, 2.5, 0.0, 0.0)
+                    Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 175@, 176@, 177@)
+                end
+            end
+        end
+    end
+end
+return
+
+:CAT1_COOP_CREATE_QUADS
+// the quads stand in a row on the right of the host's (away from the store), facing the same way
+if
+    not Car.IsDead(82@)
+then
+    203@ = Car.GetHeading(82@)
+else
+    203@ = Char.GetHeading($scplayer)
+end
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if
+            181@($temp_int,3i) == -1
+        then
+            gosub @CAT1_COOP_WAIT_QUAD
+            if
+                $temp_int == 0
+            then
+                201@ = 2.0
+                202@ = 1.5
+            end
+            if
+                $temp_int == 1
+            then
+                201@ = 2.0
+                202@ = -1.5
+            end
+            if
+                $temp_int == 2
+            then
+                201@ = 4.0
+                202@ = 0.0
+            end
+            if
+                not Car.IsDead(82@)
+            then
+                175@, 176@, 177@ = Car.GetOffsetInWorldCoords(82@, 201@, 202@, 0.0)
+            else
+                175@, 176@, 177@ = Char.GetCoordinates($scplayer)
+                add_float_lvar_to_float_lvar 175@ += 201@
+                add_float_lvar_to_float_lvar 176@ += 202@
+            end
+            177@ += 3.0
+            177@ = World.GetGroundZFor3DCoord(175@, 176@, 177@)
+            181@($temp_int,3i) = Car.Create(471, 175@, 176@, 177@)
+            Car.SetHeading(181@($temp_int,3i), 203@)
+            Car.SetHealth(181@($temp_int,3i), 1000)
+            184@($temp_int,3i) = 0 // spare_quad_blip_removed
+            Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 181@($temp_int,3i), true, BlipDisplay.MarkerOnly, BlipColor.Blue, 3)
+        end
+    end
+end
+return
+
+:CAT1_COOP_WAIT_QUAD
+if
+    not Streaming.HasModelLoaded(471)
+then
+    Streaming.RequestModel(471)
+    wait 0
+    goto @CAT1_COOP_WAIT_QUAD
+end
+return
+
+:CAT1_COOP_AREA_OUTSIDE
+// the network players outside (not up in an interior) are put back to the outside area
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        175@, 176@, 177@ = Char.GetCoordinates($NETWORK_PLAYER[$temp_int])
+        if
+            900.0 > 177@
+        then
+            Char.SetAreaVisible($NETWORK_PLAYER[$temp_int], 0)
+        end
+    end
+end
+return
+
+:CAT1_COOP_LEAVE_ANY_CAR
+// the network players in a car are taken out of it at the host's spot
+180@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if
+            Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+        then
+            175@, 176@, 177@ = Char.GetCoordinates($scplayer)
+            Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 175@, 176@, 177@)
+            180@ = 1
+        end
+    end
+end
+if
+    180@ == 1
+then
+    wait 500 // let the warp out of the car reach them before a teleport
+end
+return
+
+:CAT1_COOP_BRING_TO_HOST
+// the teleport moves the network players on foot, the ones in a car are taken out of it first
+gosub @CAT1_COOP_LEAVE_ANY_CAR
+Coop.TeleportPlayersToHostSafely($NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2])
+return
 
 //-------------Mission 42---------------
 // Originally: Small Town Bank
