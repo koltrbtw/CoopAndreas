@@ -3,8 +3,7 @@
 
 :SWEET4
 script_name 'SWEET4'
-Coop.AddChatMessage("{ffff00}[CoopAndreas Warning]{ffffff} This mission is currently unsupported and not recommended to play!")
-Coop.AddChatMessage("{ffff00}[CoopAndreas Warning]{ffffff} It may cause desyncs, crashes, or other unexpected behavior!")
+Coop.EnableSyncingThisScript()
 
 gosub @SWEET4_4512
 if 
@@ -662,6 +661,7 @@ return
 
 :SWEET4_4512
 Stat.RegisterMissionGiven
+$NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2] = Coop.CollectNetworkPlayersForTheMission()
 $onmission = 1
 wait 0
 $sw4_stage = 0
@@ -909,6 +909,14 @@ set_lvar_int_to_constant 385@ = 38057
 set_lvar_int_to_constant 386@ = 38058
 set_lvar_int_to_constant 387@ = 38059
 set_lvar_int_to_constant 388@ = 38060
+600@ = -1 // the Glendale for the network players
+601@ = 0
+602@ = 0
+603@ = 0
+604@ = 0 // the Ballas territory checkpoint is shown to the network players
+for 611@ = 0 to 15
+    613@(611@,16i) = 0 // the hood blip is shown to the network players
+end
 Text.ClearThisPrint('M_FAIL')
 Text.LoadMissionText('SWEET4')
 World.ClearArea(0, 2518.0, -1673.0, 14.0, 50.0)
@@ -1010,6 +1018,50 @@ Char.SetHeading($scplayer, 27.25)
 
 :SWEET4_7540
 gosub @SWEET4_597
+
+// a car for the network players, the Greenwood is full with Smoke, Ryder and Sweet
+Streaming.RequestModel(466)
+Streaming.RequestModel(352)
+Streaming.LoadAllModelsNow
+
+:SWEET4_COOP_MODELS
+if or
+  not Streaming.HasModelLoaded(466)
+  not Streaming.HasModelLoaded(352)
+then
+    wait 0
+    goto @SWEET4_COOP_MODELS
+end
+
+World.ClearArea(1, 2494.91, -1682.17, 12.32, 5.0)
+Car.CustomPlateForNextCar(466, "_A2TMFK_")
+600@ = Car.Create(466, 2494.91, -1682.17, 12.32)
+Car.ChangeColor(600@, 98, 14)
+Car.SetHeading(600@, 90.0)
+Car.SetHealth(600@, 1000)
+Streaming.MarkModelAsNoLongerNeeded(466)
+
+Coop.TeleportPlayersToHostSafely($NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2])
+
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        601@($temp_int,3i) = 0 // glendale_blip_removed
+        Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 600@, true, BlipDisplay.MarkerOnly, BlipColor.Blue, 3)
+
+        // give an uzi for the drive-bys if the player has no sub-machine gun
+        608@, 609@, 610@ = Char.GetWeaponInSlot($NETWORK_PLAYER[$temp_int], WeaponSlot.SMG)
+        if or
+            608@ == 0
+            609@ <= 0
+        then
+            Char.GiveWeapon($NETWORK_PLAYER[$temp_int], WeaponType.MicroUzi, 300)
+        end
+        Coop.PrintNowForNetworkPlayer('SWE4_00', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
+
 Text.PrintNow('SWE4_00', 5000, 1)
 61@ = Clock.GetGameTimer()
 set_lvar_int_to_lvar_int 73@ = 67@
@@ -1019,6 +1071,7 @@ Camera.DoFade(1, 500)
 
 :SWEET4_7599
 wait 0
+gosub @SWEET4_COOP_UPDATE
 if 
   389@ <> 0
 goto_if_false @SWEET4_8083
@@ -1060,6 +1113,13 @@ Char.ShutUpForScriptedSpeech(326@, True)
 :SWEET4_7794
 Audio.PlayMissionAudio(391@)
 Text.PrintNow(202@(389@,62s), 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer(202@(389@,62s), 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 390@ = 3
 
 :SWEET4_7820
@@ -1070,6 +1130,13 @@ if
   Audio.HasMissionAudioFinished(391@)
 goto_if_false @SWEET4_8022
 Text.ClearThisPrint(202@(389@,62s))
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.ClearThisPrintForNetworkPlayer(202@(389@,62s), $NETWORK_PLAYER[$temp_int])
+    end
+end
 if 
   326@ <> 0
 goto_if_false @SWEET4_7909
@@ -1134,6 +1201,13 @@ if or
   Char.IsDead(408@)
 goto_if_false @SWEET4_8180
 Text.PrintNow('SWE4_04', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('SWE4_04', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @SWEET4_23767
 
 :SWEET4_8180
@@ -1141,6 +1215,13 @@ if
   Car.IsDead(543@)
 goto_if_false @SWEET4_8219
 Text.PrintNow('SWE4_04', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('SWE4_04', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @SWEET4_23767
 
 :SWEET4_8219
@@ -1390,8 +1471,27 @@ goto_if_false @SWEET4_9635
 World.SetPedDensityMultiplier(0.0)
 
 :SWEET4_9635
-if 
+606@ = 1 // all the network players are in Ballas territory
+if
+    604@ == 0
+then
+    606@ = 0
+else
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if not Char.LocateAnyMeans3D($NETWORK_PLAYER[$temp_int], 0, 54@, 55@, 56@, 12.0, 12.0, 4.0)
+            then
+                606@ = 0
+            end
+        end
+    end
+end
+
+if and
   Char.LocateInCar3D($scplayer, 54@, 55@, 56@, 4.0, 4.0, 4.0, True)
+  606@ == 1
 goto_if_false @SWEET4_10149
 if 
   Char.IsSittingInCar($scplayer, 543@)
@@ -1399,6 +1499,13 @@ goto_if_false @SWEET4_10149
 Player.SetControl($player1, False)
 $sw4_text_timer_flag = 9
 Blip.Remove(57@)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+    end
+end
 Player.SetControl($player1, False)
 Hud.SwitchWidescreen(True)
 Camera.DoFade(0, 300)
@@ -2626,6 +2733,7 @@ $sw4_text_timer_start = Clock.GetGameTimer()
 $sw4_text_timer_flag = 14
 $sw4_cut = 0
 $sw4_stage = 6
+607@ = 0 // the 'SWE4_12' text is not shown to the network players yet
 Game.SetWantedMultiplier(1.0)
 83@ = 0
 
@@ -2847,6 +2955,13 @@ Blip.Remove($spray_shop1)
 $spray_shop1 = Blip.AddSpriteForCoord(63, 2067.4, -1831.2, 13.5)
 Blip.Remove($sw4_spray_marker)
 $sw4_spray_marker = Blip.AddForCoord(2075.55, -1831.09, 12.21)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.UpdateCheckpointForNetworkPlayer(2075.55, -1831.09, 12.21, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int]) // the Pay 'n' Spray
+    end
+end
 83@ += 1
 
 :SWEET4_17784
@@ -2875,6 +2990,13 @@ goto_if_false @SWEET4_18027
 Text.ClearHelp
 59@ = Clock.GetGameTimer()
 Blip.Remove($sw4_spray_marker)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+    end
+end
 $sw4_stage = 7
 $sw4_cut = 0
 goto @SWEET4_18034
@@ -2898,6 +3020,13 @@ goto_if_false @SWEET4_18183
 Game.SetFreeResprays(False)
 Text.PrintHelp('WANT_L')
 58@ = Blip.AddForCoord(545@, 546@, 547@)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.UpdateCheckpointForNetworkPlayer(545@, 546@, 547@, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int]) // Grove Street
+    end
+end
 Blip.Remove($spray_shop1)
 $spray_shop1 = Blip.AddShortRangeSpriteForCoord(63, 2067.4, -1831.2, 13.5)
 59@ = Clock.GetGameTimer()
@@ -2920,6 +3049,13 @@ goto_if_false @SWEET4_18294
 $sw4_text_timer_flag = 18
 $sw4_text_timer_start = Clock.GetGameTimer()
 Text.PrintNow('SWE4_14', 8000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('SWE4_14', 8000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 49@ = 1
 
 :SWEET4_18294
@@ -2936,13 +3072,34 @@ goto_if_false @SWEET4_18673
 if 
   Char.IsInCar($scplayer, 543@)
 goto_if_false @SWEET4_18673
-if 
+606@ = 1 // all the network players are at Grove Street
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if not Char.LocateAnyMeans3D($NETWORK_PLAYER[$temp_int], 0, 545@, 546@, 547@, 12.0, 12.0, 4.0)
+        then
+            606@ = 0
+        end
+    end
+end
+
+if and
   Char.LocateInCar3D($scplayer, 545@, 546@, 547@, 4.0, 4.0, 4.0, True)
+  606@ == 1
 goto_if_false @SWEET4_18673
 if 
   Char.IsSittingInCar($scplayer, 543@)
 goto_if_false @SWEET4_18673
 Player.SetControl($player1, False)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        Coop.ClearAllEntityBlipsForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+    end
+end
 Task.CarTempAction($scplayer, 543@, TempAction.HandbrakeStraight, 2000000)
 World.ClearArea(0, 2518.0, -1673.0, 14.0, 50.0)
 Text.ClearPrints
@@ -3589,6 +3746,13 @@ $sw4_text_timer_flag = 18
 82@ -= 5000
 Blip.Remove($sw4_spray_marker)
 $sw4_spray_marker = Blip.AddForCoord(2075.55, -1831.09, 12.21)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.UpdateCheckpointForNetworkPlayer(2075.55, -1831.09, 12.21, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int]) // the Pay 'n' Spray
+    end
+end
 
 :SWEET4_21965
 if 
@@ -3637,6 +3801,13 @@ if or
   not Char.LocateAnyMeansCar3D($scplayer, 543@, 50.0, 50.0, 50.0, False)
 goto_if_false @SWEET4_22257
 Text.PrintNow('SWE4_05', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('SWE4_05', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @SWEET4_23767
 
 :SWEET4_22257
@@ -3798,6 +3969,18 @@ if
   $sw4_text_timer_flag == 14
 goto_if_false @SWEET4_23188
 Text.Print('SWE4_12', 100, 1)
+if // the host prints it every frame, the network players get it once
+    607@ == 0
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            Coop.PrintNowForNetworkPlayer('SWE4_12', 4000, 1, $NETWORK_PLAYER[$temp_int])
+        end
+    end
+    607@ = 1
+end
 $sw4_text_timer_end = Clock.GetGameTimer()
 set_var_int_to_var_int $sw4_text_timer_diff = $sw4_text_timer_end
 sub_int_var_from_int_var $sw4_text_timer_diff -= $sw4_text_timer_start
@@ -3805,6 +3988,13 @@ if
   $sw4_text_timer_diff > 4000
 goto_if_false @SWEET4_23188
 $sw4_text_timer_flag += 1
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('SWE4_03', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 $sw4_text_timer_start = Clock.GetGameTimer()
 
 :SWEET4_23188
@@ -3852,6 +4042,13 @@ if
   $sw4_text_timer_flag == 16
 goto_if_false @SWEET4_23445
 Text.Print('SWE4_03', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('SWE4_03', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 $sw4_text_timer_flag += 1
 $sw4_text_timer_start = Clock.GetGameTimer()
 
@@ -3987,9 +4184,129 @@ Streaming.RemoveAnimation("GHETTO_DB")
 Hud.ClearCounter($sw4_health_display)
 Audio.SetMusicDoesFade(True)
 Game.SetCreateRandomGangMembers(True)
+if
+    600@ <> -1
+then
+    Car.MarkAsNoLongerNeeded(600@)
+end
+Streaming.MarkModelAsNoLongerNeeded(466)
+Streaming.MarkModelAsNoLongerNeeded(352)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        Coop.ClearAllEntityBlipsForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+    end
+end
 $onmission = 0
 $timer_mobile_start = Clock.GetGameTimer()
 Mission.Finish
+return 
+
+:SWEET4_COOP_UPDATE
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if // the Glendale blip is not needed anymore when the player found a car
+            601@($temp_int,3i) == 0
+        then
+            if or
+                Car.IsDead(600@)
+                Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+            then
+                601@($temp_int,3i) = 1
+                Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 600@)
+            end
+        end
+    end
+end
+
+if and
+    604@ == 0
+    $sw4_stage == 3
+then
+    605@ = 1 // everyone is in a car
+    if
+        not Car.IsDead(543@)
+    then
+        if
+            not Char.IsInCar($scplayer, 543@)
+        then
+            605@ = 0
+        end
+    else
+        605@ = 0
+    end
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                not Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+            then
+                605@ = 0
+            end
+        end
+    end
+
+    if
+        605@ == 1
+    then
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(54@, 55@, 56@, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int])
+                Coop.PrintNowForNetworkPlayer('SWE4_01', 5000, 1, $NETWORK_PLAYER[$temp_int]) // Go to Ballas territory
+            end
+        end
+        604@ = 1
+    end
+end
+
+// the hoods have a blip for the network players while the host's blip exists and the hood is alive
+for 611@ = 0 to 15
+    612@ = 0
+    if
+        Blip.DoesExist(433@(611@,16i))
+    then
+        if
+            not Char.IsDead(415@(611@,18i))
+        then
+            612@ = 1
+        end
+    end
+
+    if and
+        612@ == 1
+        613@(611@,16i) == 0
+    then
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                Coop.UpdateCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 415@(611@,18i), false, BlipDisplay.Both, BlipColor.Red, 3)
+            end
+        end
+        613@(611@,16i) = 1
+    end
+
+    if and
+        612@ == 0
+        613@(611@,16i) == 1
+    then
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                Coop.RemoveCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 415@(611@,18i))
+            end
+        end
+        613@(611@,16i) = 0
+    end
+end
 return 
 
 :SWEET4_24180
