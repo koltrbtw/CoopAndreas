@@ -3,6 +3,8 @@
 
 :CAT4
 script_name 'CAT4'
+Coop.EnableSyncingThisScript()
+
 gosub @CAT4_47
 if 
   has_deatharrest_been_executed 
@@ -15,6 +17,32 @@ terminate_this_script
 
 :CAT4_47
 $onmission = 1
+// the mission has no register_mission_given, collect the network players here
+$NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2] = Coop.CollectNetworkPlayersForTheMission()
+282@ = 1 // all the network players are around the hideout
+283@ = 0 // catalina's blip is shown to the network players
+284@ = 0.0 // a point
+285@ = 0.0
+286@ = 0.0
+287@ = -1 // the host's car
+288@ = -1 // the char in its front passenger seat
+289@ = 0 // a network player was taken out of a car
+for $temp_int = 0 to 2
+    290@($temp_int,3i) = -1 // the spare car of each network player
+    293@($temp_int,3i) = 0 // spare_car_blip_removed
+    296@($temp_int,3i) = 0 // the checkpoint shown to each network player: 0 none, 1 the betting shop door, 2 the pay 'n' spray, 3 the hideout
+end
+299@ = 0 // the checkpoint of the current network player
+300@ = -1 // the car the network players are kept out of
+301@ = 0.0 // the heading of a road node
+302@ = 0 // the number of a road node
+303@ = 0.0 // the distance from a road node to a spot
+304@ = 0 // a slot
+305@ = 0.0 // the position of a spare car, a point
+306@ = 0.0
+307@ = 0.0
+308@ = 0 // a network player was brought out of the betting shop
+309@ = 0 // the host's area
 World.SwitchEntryExit('GENOTB', False)
 if 
   Player.IsPlaying($player1)
@@ -344,6 +372,13 @@ goto @CAT4_2366
 
 :CAT4_2392
 Text.PrintNow('CATX_UA', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CATX_UA', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 
 :CAT4_2412
@@ -372,6 +407,13 @@ goto @CAT4_2481
 
 :CAT4_2507
 Text.PrintNow('CATX_UB', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CATX_UB', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 
 :CAT4_2527
@@ -400,6 +442,13 @@ goto @CAT4_2596
 
 :CAT4_2622
 Text.PrintNow('CATX_UF', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CATX_UF', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 
 :CAT4_2642
@@ -432,6 +481,13 @@ Char.SetRelationship($catalina, RelationshipType.Hate, PedType.Cop)
 
 :CAT4_2805
 Text.Print('CAT4_32', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintForNetworkPlayer('CAT4_32', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :CAT4_2821
 if 
@@ -455,7 +511,7 @@ goto_if_false @CAT4_3094
 if 
   100@ == 0
 goto_if_false @CAT4_3094
-Text.PrintNow('CAT4_37', 5000, 1)
+Text.PrintNow('CAT4_37', 5000, 1) // the host's car goes into the pay 'n' spray, not forwarded to the network players
 if 
   99@ == 1
 goto_if_false @CAT4_3087
@@ -534,6 +590,13 @@ goto @CAT4_3380
 
 :CAT4_3406
 Text.PrintNow('CATX_DE', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CATX_DE', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 
 :CAT4_3426
@@ -591,6 +654,8 @@ if
   38@ == 0
 goto_if_false @CAT4_4150
 Text.ClearThisPrint('CAT4_01')
+// the host has gone into the betting shop (area 3), move the network players inside next to him
+gosub @CAT4_COOP_PUT_INSIDE
 if 
   103@ == 0
 goto_if_false @CAT4_3765
@@ -659,6 +724,13 @@ goto @CAT4_4067
 
 :CAT4_4093
 Text.PrintNow('CATX_JE', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CATX_JE', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 
 :CAT4_4113
@@ -692,6 +764,12 @@ goto_if_false @CAT4_4228
 Object.Delete(40@)
 
 :CAT4_4228
+if
+    88@ == 1
+then
+    // the host has walked out of the betting shop before the robbery, bring the network players out with him
+    gosub @CAT4_COOP_BRING_OUT
+end
 World.ClearArea(1, 61@, 62@, 63@, 1000.0)
 if 
   88@ == 1
@@ -701,7 +779,7 @@ if
 goto_if_false @CAT4_4342
 112@ = Blip.AddForCoord(61@, 62@, 63@)
 Blip.SetCoordAppearance(112@, 1)
-Text.PrintNow('CAT4_16', 10000, 1)
+Text.PrintNow('CAT4_16', 10000, 1) // the host's way back to catalina, not forwarded to the network players
 Text.ClearHelp
 if 
   not Char.IsDead($catalina)
@@ -806,6 +884,8 @@ Char.SetHeading($catalina, 321.0)
 World.SetCarDensityMultiplier(0.0)
 World.SetPedDensityMultiplier(0.0)
 Streaming.LoadSceneInDirection(1284.625, 257.5731, 23.8334, 45.0)
+// the host is put by the betting shop for the intro scene (the screen is faded out), bring the network players to him
+gosub @CAT4_COOP_BRING_TO_HOST
 World.ClearArea(1, 1287.363, 257.5327, 23.0934, 1000.0)
 Camera.DoFade(1, 1000)
 
@@ -841,6 +921,13 @@ goto @CAT4_5206
 
 :CAT4_5232
 Text.PrintNow('CAT2_AB', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CAT2_AB', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 
 :CAT4_5252
@@ -891,6 +978,13 @@ if
   not Char.IsDead($catalina)
 goto_if_false @CAT4_5534
 Text.PrintNow('CAT2_AC', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CAT2_AC', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 Char.StartFacialTalk($scplayer, 10000)
 
@@ -953,6 +1047,13 @@ Char.StartFacialTalk($catalina, 10000)
 
 :CAT4_5903
 Text.PrintNow('CATX_RB', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CATX_RB', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 
 :CAT4_5923
@@ -995,6 +1096,13 @@ goto @CAT4_6067
 
 :CAT4_6093
 Text.PrintNow('CAT2_JA', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CAT2_JA', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 
 :CAT4_6113
@@ -1074,6 +1182,13 @@ Group.SetFollowStatus($Players_Group, False)
 :CAT4_6432
 112@ = Blip.AddSpriteForCoord(12, 61@, 62@, 63@)
 Text.PrintNow('CAT4_01', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CAT4_01', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :CAT4_6464
 if 
@@ -1102,6 +1217,7 @@ if
   38@ <> 1
 goto_if_false @CAT4_6833
 wait 0
+gosub @CAT4_COOP_UPDATE
 gosub @CAT4_2145
 if 
   not Char.LocateAnyMeans3D($scplayer, 0, 64@, 65@, 66@, 50.0, 50.0, 50.0)
@@ -1139,6 +1255,13 @@ goto_if_false @CAT4_6826
 88@ = 0
 91@ = 1
 Text.PrintNow('CAT4_2', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CAT4_2', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 return 
 
 :CAT4_6826
@@ -1258,6 +1381,13 @@ goto @CAT4_7569
 
 :CAT4_7595
 Text.PrintNow('CAT2_DA', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CAT2_DA', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 if 
   not Char.IsDead($catalina)
@@ -1327,6 +1457,13 @@ goto @CAT4_7972
 
 :CAT4_7998
 Text.PrintNow('CAT2_DB', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CAT2_DB', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 if 
   not Char.IsDead($catalina)
@@ -1372,6 +1509,13 @@ Task.LookAtCoord($catalina, 824.17, 3.95, 1007.0, 2000)
 Task.AimGunAtCoord($catalina, 819.55, 5.55, 1005.59, 5000)
 Audio.ReportMissionAudioEventAtPosition(64@, 65@, 66@, 1155)
 Text.PrintNow('CAT4_3', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CAT4_3', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 TIMERA = 0
 
 :CAT4_8339
@@ -1402,6 +1546,13 @@ goto @CAT4_8434
 
 :CAT4_8460
 Text.PrintNow('CAT2_FA', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CAT2_FA', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 if 
   not Char.IsDead($catalina)
 goto_if_false @CAT4_8500
@@ -1468,6 +1619,13 @@ goto @CAT4_8773
 
 :CAT4_8799
 Text.Print('CAT2_FB', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintForNetworkPlayer('CAT2_FB', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 
 :CAT4_8819
@@ -1522,6 +1680,7 @@ if
   117@ <> 1
 goto_if_false @CAT4_13666
 wait 0
+gosub @CAT4_COOP_UPDATE
 58@ = Char.GetAmmoInWeapon($scplayer, 39)
 59@ = Char.GetAmmoInWeapon($scplayer, 40)
 if and
@@ -1537,6 +1696,13 @@ goto_if_false @CAT4_9184
 88@ = 0
 91@ = 1
 Text.PrintNow('CAT4_2', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CAT4_2', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 return 
 
 :CAT4_9184
@@ -1546,13 +1712,20 @@ goto_if_false @CAT4_9232
 88@ = 0
 91@ = 1
 Text.PrintNow('CAT4_15', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CAT4_15', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 return 
 
 :CAT4_9232
 if 
   108@ == 0
 goto_if_false @CAT4_9275
-Text.PrintHelp('CAT4_43')
+Text.PrintHelp('CAT4_43') // the satchel charges are the host's, not forwarded to the network players
 108@ = 1
 TIMERB = 0
 
@@ -1563,7 +1736,7 @@ goto_if_false @CAT4_9342
 if 
   TIMERB > 6000
 goto_if_false @CAT4_9342
-Text.PrintNow('CAT4_42', 6000, 1)
+Text.PrintNow('CAT4_42', 6000, 1) // the same
 108@ = 2
 TIMERB = 0
 
@@ -1589,7 +1762,14 @@ if
   TIMERB > 1500
 goto_if_false @CAT4_9491
 Text.PrintNow('CAT4_44', 6000, 1)
-Text.PrintHelp('CAT4_45')
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CAT4_44', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
+Text.PrintHelp('CAT4_45') // the satchel charges are the host's, not forwarded to the network players
 108@ = 4
 TIMERB = 0
 
@@ -1627,6 +1807,13 @@ goto @CAT4_9625
 
 :CAT4_9651
 Text.Print('CAT2_DC', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintForNetworkPlayer('CAT2_DC', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 if 
   not Char.IsDead($catalina)
@@ -1648,7 +1835,7 @@ goto_if_false @CAT4_9753
 Char.StopFacialTalk($catalina)
 
 :CAT4_9753
-Text.PrintNow('CAT4_46', 10000, 1)
+Text.PrintNow('CAT4_46', 10000, 1) // the satchel charges are the host's, not forwarded to the network players
 108@ = 6
 TIMERB = 0
 
@@ -1889,6 +2076,13 @@ if
 goto_if_false @CAT4_10795
 Audio.LoadMissionAudio(9884, 1)
 Text.PrintNow('CATX_TQ', 100, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CATX_TQ', 100, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :CAT4_10795
 goto @CAT4_10826
@@ -1998,6 +2192,9 @@ Char.SetCoordinates($scplayer, 824.8268, 10.0672, 1003.187)
 Char.SetHeading($scplayer, 100.0)
 Char.SetAreaVisible($scplayer, 3)
 Streaming.SetAreaVisible(3)
+// the host is put by the back room door for the scene of the safe, the network players are put back by the counter, off
+// the ways of the host and catalina out of the shop
+gosub @CAT4_COOP_PUT_INSIDE
 if 
   not Char.IsDead($catalina)
 goto_if_false @CAT4_11643
@@ -2125,6 +2322,13 @@ goto @CAT4_12465
 
 :CAT4_12491
 Text.PrintNow('CAT2_GA', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CAT2_GA', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 
 :CAT4_12511
@@ -2159,6 +2363,13 @@ Char.StartFacialTalk($catalina, 10000)
 
 :CAT4_12626
 Text.PrintNow('CAT2_GB', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CAT2_GB', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 
 :CAT4_12646
@@ -2218,6 +2429,13 @@ Char.StartFacialTalk($scplayer, 10000)
 
 :CAT4_12963
 Text.PrintNow('CAT2_GC', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CAT2_GC', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 
 :CAT4_12983
@@ -2271,6 +2489,9 @@ Char.SetCoordinates($scplayer, 1292.721, 271.0581, 18.5469)
 Char.SetHasUsedEntryExit($scplayer, 833.0, 9.0, 10.0)
 Streaming.LoadScene(1292.721, 271.0581, 18.5469)
 Char.SetHeading($scplayer, 333.0)
+// the host is put out of the betting shop (area 0) for the getaway (the screen is faded out), bring the network players
+// out with him
+gosub @CAT4_COOP_BRING_OUT
 if 
   Char.HasGotWeapon($scplayer, WeaponType.Detonator)
 goto_if_false @CAT4_13249
@@ -2290,6 +2511,9 @@ Char.SetAreaVisible($catalina, 0)
 
 :CAT4_13351
 World.ClearArea(1, 1292.721, 271.0581, 18.5469, 1000.0)
+// the host gets away in his car with catalina in its passenger seat, a car for each network player to get away from the
+// police in
+gosub @CAT4_COOP_CREATE_CARS
 Camera.DoFade(1, 1000)
 if 
   not Car.IsDead(41@)
@@ -2372,6 +2596,7 @@ if
   90@ <> 1
 goto_if_false @CAT4_16144
 wait 0
+gosub @CAT4_COOP_UPDATE
 gosub @CAT4_2145
 if 
   98@ == 0
@@ -2411,6 +2636,13 @@ goto @CAT4_13934
 
 :CAT4_13960
 Text.PrintNow('CATX_BF', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CATX_BF', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 
 :CAT4_13980
@@ -2436,6 +2668,13 @@ goto @CAT4_14031
 
 :CAT4_14057
 Text.PrintNow('CATX_NA', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CATX_NA', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 
 :CAT4_14077
@@ -2463,6 +2702,13 @@ goto @CAT4_14128
 
 :CAT4_14154
 Text.PrintNow('CATX_NA', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CATX_NA', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 
 :CAT4_14174
@@ -2610,6 +2856,13 @@ if
 goto_if_false @CAT4_14915
 116@ = Blip.AddSpriteForCoord(63, 67@, 68@, 69@)
 Text.PrintNow('CAT4_32', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CAT4_32', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :CAT4_14915
 if 
@@ -2651,6 +2904,13 @@ goto @CAT4_15115
 89@ = 0
 91@ = 1
 Text.PrintNow('CAT4_15', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CAT4_15', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 return 
 
 :CAT4_15115
@@ -2669,6 +2929,13 @@ goto_if_false @CAT4_15230
 91@ = 1
 90@ = 0
 Text.PrintNow('CAT4_15', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CAT4_15', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 return 
 
 :CAT4_15230
@@ -2704,9 +2971,11 @@ gosub @CAT4_16800
 if 
   not Char.IsDead($catalina)
 goto_if_false @CAT4_16137
+// the host's stop at the hideout waits for all the network players around it
 if and
   Char.LocateAnyMeans3D($scplayer, 0, 277@, 278@, 279@, 4.0, 4.0, 4.0)
   Char.LocateAnyMeans3D($catalina, 0, 277@, 278@, 279@, 10.0, 10.0, 10.0)
+  282@ == 1
 goto_if_false @CAT4_16137
 90@ = 1
 91@ = 0
@@ -2748,6 +3017,13 @@ goto @CAT4_15709
 
 :CAT4_15735
 Text.PrintNow('CAT2_CA', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CAT2_CA', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 
 :CAT4_15755
@@ -2776,6 +3052,13 @@ goto @CAT4_15824
 
 :CAT4_15850
 Text.PrintNow('CATX_RC', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CATX_RC', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 
 :CAT4_15870
@@ -2862,7 +3145,7 @@ gosub @CAT4_17009
 if 
   not Char.IsGroupMember($catalina, $Players_Group)
 goto_if_false @CAT4_16747
-Text.PrintNow('CAT4_16', 4000, 1)
+Text.PrintNow('CAT4_16', 4000, 1) // catalina left the host's group, not forwarded to the network players
 if 
   89@ == 1
 goto_if_false @CAT4_16317
@@ -2892,6 +3175,7 @@ if
   not Char.IsGroupMember($catalina, $Players_Group)
 goto_if_false @CAT4_16747
 wait 0
+gosub @CAT4_COOP_UPDATE
 if 
   not Char.IsDead($catalina)
 goto_if_false @CAT4_16696
@@ -2902,6 +3186,13 @@ goto_if_false @CAT4_16478
 89@ = 0
 91@ = 1
 Text.PrintNow('CAT4_14', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CAT4_14', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 return 
 
 :CAT4_16478
@@ -2923,6 +3214,13 @@ goto_if_false @CAT4_16623
 115@ = Blip.AddForCoord(277@, 278@, 279@)
 Blip.ChangeColor(115@, BlipColor.Yellow)
 Text.PrintNow('CAT4_13', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CAT4_13', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :CAT4_16623
 if 
@@ -2933,6 +3231,13 @@ if
 goto_if_false @CAT4_16689
 116@ = Blip.AddSpriteForCoord(63, 67@, 68@, 69@)
 Text.PrintNow('CAT4_32', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CAT4_32', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :CAT4_16689
 goto @CAT4_16740
@@ -2943,6 +3248,13 @@ Blip.Remove(112@)
 89@ = 0
 91@ = 1
 Text.PrintNow('CAT4_15', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CAT4_15', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 return 
 
 :CAT4_16740
@@ -2957,6 +3269,13 @@ Blip.Remove(112@)
 89@ = 0
 91@ = 1
 Text.PrintNow('CAT4_15', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CAT4_15', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 return 
 
 :CAT4_16798
@@ -2985,6 +3304,13 @@ if
 goto_if_false @CAT4_16921
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 Text.PrintNow(118@(274@,52s), 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer(118@(274@,52s), 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 107@ = 2
 
 :CAT4_16921
@@ -3024,6 +3350,13 @@ goto @CAT4_17041
 
 :CAT4_17067
 Text.PrintNow('CATX_SA', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CATX_SA', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 
 :CAT4_17087
@@ -3052,6 +3385,13 @@ goto @CAT4_17151
 
 :CAT4_17177
 Text.PrintNow('CATX_SB', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CATX_SB', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 
 :CAT4_17197
@@ -3081,6 +3421,13 @@ goto @CAT4_17268
 
 :CAT4_17294
 Text.PrintNow('CATX_SC', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CATX_SC', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 
 :CAT4_17314
@@ -3111,6 +3458,13 @@ goto @CAT4_17392
 
 :CAT4_17418
 Text.PrintNow('CATX_SD', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CATX_SD', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 
 :CAT4_17438
@@ -3140,6 +3494,13 @@ goto @CAT4_17509
 
 :CAT4_17535
 Text.PrintNow('CATX_SE', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CATX_SE', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 
 :CAT4_17555
@@ -3169,6 +3530,13 @@ goto @CAT4_17626
 
 :CAT4_17652
 Text.PrintNow('CATX_SF', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CATX_SF', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 
 :CAT4_17672
@@ -3198,6 +3566,13 @@ goto @CAT4_17743
 
 :CAT4_17769
 Text.PrintNow('CATX_SG', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CATX_SG', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 
 :CAT4_17789
@@ -3227,6 +3602,13 @@ goto @CAT4_17860
 
 :CAT4_17886
 Text.PrintNow('CATX_SH', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CATX_SH', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 
 :CAT4_17906
@@ -3256,6 +3638,13 @@ goto @CAT4_17977
 
 :CAT4_18003
 Text.PrintNow('CATX_TD', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CATX_TD', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 
 :CAT4_18023
@@ -3285,6 +3674,13 @@ goto @CAT4_18094
 
 :CAT4_18120
 Text.PrintNow('CATX_TJ', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CATX_TJ', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 
 :CAT4_18140
@@ -3314,6 +3710,13 @@ goto @CAT4_18211
 
 :CAT4_18237
 Text.PrintNow('CATX_TQ', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CATX_TQ', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 
 :CAT4_18257
@@ -3436,6 +3839,50 @@ World.SetPedDensityMultiplier(1.0)
 DecisionMaker.Remove(54@)
 DecisionMaker.Remove(55@)
 World.RemoveAllScriptFires
+// the spare cars are not needed anymore, the network players lose their checkpoints and blips
+for $temp_int = 0 to 2
+    if
+        290@($temp_int,3i) <> -1
+    then
+        Car.MarkAsNoLongerNeeded(290@($temp_int,3i))
+        290@($temp_int,3i) = -1
+    end
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        Coop.ClearAllEntityBlipsForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+    end
+end
+
+// the network players left inside the betting shop are brought out to its door when the host is outside or dead, the
+// area is synced then
+308@ = 0
+309@ = Char.GetAreaVisible($scplayer)
+if or
+    309@ == 0
+    not Player.IsPlaying($player1)
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            284@, 285@, 286@ = Char.GetCoordinates($NETWORK_PLAYER[$temp_int])
+            if
+                286@ > 900.0
+            then
+                gosub @CAT4_COOP_PUT_AT_DOOR
+                Char.SetAreaVisible($NETWORK_PLAYER[$temp_int], 0)
+                308@ = 1
+            end
+        end
+    end
+end
+if
+    308@ == 1
+then
+    Streaming.SetAreaVisible(0)
+end
 Mission.Finish
 Game.SetEveryoneIgnorePlayer($player1, False)
 Group.SetSeparationRange($Players_Group, 30.0)
@@ -3463,3 +3910,424 @@ $flag_otb_robbing_peds_panic = 0
 $counter_robbery_cat4 = 0
 return 
 
+:CAT4_COOP_UPDATE
+// the spare car blip is not needed anymore when the player found a vehicle
+for $temp_int = 0 to 2
+    if
+        290@($temp_int,3i) <> -1
+    then
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                293@($temp_int,3i) == 0
+            then
+                if or
+                    Car.IsDead(290@($temp_int,3i))
+                    Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+                then
+                    293@($temp_int,3i) = 1
+                    Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 290@($temp_int,3i))
+                end
+            end
+        end
+    end
+end
+
+// the host's car is frozen and put back by the betting shop for the getaway while he is inside it, keep the network
+// players out of it
+if and
+    88@ == 1
+    38@ == 1
+then
+    set_lvar_int_to_lvar_int 300@ = 41@
+    gosub @CAT4_COOP_LEAVE_CAR
+end
+
+// catalina walks to the host's car when they come out of the betting shop and gets into his vehicle as his passenger,
+// keep its front passenger seat free while she is out of it
+if
+    89@ == 1
+then
+    if
+        not Char.IsDead($catalina)
+    then
+        if and
+            3 > 98@
+            not Car.IsDead(41@)
+        then
+            if
+                not Char.IsInCar($catalina, 41@)
+            then
+                set_lvar_int_to_lvar_int 287@ = 41@
+                gosub @CAT4_COOP_FREE_CATALINA_SEAT
+            end
+        end
+        if and
+            Char.IsGroupMember($catalina, $Players_Group)
+            Char.IsInAnyCar($scplayer)
+        then
+            287@ = Char.StoreCarIsInNoSave($scplayer)
+            if
+                not Char.IsInCar($catalina, 287@)
+            then
+                gosub @CAT4_COOP_FREE_CATALINA_SEAT
+            end
+        end
+    end
+end
+
+// catalina has a blip for the network players while the host has hers (she left his group) and she is alive
+if and
+    Blip.DoesExist(113@)
+    not Char.IsDead($catalina)
+then
+    if
+        283@ == 0
+    then
+        283@ = 1
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                Coop.UpdateCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], $catalina, true, BlipDisplay.Both, BlipColor.Blue, 3) // catalina
+            end
+        end
+    end
+else
+    if
+        283@ == 1
+    then
+        283@ = 0
+        if // a removed catalina takes her blip with her
+            Char.DoesExist($catalina)
+        then
+            for $temp_int = 0 to 2
+                if
+                    Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                then
+                    Coop.RemoveCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], $catalina)
+                end
+            end
+        end
+    end
+end
+
+// each network player gets a checkpoint on the betting shop door while the host has its blip outside, in front of the
+// pay 'n' spray while he has its blip (the garage is left to the host, only his wanted level is lost there) and on the
+// hideout while he has its blip
+for $temp_int = 0 to 2
+    299@ = 0
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if and
+            88@ == 1
+            38@ == 0
+            Blip.DoesExist(112@)
+        then
+            299@ = 1
+        end
+        if
+            89@ == 1
+        then
+            if
+                Blip.DoesExist(116@)
+            then
+                299@ = 2
+            end
+            if
+                Blip.DoesExist(115@)
+            then
+                299@ = 3
+            end
+        end
+        if
+            not is_int_lvar_equal_to_int_lvar 299@ == 296@($temp_int,3i)
+        then
+            set_lvar_int_to_lvar_int 296@($temp_int,3i) = 299@
+            Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+            if
+                299@ == 1
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(61@, 62@, 63@, 1.5, 1.5, 2.0, $NETWORK_PLAYER[$temp_int]) // the betting shop door
+            end
+            if
+                299@ == 2
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(720.5, -466.73, 15.72, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int]) // in front of the pay 'n' spray
+            end
+            if
+                299@ == 3
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(277@, 278@, 279@, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int]) // the hideout
+            end
+        end
+    end
+end
+
+// the host's stop at the hideout waits for all the network players around it
+282@ = 1
+if
+    89@ == 1
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                not Char.LocateAnyMeans2D($NETWORK_PLAYER[$temp_int], 0, 277@, 278@, 20.0, 20.0)
+            then
+                282@ = 0
+            end
+        end
+    end
+end
+return
+
+:CAT4_COOP_LEAVE_CAR
+// a network player in the car 300@ is taken out beside its left side
+if and
+    300@ <> 0
+    300@ <> -1
+then
+    if
+        Car.DoesExist(300@)
+    then
+        if
+            not Car.IsDead(300@)
+        then
+            for $temp_int = 0 to 2
+                if
+                    Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                then
+                    if
+                        Char.IsInCar($NETWORK_PLAYER[$temp_int], 300@)
+                    then
+                        284@, 285@, 286@ = Car.GetOffsetInWorldCoords(300@, -2.5, 0.0, 0.0)
+                        Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 284@, 285@, 286@)
+                    end
+                end
+            end
+        end
+    end
+end
+return
+
+:CAT4_COOP_FREE_CATALINA_SEAT
+// a network player in the front passenger seat of the car 287@ is taken out beside its right side
+if
+    not Car.IsDead(287@)
+then
+    if
+        not Car.IsPassengerSeatFree(287@, 0)
+    then
+        288@ = Car.GetCharInPassengerSeat(287@, 0)
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                if
+                    is_int_var_equal_to_int_lvar $NETWORK_PLAYER[$temp_int] == 288@
+                then
+                    284@, 285@, 286@ = Car.GetOffsetInWorldCoords(287@, 2.5, 0.0, 0.0)
+                    Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 284@, 285@, 286@)
+                end
+            end
+        end
+    end
+end
+return
+
+:CAT4_COOP_PUT_INSIDE
+// the network players are put by the counter of the betting shop (area 3), off the ways of the host and catalina in its
+// scenes and away from its exit marker, the ones in a car are taken out of it there
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if
+            $temp_int == 0
+        then
+            284@ = 830.8
+            285@ = 6.0
+        end
+        if
+            $temp_int == 1
+        then
+            284@ = 829.4
+            285@ = 5.8
+        end
+        if
+            $temp_int == 2
+        then
+            284@ = 828.0
+            285@ = 5.6
+        end
+        if
+            Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+        then
+            Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 284@, 285@, 1003.19)
+        else
+            Char.SetCoordinates($NETWORK_PLAYER[$temp_int], 284@, 285@, 1003.19)
+        end
+        Char.SetHeading($NETWORK_PLAYER[$temp_int], 100.0)
+        Char.SetAreaVisible($NETWORK_PLAYER[$temp_int], 3)
+    end
+end
+Streaming.SetAreaVisible(3) // the host is inside already, this only syncs the area to the network players
+return
+
+:CAT4_COOP_BRING_OUT
+// the network players are put back to the outside area and brought to the host outside
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Char.SetAreaVisible($NETWORK_PLAYER[$temp_int], 0)
+    end
+end
+Streaming.SetAreaVisible(0) // the host is outside already, this only syncs the area to the network players
+gosub @CAT4_COOP_BRING_TO_HOST
+return
+
+:CAT4_COOP_PUT_AT_DOOR
+// by the betting shop door outside, where the host is put out of it after the robbery
+if
+    $temp_int == 0
+then
+    284@ = 1293.8
+    285@ = 271.6
+end
+if
+    $temp_int == 1
+then
+    284@ = 1292.0
+    285@ = 272.6
+end
+if
+    $temp_int == 2
+then
+    284@ = 1294.0
+    285@ = 273.6
+end
+Char.SetCoordinates($NETWORK_PLAYER[$temp_int], 284@, 285@, 18.55)
+Char.SetHeading($NETWORK_PLAYER[$temp_int], 333.0)
+return
+
+:CAT4_COOP_CREATE_CARS
+// the cars stand on the road nodes nearest to the betting shop, facing along the road
+302@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if
+            290@($temp_int,3i) == -1
+        then
+            gosub @CAT4_COOP_WAIT_CAR
+            gosub @CAT4_COOP_GET_CAR_POINT
+            World.ClearArea(1, 284@, 285@, 286@, 4.0)
+            290@($temp_int,3i) = Car.Create(426, 284@, 285@, 286@)
+            Car.SetHeading(290@($temp_int,3i), 301@)
+            Car.SetHealth(290@($temp_int,3i), 1000)
+            293@($temp_int,3i) = 0 // spare_car_blip_removed
+            Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 290@($temp_int,3i), true, BlipDisplay.MarkerOnly, BlipColor.Blue, 3)
+        end
+    end
+end
+Streaming.MarkModelAsNoLongerNeeded(426)
+return
+
+:CAT4_COOP_GET_CAR_POINT
+// the next road node 284@-286@ (heading 301@) at least 12 m away from the host's spot, his car and the police cars, 8 m
+// from the other spare cars (gives up after 20 nodes)
+302@ += 1
+284@, 285@, 286@, 301@ = Path.GetNthClosestCarNodeWithHeading(1292.721, 271.0581, 18.5469, 302@)
+if
+    20 > 302@
+then
+    303@ = Math.GetDistanceBetweenCoords2D(284@, 285@, 1292.721, 271.0581) // the host's spot
+    if
+        12.0 > 303@
+    then
+        goto @CAT4_COOP_GET_CAR_POINT
+    end
+    303@ = Math.GetDistanceBetweenCoords2D(284@, 285@, 1297.0, 278.0) // the host's car
+    if
+        12.0 > 303@
+    then
+        goto @CAT4_COOP_GET_CAR_POINT
+    end
+    303@ = Math.GetDistanceBetweenCoords2D(284@, 285@, 1296.038, 251.8959) // a police car
+    if
+        12.0 > 303@
+    then
+        goto @CAT4_COOP_GET_CAR_POINT
+    end
+    303@ = Math.GetDistanceBetweenCoords2D(284@, 285@, 1301.326, 265.0127) // a police car
+    if
+        12.0 > 303@
+    then
+        goto @CAT4_COOP_GET_CAR_POINT
+    end
+    303@ = Math.GetDistanceBetweenCoords2D(284@, 285@, 1308.398, 278.7967) // a police car
+    if
+        12.0 > 303@
+    then
+        goto @CAT4_COOP_GET_CAR_POINT
+    end
+    for 304@ = 0 to 2 // the spare cars already standing
+        if
+            290@(304@,3i) <> -1
+        then
+            305@, 306@, 307@ = Car.GetCoordinates(290@(304@,3i))
+            303@ = Math.GetDistanceBetweenCoords2D(284@, 285@, 305@, 306@)
+            if
+                8.0 > 303@
+            then
+                goto @CAT4_COOP_GET_CAR_POINT
+            end
+        end
+    end
+end
+return
+
+:CAT4_COOP_WAIT_CAR
+if
+    not Streaming.HasModelLoaded(426)
+then
+    Streaming.RequestModel(426)
+    wait 0
+    goto @CAT4_COOP_WAIT_CAR
+end
+return
+
+:CAT4_COOP_LEAVE_ANY_CAR
+// the network players in a car are taken out of it at the host's spot
+289@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if
+            Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+        then
+            284@, 285@, 286@ = Char.GetCoordinates($scplayer)
+            Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 284@, 285@, 286@)
+            289@ = 1
+        end
+    end
+end
+if
+    289@ == 1
+then
+    wait 500 // let the warp out of the car reach them before a teleport
+end
+return
+
+:CAT4_COOP_BRING_TO_HOST
+// the teleport moves the network players on foot, the ones in a car are taken out of it first
+gosub @CAT4_COOP_LEAVE_ANY_CAR
+Coop.TeleportPlayersToHostSafely($NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2])
+return
