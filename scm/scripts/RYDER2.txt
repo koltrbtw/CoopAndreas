@@ -1,11 +1,10 @@
 //-------------Mission 26---------------
 // Originally: Robbing Uncle Sam
-Coop.AddChatMessage("{ffff00}[CoopAndreas Warning]{ffffff} This mission is currently unsupported and not recommended to play!")
-Coop.AddChatMessage("{ffff00}[CoopAndreas Warning]{ffffff} It may cause desyncs, crashes, or other unexpected behavior!")
-
 
 :RYDER2
 script_name 'RYDER2'
+Coop.EnableSyncingThisScript()
+
 gosub @RYDER2_47
 if 
   has_deatharrest_been_executed 
@@ -18,7 +17,24 @@ terminate_this_script
 
 :RYDER2_47
 Stat.RegisterMissionGiven
+$NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2] = Coop.CollectNetworkPlayersForTheMission()
 $onmission = 1
+480@ = -1 // the spare car for the network players
+481@ = 0
+482@ = 0
+for $temp_int = 0 to 2
+    483@($temp_int,3i) = 0 // car_blips_removed
+end
+486@ = 0 // 1: the network players drive to the depot, 2: back to the lock up
+487@ = 0.0 // the point a network player is moved to
+488@ = 0.0
+489@ = 0.0
+490@ = 0 // the checkpoint shown to the network players: 1 the depot, 2 the gate switch, 3 the warehouse switch, 4 the lock up
+491@ = 0
+492@ = 0 // all the network players are where the host stops
+493@ = -1
+494@ = -1 // the car the network players are taken out of
+495@ = 0
 34@ = 0
 35@ = 0
 36@ = 0
@@ -67,6 +83,7 @@ goto_if_false @RYDER2_316
 
 :RYDER2_316
 gosub @RYDER2_988
+gosub @RYDER2_COOP_UPDATE
 
 :RYDER2_323
 switch_start 34@ total_jumps 8 default_jump 0 @RYDER2_563 jumps 0 @RYDER2_451 1 @RYDER2_465 2 @RYDER2_479 3 @RYDER2_493 4 @RYDER2_507 5 @RYDER2_521 6 @RYDER2_535
@@ -503,12 +520,14 @@ World.ClearArea(1, 2472.81, -1690.97, 12.53, 5.0)
 Streaming.RequestModel(414)
 Streaming.LoadSpecialCharacter('RYDER2', 1)
 Streaming.RequestModel(346)
+Streaming.RequestModel(466) // the spare car for the network players
 
 :RYDER2_3653
 if or
   not Streaming.HasModelLoaded(414)
   not Streaming.HasSpecialCharacterLoaded(1)
   not Streaming.HasModelLoaded(346)
+  not Streaming.HasModelLoaded(466)
 goto_if_false @RYDER2_3689
 wait 0
 goto @RYDER2_3653
@@ -538,6 +557,13 @@ Char.SetDecisionMaker($ryder, 235@)
 DecisionMakerChar.ClearEventResponse(235@, 79)
 Task.LookAtChar($ryder, $scplayer, 999999)
 Text.PrintNow('RY2_03', 7000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RY2_03', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 49@ = 0
 Char.SetCantBeDraggedOut($ryder, True)
 Char.SetAnimGroup($ryder, "MAN")
@@ -545,6 +571,44 @@ Char.SetCoordinates($scplayer, 2474.87, -1698.465, 12.521)
 Char.SetHeading($scplayer, 4.8941)
 Camera.SetBehindPlayer
 Camera.RestoreJumpcut
+
+// the van seats ryder and the host, a car for the network players who have no seat left in it
+481@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        481@ += 1
+    end
+end
+482@ = Car.GetMaximumNumberOfPassengers(95@)
+482@ -= 1 // ryder
+if
+    is_int_lvar_greater_than_int_lvar 481@ > 482@
+then
+    World.ClearArea(1, 2494.91, -1682.17, 12.32, 5.0)
+    480@ = Car.Create(466, 2494.91, -1682.17, 12.32)
+    Car.SetHeading(480@, 90.0)
+    Car.SetHealth(480@, 1000)
+end
+
+// the host is put in front of ryder's house after the cutscene
+Coop.TeleportPlayersToHostSafely($NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2])
+
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        483@($temp_int,3i) = 0 // car_blips_removed
+        Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 95@, true, BlipDisplay.MarkerOnly, BlipColor.Blue, 3)
+        if
+            480@ <> -1
+        then
+            Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 480@, true, BlipDisplay.MarkerOnly, BlipColor.Blue, 3)
+        end
+    end
+end
+486@ = 1
 Camera.DoFade(1, Fade.Out)
 
 :RYDER2_3979
@@ -613,6 +677,13 @@ goto_if_false @RYDER2_4689
 Blip.Remove(120@)
 120@ = Blip.AddForCoord(2699.293, -2395.013, 12.6172)
 Text.PrintNow('RY2_02', 7000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RY2_02', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 54@ = 0
 35@ += 1
 49@ = 0
@@ -641,8 +712,21 @@ goto_if_false @RYDER2_4919
 if 
   Blip.DoesExist(120@)
 goto_if_false @RYDER2_4919
-if 
+492@ = 1 // all the network players are at the depot
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if not Char.LocateAnyMeans2D($NETWORK_PLAYER[$temp_int], 0, 2699.293, -2395.013, 20.0, 20.0)
+        then
+            492@ = 0
+        end
+    end
+end
+
+if and
   Car.Locate3D(95@, 1, 2699.293, -2395.013, 12.6172, 4.0, 4.0, 4.0)
+  492@ == 1
 goto_if_false @RYDER2_4919
 if 
   Char.IsInCar($scplayer, 95@)
@@ -686,6 +770,7 @@ switch_continued 7 @RYDER2_6023 8 @RYDER2_6151 9 @RYDER2_6279 -1 @RYDER2_6394 -1
 set_var_text_label s$audio_string = 'RYD2_AA'
 set_var_int_to_constant $audio_sound_file = 33800
 start_new_script @AUDIOL $ryder 0 0 2 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 50@ += 1
 TIMERB = 0
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
@@ -699,10 +784,12 @@ if
   49@ == 0
 goto_if_false @RYDER2_5323
 start_new_script @AUDIOL $scplayer 0 0 1 1 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_5349
 
 :RYDER2_5323
 start_new_script @AUDIOL $scplayer 0 0 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 49@ = 0
 
 :RYDER2_5349
@@ -719,10 +806,12 @@ if
   49@ == 0
 goto_if_false @RYDER2_5451
 start_new_script @AUDIOL $ryder 0 0 2 1 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_5477
 
 :RYDER2_5451
 start_new_script @AUDIOL $ryder 0 0 2 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 49@ = 0
 
 :RYDER2_5477
@@ -739,10 +828,12 @@ if
   49@ == 0
 goto_if_false @RYDER2_5579
 start_new_script @AUDIOL $scplayer 0 0 1 1 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_5605
 
 :RYDER2_5579
 start_new_script @AUDIOL $scplayer 0 0 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 49@ = 0
 
 :RYDER2_5605
@@ -759,10 +850,12 @@ if
   49@ == 0
 goto_if_false @RYDER2_5707
 start_new_script @AUDIOL $ryder 0 0 2 1 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_5733
 
 :RYDER2_5707
 start_new_script @AUDIOL $ryder 0 0 2 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 49@ = 0
 
 :RYDER2_5733
@@ -779,10 +872,12 @@ if
   49@ == 0
 goto_if_false @RYDER2_5835
 start_new_script @AUDIOL $ryder 0 0 1 1 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_5861
 
 :RYDER2_5835
 start_new_script @AUDIOL $ryder 0 0 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 49@ = 0
 
 :RYDER2_5861
@@ -799,10 +894,12 @@ if
   49@ == 0
 goto_if_false @RYDER2_5963
 start_new_script @AUDIOL $scplayer 0 0 2 1 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_5989
 
 :RYDER2_5963
 start_new_script @AUDIOL $scplayer 0 0 2 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 49@ = 0
 
 :RYDER2_5989
@@ -819,10 +916,12 @@ if
   49@ == 0
 goto_if_false @RYDER2_6091
 start_new_script @AUDIOL $scplayer 0 0 1 1 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_6117
 
 :RYDER2_6091
 start_new_script @AUDIOL $scplayer 0 0 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 49@ = 0
 
 :RYDER2_6117
@@ -839,10 +938,12 @@ if
   49@ == 0
 goto_if_false @RYDER2_6219
 start_new_script @AUDIOL $ryder 0 0 2 1 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_6245
 
 :RYDER2_6219
 start_new_script @AUDIOL $ryder 0 0 2 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 49@ = 0
 
 :RYDER2_6245
@@ -859,10 +960,12 @@ if
   49@ == 0
 goto_if_false @RYDER2_6347
 start_new_script @AUDIOL $scplayer 0 0 1 1 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_6373
 
 :RYDER2_6347
 start_new_script @AUDIOL $scplayer 0 0 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 49@ = 0
 
 :RYDER2_6373
@@ -907,6 +1010,13 @@ if
   TIMERA > 60000
 goto_if_false @RYDER2_6608
 Text.PrintNow('RY2_03', 7000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RY2_03', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 49@ = 0
 TIMERA = 0
 
@@ -946,6 +1056,7 @@ goto @RYDER2_6880
 
 :RYDER2_6880
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 49@ += 1
 
 :RYDER2_6906
@@ -1004,6 +1115,8 @@ wait 0
 goto @RYDER2_7121
 
 :RYDER2_7145
+set_lvar_int_to_lvar_int 494@ = 95@
+gosub @RYDER2_COOP_LEAVE_CAR // the van is moved for the scene
 if 
   not Car.IsDead(95@)
 goto_if_false @RYDER2_7191
@@ -1444,6 +1557,7 @@ switch_continued 7 @RYDER2_11041 -1 @RYDER2_11105 -1 @RYDER2_11105 -1 @RYDER2_11
 set_var_text_label s$audio_string = 'RYD2_DA'
 set_var_int_to_constant $audio_sound_file = 33814
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(33815, 2)
 49@ += 1
@@ -1459,6 +1573,7 @@ goto @RYDER2_11105
 set_var_text_label s$audio_string = 'RYD2_DB'
 set_var_int_to_constant $audio_sound_file = 33815
 start_new_script @AUDIOL $scplayer 0 1 2 1 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(33816, 1)
 49@ += 1
@@ -1469,6 +1584,7 @@ goto @RYDER2_11105
 set_var_text_label s$audio_string = 'RYD2_DC'
 set_var_int_to_constant $audio_sound_file = 33816
 start_new_script @AUDIOL $scplayer 0 1 1 1 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(33817, 2)
 49@ += 1
@@ -1479,6 +1595,7 @@ goto @RYDER2_11105
 set_var_text_label s$audio_string = 'RYD2_DD'
 set_var_int_to_constant $audio_sound_file = 33817
 start_new_script @AUDIOL $ryder 0 1 2 1 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(33818, 1)
 49@ += 1
@@ -1489,6 +1606,7 @@ goto @RYDER2_11105
 set_var_text_label s$audio_string = 'RYD2_DE'
 set_var_int_to_constant $audio_sound_file = 33818
 start_new_script @AUDIOL $ryder 0 1 1 1 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(33819, 2)
 49@ += 1
@@ -1504,6 +1622,7 @@ goto @RYDER2_11105
 set_var_text_label s$audio_string = 'RYD2_DF'
 set_var_int_to_constant $audio_sound_file = 33819
 start_new_script @AUDIOL $ryder 0 1 2 1 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 49@ += 1
 TIMERB = 0
 goto @RYDER2_11105
@@ -1552,6 +1671,8 @@ goto_if_false @RYDER2_11334
 Char.ClearTasksImmediately($scplayer)
 Char.SetCoordinates($scplayer, 2700.758, -2392.45, 12.6172)
 Char.SetHeading($scplayer, 236.0759)
+set_lvar_int_to_lvar_int 494@ = 95@
+gosub @RYDER2_COOP_LEAVE_CAR // ryder is warped into the driver seat below
 if 
   not Char.IsDead($ryder)
 goto_if_false @RYDER2_11334
@@ -1559,6 +1680,28 @@ Char.ClearTasksImmediately($ryder)
 Char.WarpIntoCar($ryder, 95@)
 
 :RYDER2_11334
+set_lvar_int_to_lvar_int 494@ = 99@
+gosub @RYDER2_COOP_LEAVE_CAR // the forklift is moved and its driver deleted
+set_lvar_int_to_lvar_int 494@ = 98@
+gosub @RYDER2_COOP_LEAVE_CAR // the patriot is moved and its driver deleted
+// the host is put on foot in front of the depot gate, bring the network players next to him
+486@ = 0
+gosub @RYDER2_COOP_REMOVE_CAR_BLIPS
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        gosub @RYDER2_COOP_GET_GATE_POINT
+        if
+            Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+        then
+            Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 487@, 488@, 12.6172)
+        else
+            Char.SetCoordinates($NETWORK_PLAYER[$temp_int], 487@, 488@, 12.6172)
+        end
+        Char.SetHeading($NETWORK_PLAYER[$temp_int], 236.0759)
+    end
+end
 if 
   not Car.IsDead(99@)
 goto_if_false @RYDER2_11380
@@ -1660,6 +1803,13 @@ Object.FreezePosition(61@, True)
 
 :RYDER2_11816
 Text.Print('RY2_59', 7000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RY2_59', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Blip.Remove(122@)
 122@ = Blip.AddForCoord(2722.075, -2411.271, 12.6198)
 Blip.ChangeColor(122@, BlipColor.Red)
@@ -1716,6 +1866,7 @@ Char.ClearLookAt($ryder)
 set_var_text_label s$audio_string = 'RYD2_GA'
 set_var_int_to_constant $audio_sound_file = 33823
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 wait 100
 35@ = 99
 
@@ -1741,6 +1892,7 @@ goto_if_false @RYDER2_12294
 set_var_text_label s$audio_string = 'RYD2_EA'
 set_var_int_to_constant $audio_sound_file = 33820
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 142@ = 0
 
 :RYDER2_12294
@@ -1757,6 +1909,7 @@ goto_if_false @RYDER2_12394
 set_var_text_label s$audio_string = 'RYD2_EB'
 set_var_int_to_constant $audio_sound_file = 33821
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 142@ = 0
 
 :RYDER2_12394
@@ -1778,6 +1931,7 @@ goto_if_false @RYDER2_12542
 set_var_text_label s$audio_string = 'RYD2_FA'
 set_var_int_to_constant $audio_sound_file = 33822
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 142@ = 0
 
 :RYDER2_12542
@@ -1848,6 +2002,13 @@ goto_if_false @RYDER2_12999
 123@ = Blip.AddForCoord(2773.101, -2423.418, 12.6269)
 Blip.ChangeColor(123@, BlipColor.Red)
 Text.Print('RY2_60', 7000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RY2_60', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 54@ = 0
 49@ = 0
 35@ += 1
@@ -1925,6 +2086,7 @@ switch_start 49@ total_jumps 3 default_jump 0 @RYDER2_13577 jumps 0 @RYDER2_1338
 set_var_text_label s$audio_string = 'RYD2_GB'
 set_var_int_to_constant $audio_sound_file = 33824
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 49@ += 1
 54@ = 0
 goto @RYDER2_13577
@@ -1933,6 +2095,7 @@ goto @RYDER2_13577
 set_var_text_label s$audio_string = 'RYD2_LA'
 set_var_int_to_constant $audio_sound_file = 33833
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 49@ += 1
 54@ = 0
 goto @RYDER2_13577
@@ -1941,6 +2104,7 @@ goto @RYDER2_13577
 set_var_text_label s$audio_string = 'RYD2_LE'
 set_var_int_to_constant $audio_sound_file = 33837
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 49@ = 0
 54@ = 0
 goto @RYDER2_13577
@@ -1960,6 +2124,7 @@ goto_if_false @RYDER2_13704
 set_var_text_label s$audio_string = 'RYD2_HA'
 set_var_int_to_constant $audio_sound_file = 33825
 start_new_script @AUDIOL $scplayer 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 35@ += 1
 goto @RYDER2_13754
 
@@ -1967,6 +2132,7 @@ goto @RYDER2_13754
 set_var_text_label s$audio_string = 'RYD2_HB'
 set_var_int_to_constant $audio_sound_file = 33826
 start_new_script @AUDIOL $scplayer 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 35@ += 1
 
 :RYDER2_13754
@@ -2161,6 +2327,7 @@ goto_if_false @RYDER2_14800
 set_var_text_label s$audio_string = 'RYD2_KB'
 set_var_int_to_constant $audio_sound_file = 33831
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 266@ = 1
 TIMERA = 0
 
@@ -2276,6 +2443,7 @@ switch_start 49@ total_jumps 2 default_jump 0 @RYDER2_15482 jumps 0 @RYDER2_1539
 set_var_text_label s$audio_string = 'RYD2_KA'
 set_var_int_to_constant $audio_sound_file = 33830
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 49@ += 1
 54@ = 0
 goto @RYDER2_15482
@@ -2330,30 +2498,35 @@ switch_start 143@ total_jumps 5 default_jump 0 @RYDER2_16001 jumps 0 @RYDER2_157
 set_var_text_label s$audio_string = 'RYD2_LA'
 set_var_int_to_constant $audio_sound_file = 33833
 start_new_script @AUDIOL $ryder 0 0 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_16001
 
 :RYDER2_15801
 set_var_text_label s$audio_string = 'RYD2_LB'
 set_var_int_to_constant $audio_sound_file = 33834
 start_new_script @AUDIOL $ryder 0 0 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_16001
 
 :RYDER2_15851
 set_var_text_label s$audio_string = 'RYD2_LC'
 set_var_int_to_constant $audio_sound_file = 33835
 start_new_script @AUDIOL $ryder 0 0 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_16001
 
 :RYDER2_15901
 set_var_text_label s$audio_string = 'RYD2_LD'
 set_var_int_to_constant $audio_sound_file = 33836
 start_new_script @AUDIOL $ryder 0 0 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_16001
 
 :RYDER2_15951
 set_var_text_label s$audio_string = 'RYD2_LE'
 set_var_int_to_constant $audio_sound_file = 33837
 start_new_script @AUDIOL $ryder 0 0 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_16001
 
 :RYDER2_16001
@@ -2587,24 +2760,28 @@ switch_start 273@ total_jumps 4 default_jump 0 @RYDER2_17602 jumps 1 @RYDER2_174
 set_var_text_label s$audio_string = 'RYD2_MA'
 set_var_int_to_constant $audio_sound_file = 33842
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_17602
 
 :RYDER2_17452
 set_var_text_label s$audio_string = 'RYD2_MC'
 set_var_int_to_constant $audio_sound_file = 33844
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_17602
 
 :RYDER2_17502
 set_var_text_label s$audio_string = 'RYD2_MD'
 set_var_int_to_constant $audio_sound_file = 33845
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_17602
 
 :RYDER2_17552
 set_var_text_label s$audio_string = 'RYD2_ME'
 set_var_int_to_constant $audio_sound_file = 33846
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_17602
 
 :RYDER2_17602
@@ -2685,12 +2862,14 @@ goto_if_false @RYDER2_18104
 set_var_text_label s$audio_string = 'RYD2_LH'
 set_var_int_to_constant $audio_sound_file = 33840
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_18147
 
 :RYDER2_18104
 set_var_text_label s$audio_string = 'RYD2_LJ'
 set_var_int_to_constant $audio_sound_file = 33841
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 
 :RYDER2_18147
 55@ = 0
@@ -2770,6 +2949,7 @@ goto_if_false @RYDER2_18660
 set_var_text_label s$audio_string = 'RYD2_ND'
 set_var_int_to_constant $audio_sound_file = 33851
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 
 :RYDER2_18660
 TIMERA = 0
@@ -2823,6 +3003,7 @@ Camera.PointAtPoint(2773.441, -2420.132, 14.7784, SwitchType.JumpCut)
 set_var_text_label s$audio_string = 'RYD2_NB'
 set_var_int_to_constant $audio_sound_file = 33849
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 TIMERA = 0
 35@ += 1
 
@@ -2839,6 +3020,13 @@ Hud.SwitchWidescreen(False)
 Camera.SetBehindPlayer
 Camera.RestoreJumpcut
 Text.PrintNow('RY2_67', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RY2_67', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 if 
   not Car.IsDead(95@)
 goto_if_false @RYDER2_19329
@@ -2850,6 +3038,25 @@ Car.SetProofs(95@, False, False, True, False, False)
 Car.FreezePosition(95@, False)
 Car.SetIsConsideredByPlayer(95@, True)
 Car.LockDoors(95@, CarLock.Unlocked)
+// the van takes the boxes to the lock up, ryder rides on its back: point the network players to it and to their car
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        483@($temp_int,3i) = 0 // car_blips_removed
+        Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 95@, true, BlipDisplay.MarkerOnly, BlipColor.Blue, 3)
+        if
+            480@ <> -1
+        then
+            if
+                not Car.IsDead(480@)
+            then
+                Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 480@, true, BlipDisplay.MarkerOnly, BlipColor.Blue, 3)
+            end
+        end
+    end
+end
+486@ = 2
 
 :RYDER2_19329
 if 
@@ -2895,18 +3102,21 @@ switch_start 42@ total_jumps 3 default_jump 0 @RYDER2_19733 jumps 0 @RYDER2_1958
 set_var_text_label s$audio_string = 'RYD2_NA'
 set_var_int_to_constant $audio_sound_file = 33848
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_19733
 
 :RYDER2_19633
 set_var_text_label s$audio_string = 'RYD2_NC'
 set_var_int_to_constant $audio_sound_file = 33850
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_19733
 
 :RYDER2_19683
 set_var_text_label s$audio_string = 'RYD2_ND'
 set_var_int_to_constant $audio_sound_file = 33851
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_19733
 
 :RYDER2_19733
@@ -2949,6 +3159,13 @@ if
 goto_if_false @RYDER2_19946
 120@ = Blip.AddForCoord(2454.626, -1972.534, 12.5617)
 Text.PrintNow('RY2_66', 6000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RY2_66', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :RYDER2_19946
 TIMERA = 0
@@ -3036,24 +3253,28 @@ switch_start 42@ total_jumps 4 default_jump 0 @RYDER2_20797 jumps 0 @RYDER2_2059
 set_var_text_label s$audio_string = 'RYD2_NA'
 set_var_int_to_constant $audio_sound_file = 33848
 start_new_script @AUDIOL $ryder 1 0 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_20797
 
 :RYDER2_20647
 set_var_text_label s$audio_string = 'RYD2_NB'
 set_var_int_to_constant $audio_sound_file = 33849
 start_new_script @AUDIOL $ryder 1 0 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_20797
 
 :RYDER2_20697
 set_var_text_label s$audio_string = 'RYD2_NC'
 set_var_int_to_constant $audio_sound_file = 33850
 start_new_script @AUDIOL $ryder 1 0 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_20797
 
 :RYDER2_20747
 set_var_text_label s$audio_string = 'RYD2_ND'
 set_var_int_to_constant $audio_sound_file = 33851
 start_new_script @AUDIOL $ryder 1 0 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_20797
 
 :RYDER2_20797
@@ -3166,12 +3387,14 @@ goto_if_false @RYDER2_21497
 set_var_text_label s$audio_string = 'RYD2_OA'
 set_var_int_to_constant $audio_sound_file = 33852
 start_new_script @AUDIOL $ryder 0 1 2 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_21540
 
 :RYDER2_21497
 set_var_text_label s$audio_string = 'RYD2_OB'
 set_var_int_to_constant $audio_sound_file = 33853
 start_new_script @AUDIOL $ryder 0 1 2 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 
 :RYDER2_21540
 TIMERA = 0
@@ -3207,6 +3430,7 @@ switch_continued 7 @RYDER2_22290 -1 @RYDER2_22304 -1 @RYDER2_22304 -1 @RYDER2_22
 set_var_text_label s$audio_string = 'RYD2_PA'
 set_var_int_to_constant $audio_sound_file = 33854
 start_new_script @AUDIOL $ryder 0 1 1 1 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(33855, 2)
 50@ += 1
@@ -3216,6 +3440,7 @@ goto @RYDER2_22304
 set_var_text_label s$audio_string = 'RYD2_PB'
 set_var_int_to_constant $audio_sound_file = 33855
 start_new_script @AUDIOL $scplayer 0 1 2 1 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(33856, 1)
 50@ += 1
@@ -3225,6 +3450,7 @@ goto @RYDER2_22304
 set_var_text_label s$audio_string = 'RYD2_PC'
 set_var_int_to_constant $audio_sound_file = 33856
 start_new_script @AUDIOL $ryder 0 1 1 1 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(33857, 2)
 50@ += 1
@@ -3234,6 +3460,7 @@ goto @RYDER2_22304
 set_var_text_label s$audio_string = 'RYD2_PD'
 set_var_int_to_constant $audio_sound_file = 33857
 start_new_script @AUDIOL $scplayer 0 1 2 1 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(33858, 1)
 50@ += 1
@@ -3243,6 +3470,7 @@ goto @RYDER2_22304
 set_var_text_label s$audio_string = 'RYD2_PE'
 set_var_int_to_constant $audio_sound_file = 33858
 start_new_script @AUDIOL $scplayer 0 1 1 1 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(33859, 2)
 50@ += 1
@@ -3253,6 +3481,7 @@ goto @RYDER2_22304
 set_var_text_label s$audio_string = 'RYD2_PF'
 set_var_int_to_constant $audio_sound_file = 33859
 start_new_script @AUDIOL $ryder 0 1 2 1 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(33860, 1)
 50@ += 1
@@ -3262,6 +3491,7 @@ goto @RYDER2_22304
 set_var_text_label s$audio_string = 'RYD2_PG'
 set_var_int_to_constant $audio_sound_file = 33860
 start_new_script @AUDIOL $ryder 0 1 1 1 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 50@ += 1
 goto @RYDER2_22304
 
@@ -3314,8 +3544,21 @@ goto_if_false @RYDER2_22617
 if 
   Char.IsInCar($scplayer, 95@)
 goto_if_false @RYDER2_22617
-if 
+492@ = 1 // all the network players are at the lock up
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if not Char.LocateAnyMeans2D($NETWORK_PLAYER[$temp_int], 0, 2454.626, -1972.534, 20.0, 20.0)
+        then
+            492@ = 0
+        end
+    end
+end
+
+if and
   Car.Locate3D(95@, 1, 2454.626, -1972.534, 12.5617, 4.0, 4.0, 4.0)
+  492@ == 1
 goto_if_false @RYDER2_22617
 if 
   Car.IsOnAllWheels(95@)
@@ -3399,6 +3642,7 @@ switch_continued 7 @RYDER2_23946 8 @RYDER2_24074 9 @RYDER2_24202 -1 @RYDER2_2431
 set_var_text_label s$audio_string = 'RYD2_SA'
 set_var_int_to_constant $audio_sound_file = 33866
 start_new_script @AUDIOL $scplayer 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(33867, 2)
 194@ += 1
@@ -3412,10 +3656,12 @@ if
   49@ == 0
 goto_if_false @RYDER2_23246
 start_new_script @AUDIOL $scplayer 0 1 2 1 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_23272
 
 :RYDER2_23246
 start_new_script @AUDIOL $scplayer 0 1 2 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 49@ = 0
 
 :RYDER2_23272
@@ -3432,10 +3678,12 @@ if
   49@ == 0
 goto_if_false @RYDER2_23374
 start_new_script @AUDIOL $ryder 0 1 1 1 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_23400
 
 :RYDER2_23374
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 49@ = 0
 
 :RYDER2_23400
@@ -3452,10 +3700,12 @@ if
   49@ == 0
 goto_if_false @RYDER2_23502
 start_new_script @AUDIOL $scplayer 0 1 2 1 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_23528
 
 :RYDER2_23502
 start_new_script @AUDIOL $scplayer 0 1 2 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 49@ = 0
 
 :RYDER2_23528
@@ -3472,10 +3722,12 @@ if
   49@ == 0
 goto_if_false @RYDER2_23630
 start_new_script @AUDIOL $ryder 0 1 1 1 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_23656
 
 :RYDER2_23630
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 49@ = 0
 
 :RYDER2_23656
@@ -3492,10 +3744,12 @@ if
   49@ == 0
 goto_if_false @RYDER2_23758
 start_new_script @AUDIOL $ryder 0 1 2 1 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_23784
 
 :RYDER2_23758
 start_new_script @AUDIOL $ryder 0 1 2 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 49@ = 0
 
 :RYDER2_23784
@@ -3512,10 +3766,12 @@ if
   49@ == 0
 goto_if_false @RYDER2_23886
 start_new_script @AUDIOL $ryder 0 1 1 1 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_23912
 
 :RYDER2_23886
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 49@ = 0
 
 :RYDER2_23912
@@ -3532,10 +3788,12 @@ if
   49@ == 0
 goto_if_false @RYDER2_24014
 start_new_script @AUDIOL $scplayer 0 1 2 1 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_24040
 
 :RYDER2_24014
 start_new_script @AUDIOL $scplayer 0 1 2 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 49@ = 0
 
 :RYDER2_24040
@@ -3552,10 +3810,12 @@ if
   49@ == 0
 goto_if_false @RYDER2_24142
 start_new_script @AUDIOL $scplayer 0 1 1 1 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_24168
 
 :RYDER2_24142
 start_new_script @AUDIOL $scplayer 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 49@ = 0
 
 :RYDER2_24168
@@ -3572,10 +3832,12 @@ if
   49@ == 0
 goto_if_false @RYDER2_24270
 start_new_script @AUDIOL $ryder 0 1 2 1 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_24296
 
 :RYDER2_24270
 start_new_script @AUDIOL $ryder 0 1 2 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 49@ = 0
 
 :RYDER2_24296
@@ -3602,6 +3864,7 @@ goto_if_false @RYDER2_24459
 set_var_text_label s$audio_string = 'RYD2_RA'
 set_var_int_to_constant $audio_sound_file = 33864
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 49@ = 1
 goto @RYDER2_24509
 
@@ -3609,6 +3872,7 @@ goto @RYDER2_24509
 set_var_text_label s$audio_string = 'RYD2_RB'
 set_var_int_to_constant $audio_sound_file = 33865
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 49@ = 1
 
 :RYDER2_24509
@@ -4157,6 +4421,7 @@ switch_start 42@ total_jumps 3 default_jump 0 @RYDER2_28228 jumps 0 @RYDER2_2805
 set_var_text_label s$audio_string = 'RYD2_QA'
 set_var_int_to_constant $audio_sound_file = 33861
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 49@ = 1
 goto @RYDER2_28228
 
@@ -4164,6 +4429,7 @@ goto @RYDER2_28228
 set_var_text_label s$audio_string = 'RYD2_QB'
 set_var_int_to_constant $audio_sound_file = 33862
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 49@ = 1
 goto @RYDER2_28228
 
@@ -4171,6 +4437,7 @@ goto @RYDER2_28228
 set_var_text_label s$audio_string = 'RYD2_QC'
 set_var_int_to_constant $audio_sound_file = 33863
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 49@ = 1
 goto @RYDER2_28228
 
@@ -4521,6 +4788,21 @@ wait 0
 goto @RYDER2_30367
 
 :RYDER2_30397
+set_lvar_int_to_lvar_int 494@ = 95@
+gosub @RYDER2_COOP_LEAVE_CAR // the van is moved for the scene
+set_lvar_int_to_lvar_int 494@ = 96@
+gosub @RYDER2_COOP_LEAVE_CAR // the patriots are deleted below
+set_lvar_int_to_lvar_int 494@ = 97@
+gosub @RYDER2_COOP_LEAVE_CAR
+486@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        Coop.ClearAllEntityBlipsForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+    end
+end
 if 
   not Car.IsDead(95@)
 goto_if_false @RYDER2_30443
@@ -4596,6 +4878,22 @@ Sequence.Clear(48@)
 Char.ClearTasksImmediately($scplayer)
 Char.SetCoordinates($scplayer, 2452.29, -1971.682, 12.5469)
 Char.SetHeading($scplayer, 153.4741)
+// the host is put on foot at the lock up, bring the network players next to him
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        gosub @RYDER2_COOP_GET_LOCKUP_POINT
+        if
+            Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+        then
+            Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 487@, 488@, 12.5469)
+        else
+            Char.SetCoordinates($NETWORK_PLAYER[$temp_int], 487@, 488@, 12.5469)
+        end
+        Char.SetHeading($NETWORK_PLAYER[$temp_int], 153.4741)
+    end
+end
 if 
   not Char.IsDead(115@)
 goto_if_false @RYDER2_30934
@@ -4637,6 +4935,7 @@ switch_start 49@ total_jumps 4 default_jump 0 @RYDER2_31740 jumps 0 @RYDER2_3112
 set_var_text_label s$audio_string = 'RYD2_TA'
 set_var_int_to_constant $audio_sound_file = 33876
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot2)
 Audio.LoadMissionAudio(33877, 2)
 49@ += 1
@@ -4659,6 +4958,7 @@ goto @RYDER2_31740
 set_var_text_label s$audio_string = 'RYD2_TB'
 set_var_int_to_constant $audio_sound_file = 33877
 start_new_script @AUDIOL $scplayer 0 1 2 1 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(33878, 1)
 49@ += 1
@@ -4671,6 +4971,7 @@ Camera.PointAtPoint(2450.561, -1967.251, 14.9539, SwitchType.JumpCut)
 set_var_text_label s$audio_string = 'RYD2_TC'
 set_var_int_to_constant $audio_sound_file = 33878
 start_new_script @AUDIOL $ryder 0 1 1 1 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 49@ += 1
 54@ = 0
 if 
@@ -4806,6 +5107,13 @@ if
 goto_if_false @RYDER2_32115
 37@ = 1
 Text.PrintNow('RY2_22', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RY2_22', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :RYDER2_32115
 if 
@@ -4825,6 +5133,13 @@ Task.Die($ryder)
 :RYDER2_32186
 37@ = 1
 Text.PrintNow('RY2_25', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RY2_25', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :RYDER2_32209
 if 
@@ -4838,6 +5153,13 @@ if
 goto_if_false @RYDER2_32289
 37@ = 1
 Text.PrintNow('RY2_40', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RY2_40', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @RYDER2_32328
 
 :RYDER2_32289
@@ -4846,6 +5168,13 @@ if
 goto_if_false @RYDER2_32328
 37@ = 1
 Text.PrintNow('RY2_40', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RY2_40', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :RYDER2_32328
 if and
@@ -4892,16 +5221,25 @@ goto_if_false @RYDER2_32606
 set_var_text_label s$audio_string = 'RYD2_LF'
 set_var_int_to_constant $audio_sound_file = 33838
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_32649
 
 :RYDER2_32606
 set_var_text_label s$audio_string = 'RYD2_LE'
 set_var_int_to_constant $audio_sound_file = 33837
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 
 :RYDER2_32649
 wait 4000
 Text.PrintNow('RY2_58', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RY2_58', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 37@ = 1
 
 :RYDER2_32677
@@ -5108,6 +5446,7 @@ goto_if_false @RYDER2_33836
 set_var_text_label s$audio_string = 'RYD2_VA'
 set_var_int_to_constant $audio_sound_file = 33883
 start_new_script @AUDIOL 102@(42@,9i) 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 300@ += 1
 
 :RYDER2_33836
@@ -5142,12 +5481,14 @@ goto_if_false @RYDER2_34094
 set_var_text_label s$audio_string = 'RYD2_VB'
 set_var_int_to_constant $audio_sound_file = 33884
 start_new_script @AUDIOL 102@(42@,9i) 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_34141
 
 :RYDER2_34094
 set_var_text_label s$audio_string = 'RYD2_VG'
 set_var_int_to_constant $audio_sound_file = 33889
 start_new_script @AUDIOL 102@(42@,9i) 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 
 :RYDER2_34141
 124@ = 1
@@ -5496,6 +5837,13 @@ if
   301@ == 0
 goto_if_false @RYDER2_36245
 Text.PrintNow('RY2_61', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RY2_61', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 301@ += 1
 
 :RYDER2_36245
@@ -5521,6 +5869,13 @@ if
   302@ == 0
 goto_if_false @RYDER2_36398
 Text.PrintNow('RY2_62', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RY2_62', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 302@ += 1
 
 :RYDER2_36398
@@ -5559,18 +5914,21 @@ switch_start 42@ total_jumps 3 default_jump 0 @RYDER2_36809 jumps 0 @RYDER2_3665
 set_var_text_label s$audio_string = 'RYD2_JA'
 set_var_int_to_constant $audio_sound_file = 33827
 start_new_script @AUDIOL $ryder 0 0 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_36809
 
 :RYDER2_36709
 set_var_text_label s$audio_string = 'RYD2_JB'
 set_var_int_to_constant $audio_sound_file = 33828
 start_new_script @AUDIOL $ryder 0 0 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_36809
 
 :RYDER2_36759
 set_var_text_label s$audio_string = 'RYD2_JC'
 set_var_int_to_constant $audio_sound_file = 33829
 start_new_script @AUDIOL $ryder 0 0 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 goto @RYDER2_36809
 
 :RYDER2_36809
@@ -5597,6 +5955,7 @@ goto_if_false @RYDER2_36938
 set_var_text_label s$audio_string = 'RYD2_LG'
 set_var_int_to_constant $audio_sound_file = 33839
 start_new_script @AUDIOL $ryder 0 1 1 0 
+gosub @RYDER2_COOP_PRINT_AUDIO_LINE
 145@ += 1
 
 :RYDER2_36938
@@ -6479,6 +6838,20 @@ Streaming.RemoveAnimation("COLT45")
 World.SetPedDensityMultiplier(1.0)
 World.SetCarDensityMultiplier(1.0)
 Game.SetWantedMultiplier(1.0)
+if
+    480@ <> -1
+then
+    Car.MarkAsNoLongerNeeded(480@)
+end
+Streaming.MarkModelAsNoLongerNeeded(466)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        Coop.ClearAllEntityBlipsForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+    end
+end
 $timer_mobile_start = Clock.GetGameTimer()
 start_new_script @CLEANAU 
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
@@ -6488,3 +6861,243 @@ $onmission = 0
 Mission.Finish
 return 
 
+:RYDER2_COOP_UPDATE
+if // the car blips are not needed anymore when the player found a car
+    486@ > 0
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                483@($temp_int,3i) == 0
+            then
+                if
+                    Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+                then
+                    483@($temp_int,3i) = 1
+                    Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 95@)
+                    if
+                        480@ <> -1
+                    then
+                        Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 480@)
+                    end
+                end
+            end
+        end
+    end
+end
+
+// the network players get the checkpoint of the host's current destination blip
+490@ = 0
+if and
+    34@ == 1
+    Blip.DoesExist(120@)
+then
+    490@ = 1 // the depot
+end
+if and
+    34@ == 3
+    Blip.DoesExist(122@)
+then
+    490@ = 2 // the gate switch
+end
+if and
+    34@ == 4
+    Blip.DoesExist(123@)
+then
+    490@ = 3 // the warehouse switch
+end
+if and
+    34@ == 6
+    Blip.DoesExist(120@)
+then
+    490@ = 4 // the lock up
+end
+if
+    not is_int_lvar_equal_to_int_lvar 490@ == 491@
+then
+    set_lvar_int_to_lvar_int 491@ = 490@
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+            if
+                491@ == 1
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(2699.293, -2395.013, 12.6172, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int]) // the depot
+            end
+            if
+                491@ == 2
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(2722.075, -2411.271, 12.6198, 1.5, 1.5, 1.5, $NETWORK_PLAYER[$temp_int]) // the gate switch
+            end
+            if
+                491@ == 3
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(2773.101, -2423.418, 12.6269, 1.5, 1.5, 1.5, $NETWORK_PLAYER[$temp_int]) // the warehouse switch
+            end
+            if
+                491@ == 4
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(2454.626, -1972.534, 12.5617, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int]) // the lock up
+            end
+        end
+    end
+end
+
+// the van is the host's to drive to the depot, keep its driver seat free while he is out of it
+if and
+    34@ == 1
+    35@ >= 2
+then
+    if
+        not Car.IsDead(95@)
+    then
+        if
+            not Char.IsInCar($scplayer, 95@)
+        then
+            493@ = Car.GetDriver(95@)
+            for $temp_int = 0 to 2
+                if
+                    Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                then
+                    if
+                        is_int_var_equal_to_int_lvar $NETWORK_PLAYER[$temp_int] == 493@
+                    then
+                        487@ = Car.GetOffsetInWorldCoords(488@, 489@, 95@, -2.5, 0.0, 0.0)
+                        Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 487@, 488@, 489@)
+                    end
+                end
+            end
+        end
+    end
+end
+
+// from the scene at the depot until ryder rides on its back the van is ryder's (recordings, loading),
+// it is locked for the host only, keep the network players out of it
+495@ = 0
+if and
+    34@ >= 2
+    6 > 34@
+then
+    495@ = 1
+end
+if and
+    34@ == 6
+    5 > 35@
+then
+    495@ = 1
+end
+if
+    495@ == 1
+then
+    set_lvar_int_to_lvar_int 494@ = 95@
+    gosub @RYDER2_COOP_LEAVE_CAR
+end
+
+// the forklift and the boxes are the host's, keep the network players out of it
+if and
+    34@ >= 3
+    6 > 34@
+then
+    set_lvar_int_to_lvar_int 494@ = 99@
+    gosub @RYDER2_COOP_LEAVE_CAR
+end
+return
+
+:RYDER2_COOP_PRINT_AUDIO_LINE
+// the dialogue subtitles are printed by AUDIOL, which is not synced
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer(s$audio_string, 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
+return
+
+:RYDER2_COOP_REMOVE_CAR_BLIPS
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        483@($temp_int,3i) = 1 // car_blips_removed
+        Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 95@)
+        if
+            480@ <> -1
+        then
+            Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 480@)
+        end
+    end
+end
+return
+
+:RYDER2_COOP_LEAVE_CAR
+// a network player in the car 494@ is taken out beside its left door
+if
+    Car.DoesExist(494@)
+then
+    if
+        not Car.IsDead(494@)
+    then
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                if
+                    Char.IsInCar($NETWORK_PLAYER[$temp_int], 494@)
+                then
+                    487@ = Car.GetOffsetInWorldCoords(488@, 489@, 494@, -2.5, 0.0, 0.0)
+                    Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 487@, 488@, 489@)
+                end
+            end
+        end
+    end
+end
+return
+
+:RYDER2_COOP_GET_GATE_POINT
+// beside the host's spot in front of the depot gate, off the van
+if
+    $temp_int == 0
+then
+    487@ = 2702.0
+    488@ = -2391.6
+end
+if
+    $temp_int == 1
+then
+    487@ = 2703.2
+    488@ = -2392.2
+end
+if
+    $temp_int == 2
+then
+    487@ = 2699.4
+    488@ = -2391.4
+end
+return
+
+:RYDER2_COOP_GET_LOCKUP_POINT
+// beside the host's spot at the lock up, off the van and ryder's walk
+if
+    $temp_int == 0
+then
+    487@ = 2451.0
+    488@ = -1970.4
+end
+if
+    $temp_int == 1
+then
+    487@ = 2450.0
+    488@ = -1971.6
+end
+if
+    $temp_int == 2
+then
+    487@ = 2451.6
+    488@ = -1969.2
+end
+return
