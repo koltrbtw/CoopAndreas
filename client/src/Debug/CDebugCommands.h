@@ -45,6 +45,9 @@
 //   watch-moves [ms]            per frame moves of the remote player's clone: mean, max, jerks, snaps, distance to
 //                               the vehicle it stands on
 //   ride [model]                a wandering car with an npc driver (455 flatbed), the player on its roof
+//   burn-me                     set the player on fire (CFireManager::StartFire)
+//   gas-me                      the player chokes (CTaskSimpleChoking, as tear gas)
+//   climb                       turn round to a handhold near and climb it
 //   npc-leave [speed]           the npc driver we sync of the nearest vehicle leaves it (pushed forward: rolls out)
 //   npc-knock                   CEventKnockOffBike on that driver
 //   npc-flush                   FlushImmediately on that driver: out at once

@@ -10,6 +10,7 @@
 #include <CTaskComplexEnterCarAsDriver.h>
 #include <CCarEnterExit.h>
 #include "CPassengerEnter.h"
+#include <CFireManager.h>
 
 static CTrain* FindNearestFrontCarriage(const CVector& position, bool bMissionOnly = false)
 {
@@ -172,7 +173,8 @@ static void LogPlayerAnims()
             nSlot++;
         }
         char szState[256];
-        int n = sprintf_s(szState, "slot %d task %d in %d seat %d anims", nSlot, pTask ? pTask->GetTaskType() : -1,
+        int n = sprintf_s(szState, "fire %d slot %d task %d in %d seat %d anims", pPed->m_pFire != nullptr, nSlot,
+            pTask ? pTask->GetTaskType() : -1,
             pPed->m_nPedFlags.bInVehicle, pPed->m_pVehicle && pPed->m_pVehicle->m_pDriver == pPed ? 0 : 1);
         for (auto pAssoc = RpAnimBlendClumpGetFirstAssociation(pPed->m_pRwClump); pAssoc && n < 240;
              pAssoc = RpAnimBlendGetNextAssociation(pAssoc))
@@ -827,6 +829,44 @@ void CDebugCommands::RunCommand(const std::string& line)
             float fTop = pCol ? pCol->m_boundBox.m_vecMax.z : 2.0f;
             pPlayer->SetPosn(pVehicle->GetPosition() + CVector(0.0f, 0.0f, fTop + 1.0f));
             logger::info("stand debug: ride car %d", car);
+        }
+    }
+    else if (command == "burn-me")
+    {
+        plugin::CallMethod<0x53A050, CFireManager*, CEntity*, CEntity*, float, uint8_t, unsigned int, int8_t>(
+            &gFireManager, pPlayer, nullptr, 0.8f, 1, 7000, 0);  // CFireManager::StartFire(CEntity*)
+    }
+    else if (command == "gas-me")
+    {
+        // the task the damage response of tear gas gives (a tear gas damage event alone doesn't make the player choke)
+        CTask* pTask = static_cast<CTask*>(CTask::operator new(0x1C));
+        plugin::CallMethod<0x6202C0, CTask*, CPed*, bool>(pTask, nullptr, true);  // CTaskSimpleChoking ctor
+        pPlayer->m_pIntelligence->m_TaskMgr.SetTask(pTask, TASK_PRIMARY_PHYSICAL_RESPONSE, false);
+    }
+    else if (command == "climb")
+    {
+        // turn round until CTaskSimpleClimb::TestForClimb finds a handhold, climb it (as CTaskComplexJump does)
+        float fHeading = pPlayer->m_fCurrentRotation;
+        for (int i = 0; i < 12; i++)
+        {
+            float fTry = fHeading + i * (2.0f * PI / 12.0f);
+            pPlayer->m_fCurrentRotation = pPlayer->m_fAimingRotation = fTry;
+            pPlayer->SetHeading(fTry);
+            pPlayer->UpdateRwMatrix();
+            CVector climbPos{};
+            float fClimbHeading = 0.0f;
+            uint8_t surface = 0;
+            CEntity* pEntity = plugin::CallAndReturn<CEntity*, 0x6803A0, CPed*, CVector&, float&, uint8_t&, bool>(
+                pPlayer, climbPos, fClimbHeading, surface, true);
+            if (pEntity)
+            {
+                CTask* pTask = static_cast<CTask*>(CTask::operator new(0x30));
+                plugin::CallMethod<0x67A110, CTask*, CEntity*, CVector*, float, uint8_t, int8_t, bool>(pTask, pEntity,
+                    &climbPos, fClimbHeading, surface, 1, false);  // CTaskSimpleClimb ctor, CLIMB_GRAB
+                pPlayer->m_pIntelligence->m_TaskMgr.SetTask(pTask, TASK_PRIMARY_PRIMARY, false);
+                logger::info("stand debug: climb at heading %.2f", fTry);
+                break;
+            }
         }
     }
     else if (command == "watch-ped")
