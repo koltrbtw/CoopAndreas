@@ -131,6 +131,8 @@ public:
     CVector contactOffset{};
     static constexpr float MAX_CONTACT_OFFSET = 30.0f;
     uint8_t stateFlags = 0;  // CPedStateSync: on fire, swimming, choking, climbing
+    // CGame::currArea: the interiors overlap the map and each other, the server splits the sectors by it
+    uint8_t area = 0;
 
 private:
     template <typename Stream>
@@ -173,6 +175,16 @@ private:
 
         serialize_uint8(stream, epoch);
         serialize_uint8(stream, stateFlags);
+        bool hasArea = Stream::IsWriting && area != 0;
+        serialize_bool(stream, hasArea);
+        if (hasArea)
+        {
+            serialize_uint8(stream, area);
+        }
+        else
+        {
+            area = 0;
+        }
         bool hasContact = Stream::IsWriting && contactVehicle.valid();
         serialize_bool(stream, hasContact);
         if (hasContact)

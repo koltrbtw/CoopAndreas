@@ -12,9 +12,15 @@ public:
     static void Reset();
 
     static bool CanSpawnAt(const CVector& position);
+    // the peds an interior gets on the way in: nobody else is in it
+    static bool CanPopulateInterior(const CVector& position);
 
     static void InjectHooks();
 
+    static inline bool ms_bPopulatingInterior = false;  // inside CPopulation::PopulateInterior we let through
+
 private:
+    static constexpr float INTERIOR_RADIUS = 150.0f;
     static inline std::bitset<WorldGrid::SECTOR_COUNT> ms_ownedSectors{};
+    static inline uint8_t ms_nOwnedArea = 0;  // the area (interior) of the sectors
 };
