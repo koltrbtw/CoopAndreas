@@ -120,6 +120,23 @@ void __cdecl WorldHooks::CWorld__Remove_Hook(CEntity* entity)
             CNetworkVehicleManager::Remove(networkVehicle);
             delete networkVehicle;
         }
+        else if (networkVehicle && !networkVehicle->m_bTrain)
+        {
+            // the game removes a clone (our own removals call CWorld::Remove directly): a script's DELETE_CAR, a
+            // crusher. The wrapper with no vehicle caught updates and the player had no vehicle there; the server
+            // spawns it again, or deletes it for everyone if it is the host's mission one
+            Packets::Vehicles::VehicleRemove packet{};
+            packet.vehicleid = networkVehicle->m_vehicleId;
+            packet.deletedByGame = true;
+            GetPacketFactory().Send(packet);
+            logger::info("vehicle %s clone removed by the game", to_string(packet.vehicleid).c_str());
+
+            // the game deletes the vehicle itself
+            vehicle->CleanUpOldReference(reinterpret_cast<CEntity**>(&networkVehicle->m_pVehicle));
+            networkVehicle->m_pVehicle = nullptr;
+            CNetworkVehicleManager::Remove(networkVehicle);
+            delete networkVehicle;
+        }
     }
     else if (entity->m_nType == eEntityType::ENTITY_TYPE_PED)
     {

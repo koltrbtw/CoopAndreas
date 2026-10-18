@@ -63,12 +63,16 @@ class VehicleRemove : public Packet
 
 public:
     vehicleid_t vehicleid{};
+    // from a non-syncer: the game removed its clone (a script's DELETE_CAR, a crusher); the host's script deletes a
+    // mission vehicle for everyone, any other clone is dropped (the server spawns it again)
+    bool deletedByGame = false;
 
 private:
     template <typename Stream>
     bool Serialize(Stream& stream)
     {
         serialize_vehicleid(stream, vehicleid);
+        serialize_bool(stream, deletedByGame);
         return true;
     }
 };

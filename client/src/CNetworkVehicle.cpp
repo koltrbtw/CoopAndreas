@@ -226,8 +226,9 @@ void CNetworkVehicle::BecomeSyncer(const Packets::Vehicles::VehicleHandoff* pHan
 {
     m_bSyncing = true;
     m_nOwnershipChangeTime = CTimer::m_snTimeInMilliseconds;
-    // mission vehicles are handed over only by the collision rule of CPopulationHandover::Process
-    m_bBorrowed = pHandoff && m_nCreatedBy == MISSION_VEHICLE && !CLocalPlayer::m_bIsHost;
+    // a mission vehicle we got (by the collision rule of CPopulationHandover::Process, or we drove it) goes back to
+    // the host, whose scripts drive it (SET_CAR_HEALTH, LOCK_CAR_DOORS, CAR_GOTO...), once nobody is inside
+    m_bBorrowed = m_nCreatedBy == MISSION_VEHICLE && !CLocalPlayer::m_bIsHost;
     m_bHasTarget = false;
     m_bHasRotorSpeed = false;
     m_bKeepSpeed = false;
@@ -254,10 +255,18 @@ void CNetworkVehicle::BecomeSyncer(const Packets::Vehicles::VehicleHandoff* pHan
 
     if (pHandoff->hasTransform)
     {
-        m_pVehicle->m_matrix->pos = pHandoff->pos;
-        m_pVehicle->m_matrix->right = pHandoff->roll;
-        m_pVehicle->m_matrix->up = pHandoff->rot;
+        // the whole matrix: a tilted one with the old up axis was skewed
+        CMatrixLink* pMatrix = m_pVehicle->m_matrix;
+        pMatrix->pos = pHandoff->pos;
+        pMatrix->right = pHandoff->roll;
+        pMatrix->up = pHandoff->rot;
+        const CVector& r = pMatrix->right;
+        const CVector& f = pMatrix->up;
+        pMatrix->at = CVector(r.y * f.z - r.z * f.y, r.z * f.x - r.x * f.z, r.x * f.y - r.y * f.x);
         m_pVehicle->m_vecMoveSpeed = pHandoff->velocity;
+        m_pVehicle->UpdateRwMatrix();
+        m_pVehicle->UpdateRwFrame();
+        m_pVehicle->RemoveAndAdd();
     }
 
     // the population code may remove it again, but not in the same frame

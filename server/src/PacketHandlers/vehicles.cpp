@@ -92,6 +92,23 @@ PACKET_HANDLER(
 
             CNetworkVehicleManager::Remove(vehicle);
         }
+        else if (pVehicleRemove->deletedByGame && pNetworkPlayer->m_bIsHost && vehicle->m_nCreatedBy == MISSION_VEHICLE)
+        {
+            // the host's script deleted its mission vehicle someone else syncs: gone for everyone, its syncer too
+            pVehicleRemove->deletedByGame = false;
+            pVehicleRemove->serverTime = g_serverTime;
+            CRelevanceManager::SendToRelevant(*pVehicleRemove, vehicle->m_vRelevantTo, pNetworkPlayer);
+            if (vehicle->m_pSyncer &&
+                std::find(vehicle->m_vRelevantTo.begin(), vehicle->m_vRelevantTo.end(), vehicle->m_pSyncer) ==
+                    vehicle->m_vRelevantTo.end())
+            {
+                GetPacketFactory().Send(*pVehicleRemove, vehicle->m_pSyncer);
+            }
+            logger::info("%s deleted mission vehicle %s", pNetworkPlayer->GetName().c_str(),
+                to_string(pVehicleRemove->vehicleid).c_str());
+
+            CNetworkVehicleManager::Remove(vehicle);
+        }
         else
         {
             // a clone the sender dropped, see CNetworkVehicleManager::DropStaleClones on the client: if the vehicle
