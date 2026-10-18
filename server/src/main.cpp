@@ -35,6 +35,10 @@ int main(int argc, char* argv[])
     SetConsoleTitleW(L"CoopAndreas Server");
 #endif
 
+    // stdout redirected to a file or a pipe (a dev stand reads the log live) is fully buffered by default: the lines
+    // came in 4 KB chunks
+    setvbuf(stdout, nullptr, _IONBF, 0);
+
     std::filesystem::path exeDir = GetExecutableDir();
     std::error_code ec;
     std::filesystem::current_path(exeDir, ec);

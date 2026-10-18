@@ -1,7 +1,7 @@
 #pragma once
 
-// switches RenderWare to its windowed video mode and lays out the windows side by side,
-// so two local instances (--coopd0 / --coopd1) can run at the same time
+// switches RenderWare to its windowed video mode and lays out the windows in a grid, so several local instances
+// (--coopd<N>) can run at the same time without taking the focus or the cursor from the user
 class CWindowedMode
 {
 public:
