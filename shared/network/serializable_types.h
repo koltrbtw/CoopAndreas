@@ -102,12 +102,18 @@ struct SVehicleExtras
     bool hasTurret = false;
     float turretHorizontal = 0.0f;
     float turretVertical = 0.0f;
+    // the state the clone's pad or ai would get wrong: a siren toggled by a pad edge a lost update skipped, an alarm
+    // set off by a pulled door, the lights a script forced (FORCE_CAR_LIGHTS)
+    bool siren = false;           // CVehicle::m_nVehicleFlags.bSirenOrAlarm
+    bool alarm = false;           // CVehicle::m_nAlarmState running
+    uint8_t overrideLights = 0;   // CVehicle::m_nOverrideLights: none, forced off, forced on
 
     bool operator==(const SVehicleExtras& r) const
     {
         return engineOn == r.engineOn && lightsOn == r.lightsOn && heliSearchLight == r.heliSearchLight &&
                smokeTrail == r.smokeTrail && hasDoors == r.hasDoors && memcmp(doors, r.doors, sizeof(doors)) == 0 &&
-               hasTurret == r.hasTurret && turretHorizontal == r.turretHorizontal && turretVertical == r.turretVertical;
+               hasTurret == r.hasTurret && turretHorizontal == r.turretHorizontal && turretVertical == r.turretVertical &&
+               siren == r.siren && alarm == r.alarm && overrideLights == r.overrideLights;
     }
 
     template <typename Stream>
@@ -137,6 +143,9 @@ struct SVehicleExtras
             serialize_float(stream, turretHorizontal);
             serialize_float(stream, turretVertical);
         }
+        serialize_bool(stream, siren);
+        serialize_bool(stream, alarm);
+        serialize_int(stream, overrideLights, 0, 2);
         return true;
     }
 };

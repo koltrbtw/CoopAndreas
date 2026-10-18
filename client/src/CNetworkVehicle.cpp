@@ -861,6 +861,10 @@ static bool HasTurret(CVehicle* pVehicle)
     return false;
 }
 
+// CVehicle::m_nAlarmState: ms left of the ringing (ProcessCarAlarm, 0x6D21F0, counts it down), 0xFFFF armed and quiet
+static constexpr unsigned short ALARM_STATE_ARMED = 0xFFFF;
+static constexpr unsigned short ALARM_DURATION = 2000;  // ms, more than an idle keepalive: refreshed while it rings
+
 template <typename T>
 static T& VehicleField(CVehicle* pVehicle, uintptr_t offset)
 {
@@ -873,6 +877,9 @@ void CNetworkVehicle::CollectExtras(CVehicle* pVehicle, SVehicleExtras& extras)
     extras.lightsOn = pVehicle->m_nVehicleFlags.bLightsOn;
     extras.heliSearchLight = pVehicle->m_nVehicleSubType == VEHICLE_HELI && VehicleField<bool>(pVehicle, OFFSET_SEARCH_LIGHT);
     extras.smokeTrail = pVehicle->m_nVehicleSubType == VEHICLE_PLANE && VehicleField<uint8_t>(pVehicle, OFFSET_SMOKE_TRAIL) == 1;
+    extras.siren = pVehicle->m_nVehicleFlags.bSirenOrAlarm;
+    extras.alarm = pVehicle->m_nAlarmState > 0 && pVehicle->m_nAlarmState != ALARM_STATE_ARMED;
+    extras.overrideLights = static_cast<uint8_t>(std::min<unsigned int>(pVehicle->m_nOverrideLights, 2));
 
     if (pVehicle->m_nVehicleType != VEHICLE_AUTOMOBILE)
     {
@@ -904,6 +911,17 @@ void CNetworkVehicle::ApplyExtras(const SVehicleExtras& extras)
 
     m_pVehicle->m_nVehicleFlags.bEngineOn = extras.engineOn;
     m_pVehicle->m_nVehicleFlags.bLightsOn = extras.lightsOn;
+    m_pVehicle->m_nVehicleFlags.bSirenOrAlarm = extras.siren;
+    m_pVehicle->m_nOverrideLights = extras.overrideLights;
+    // CVehicle::ProcessCarAlarm (0x6D21F0) counts it down to 0; kept going while the syncer's one does
+    if (extras.alarm && (m_pVehicle->m_nAlarmState == 0 || m_pVehicle->m_nAlarmState == ALARM_STATE_ARMED))
+    {
+        m_pVehicle->m_nAlarmState = ALARM_DURATION;
+    }
+    else if (!extras.alarm && m_pVehicle->m_nAlarmState != ALARM_STATE_ARMED)
+    {
+        m_pVehicle->m_nAlarmState = 0;
+    }
     if (m_pVehicle->m_nVehicleSubType == VEHICLE_HELI)
     {
         VehicleField<bool>(m_pVehicle, OFFSET_SEARCH_LIGHT) = extras.heliSearchLight;
