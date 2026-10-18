@@ -10,6 +10,7 @@
 #include <Debug/CImGui.h>
 #include <CWindowedMode.h>
 #include <algorithm>
+#include "Debug/CStandAgent.h"
 
 semver_t CCore::Version;
 
@@ -72,6 +73,7 @@ void CCore::Init()
 
     if (ms_bDebug)
     {
+        CStandAgent::ParseCommandLine();
         CWindowedMode::Init();
         CHangWatchdog::Start();
     }
@@ -122,6 +124,7 @@ void CCore::Init()
             setvbuf(stdout, nullptr, _IONBF, 0);
         }
         logger::info("debug instance %d log", ms_nRunIndex);
+        CStandAgent::Init();
     }
 }
 
