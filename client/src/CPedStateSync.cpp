@@ -27,6 +27,7 @@ uint8_t CPedStateSync::Collect(CPed* pPed)
     flags |= HasTask(pPed, TASK_SIMPLE_SWIM) ? STATE_SWIMMING : 0;
     flags |= HasTask(pPed, TASK_SIMPLE_CHOKING) ? STATE_CHOKING : 0;
     flags |= HasTask(pPed, TASK_SIMPLE_CLIMB) ? STATE_CLIMBING : 0;
+    flags |= HasTask(pPed, TASK_COMPLEX_USE_MOBILE_PHONE) ? STATE_USING_PHONE : 0;
     return flags;
 }
 
@@ -103,9 +104,20 @@ static void ApplyClimbing(CPed* pPed, bool bStarted)
     pPed->m_pIntelligence->m_TaskMgr.SetTask(pTask, TASK_PRIMARY_PRIMARY, false);
 }
 
+// the script command the call scripts use: the phone model in the hand, the in / talk / out anims
+static void ApplyPhone(CPed* pPed, bool bStarted, bool bStopped)
+{
+    bool bOnPhone = HasTask(pPed, TASK_COMPLEX_USE_MOBILE_PHONE);
+    if ((bStarted && !bOnPhone) || (bStopped && bOnPhone))
+    {
+        plugin::Command<Commands::TASK_USE_MOBILE_PHONE>(CPools::GetPedRef(pPed), bStarted);
+    }
+}
+
 void CPedStateSync::Apply(CPed* pPed, uint8_t flags, uint8_t& lastFlags)
 {
     uint8_t started = flags & ~lastFlags;
+    uint8_t stopped = lastFlags & ~flags;
     lastFlags = flags;
     if (!pPed || !pPed->IsAlive() || pPed->m_nPedFlags.bInVehicle)
     {
@@ -116,4 +128,5 @@ void CPedStateSync::Apply(CPed* pPed, uint8_t flags, uint8_t& lastFlags)
     ApplySwimming(pPed, (flags & STATE_SWIMMING) != 0);
     ApplyChoking(pPed, (flags & STATE_CHOKING) != 0, (started & STATE_CHOKING) != 0);
     ApplyClimbing(pPed, (started & STATE_CLIMBING) != 0);
+    ApplyPhone(pPed, (started & STATE_USING_PHONE) != 0, (stopped & STATE_USING_PHONE) != 0);
 }
