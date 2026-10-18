@@ -43,6 +43,7 @@
 #include <CWorldObjectSync.h>
 #include <network/packets/scripts.h>
 #include <CNetworkEntityBlip.h>
+#include "Debug/CStandAgent.h"
 
 unsigned int lastOnFootSyncTickRate = 0;
 unsigned int lastDriverSyncTickRate = 0;
@@ -93,6 +94,7 @@ public:
         };
         Events::gameProcessEvent += []
         {
+            CStandAgent::Process();
             CNetworkAnimQueue::Process();
             CEntryExitTransitionSync::Process();
             CDiscordRPCMgr::Update();

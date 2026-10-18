@@ -9,6 +9,8 @@
 #include <CLaunchManager.h>
 #include <Debug/CImGui.h>
 #include <CWindowedMode.h>
+#include <algorithm>
+#include "Debug/CStandAgent.h"
 
 semver_t CCore::Version;
 
@@ -51,20 +53,27 @@ void CCore::Init()
 {
     CCrashLog::ms_lpPreviousFilter = SetUnhandledExceptionFilter(CCrashLog::ExceptionHandler);
 
+    // --coopd<N>: local debug instance N (0..7, the server takes 8 players), --coopslots <K>: how many of them the
+    // stand runs, for the window layout (2 by default)
     LPTSTR cmd = GetCommandLine();
-    if (strstr(cmd, "--coopd0") != nullptr)
+    if (const char* pDebug = strstr(cmd, "--coopd"); pDebug && isdigit((unsigned char)pDebug[strlen("--coopd")]))
     {
-        ms_bDebug = true;
-        ms_nRunIndex = 0;
+        const int index = atoi(pDebug + strlen("--coopd"));
+        if (index < MAX_DEBUG_INSTANCES)
+        {
+            ms_bDebug = true;
+            ms_nRunIndex = (uint8_t)index;
+        }
     }
-    if (strstr(cmd, "--coopd1") != nullptr)
+    if (const char* pSlots = strstr(cmd, "--coopslots "))
     {
-        ms_bDebug = true;
-        ms_nRunIndex = 1;
+        const int slots = atoi(pSlots + strlen("--coopslots "));
+        ms_nRunSlots = (uint8_t)std::clamp(slots, 1, MAX_DEBUG_INSTANCES);
     }
 
     if (ms_bDebug)
     {
+        CStandAgent::ParseCommandLine();
         CWindowedMode::Init();
         CHangWatchdog::Start();
     }
@@ -115,6 +124,7 @@ void CCore::Init()
             setvbuf(stdout, nullptr, _IONBF, 0);
         }
         logger::info("debug instance %d log", ms_nRunIndex);
+        CStandAgent::Init();
     }
 }
 

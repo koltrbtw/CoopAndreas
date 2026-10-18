@@ -2,10 +2,19 @@
 
 class logger
 {
+public:
+    // set by the code that wants the lines logged on this thread (a stand command run for the dev tool), nullptr
+    // otherwise
+    static inline thread_local std::string* ms_pCapture = nullptr;
+
 private:
     static void log(const char* text, const char* level, const char* color)
     {
         std::cout << color << "[" << level << "]" << "\033[0m" << ": " << text << std::endl;
+        if (ms_pCapture)
+        {
+            ms_pCapture->append("[").append(level).append("]: ").append(text).append("\n");
+        }
     }
 
 public:
