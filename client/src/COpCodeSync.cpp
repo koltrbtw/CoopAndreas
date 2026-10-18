@@ -189,6 +189,7 @@ static uint16_t textParamCount = 0;
 
 static uint32_t lastOpCodeProcessed;
 static CRunningScript* lastProcessedScript;
+static bool bInScriptCommand = false;
 
 static uint8_t currentStringIdx = 0;
 
@@ -210,6 +211,23 @@ void __fastcall CRunningScript__ReadTextLabelFromScript_Hook_SwitchParametersCon
     memset(ptr, 0, len);
     strncpy(ptr, textParamBuffer[currentStringIdx], textLengthBuffer[currentStringIdx]);
     currentStringIdx++;
+}
+
+bool COpCodeSync::IsInUnsyncedScriptCommand()
+{
+    if (!bInScriptCommand || bProcessingNetworkOpcode || !lastProcessedScript)
+    {
+        return false;
+    }
+
+    for (size_t i = 0; i < ms_iFreeSyncedScript; ++i)
+    {
+        if (strnicmp(ms_aszSyncedScripts[i], lastProcessedScript->m_szName, 7) == 0)
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
 /// <param name="opcodeIdx">syncedOpcodes index</param>
@@ -923,9 +941,11 @@ void __declspec(naked) FinishedOpcodeProcessing_Hook()
     {
         mov lastOpCodeProcessed, ecx
         mov lastProcessedScript, esi
+        mov bInScriptCommand, 1
 
         mov ecx, esi
         call edx
+        mov bInScriptCommand, 0
 
         push eax
         call BuildAndSendOpcode

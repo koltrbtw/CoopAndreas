@@ -89,4 +89,6 @@ public:
 	static void HandlePacket(const uint8_t* buffer, int bufferSize);
 	static std::vector<uint8_t> COpCodeSync::SerializeOpcode(int idx, int& outSize);
 	static bool COpCodeSync::IsOpcodeSyncable(int opcode, int* opcodeIdx = nullptr, bool ignoreOpCodeSync = false);
+    // a command of a script every client runs on its own (a shop, a gym) is being processed now (not a replay)
+    static bool IsInUnsyncedScriptCommand();
 };
