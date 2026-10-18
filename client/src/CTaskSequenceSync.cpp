@@ -246,6 +246,9 @@ void CTaskSequenceSync::HandlePacket(void* pData, int size)
     }
 
     CPed* ped = nullptr;
+    // an npc clone: it aims by its syncer's on foot updates (bAiming) and fires by PED_SHOT_SYNC; our copy of a shoot
+    // task started a ping (and an anim block) later and kept it aiming when the syncer's ped already gestured
+    bool bNpcClone = false;
 
     if (!pedid.valid())
     {
@@ -259,6 +262,7 @@ void CTaskSequenceSync::HandlePacket(void* pData, int size)
         if (auto networkPed = CNetworkPedManager::GetPed(pedid))
         {
             ped = networkPed->m_pPed;
+            bNpcClone = !networkPed->m_bSyncing;
         }
     }
 
@@ -278,6 +282,17 @@ void CTaskSequenceSync::HandlePacket(void* pData, int size)
     {
         uint8_t len = *(uint8_t*)((int)pData + ptr);
         ptr++;
+
+        OpcodeSyncHeader taskHeader{};
+        if (len >= sizeof(taskHeader))
+        {
+            memcpy(&taskHeader, (uint8_t*)((int)pData + ptr), sizeof(taskHeader));
+        }
+        if (bNpcClone && taskHeader.opcode == COMMAND_TASK_SHOOT_AT_COORD)
+        {
+            ptr += len;
+            continue;
+        }
 
         COpCodeSync::ms_bProcessingTaskSequence = true;
         COpCodeSync::HandlePacket((uint8_t*)((int)pData + ptr), len);

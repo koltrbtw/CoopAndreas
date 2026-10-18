@@ -367,6 +367,8 @@ PACKET_HANDLER(ePacketType::PED_SHOT_SYNC, Packets::Peds::PedShotSync* pPedShotS
         {
             pNetworkPed->m_pPed->SetCurrentWeapon(pPedShotSync->weaponType);
         }
+        // a sure shot of the syncer's (Smoke at Emmet's bottles, accuracy 100) missed here by the clone's default spread
+        pNetworkPed->m_pPed->m_nWeaponAccuracy = pPedShotSync->accuracy;
         pNetworkPed->m_pPed->GetWeapon().Fire(
             pNetworkPed->m_pPed, &pPedShotSync->origin, &pPedShotSync->effect, nullptr, &pPedShotSync->target, nullptr);
     }

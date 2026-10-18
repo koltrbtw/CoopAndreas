@@ -487,6 +487,8 @@ public:
     WorldPositionCompressed origin{};
     WorldPositionCompressed effect{};
     WorldPositionCompressed target{};
+    // CPed::m_nWeaponAccuracy (SET_CHAR_ACCURACY of a script isn't synced): the shot spreads from the target by it
+    uint8_t accuracy = 0;
 
 private:
     template <typename Stream>
@@ -497,6 +499,7 @@ private:
         serialize_object(stream, origin);
         serialize_object(stream, effect);
         serialize_object(stream, target);
+        serialize_uint8(stream, accuracy);
         return true;
     }
 };
