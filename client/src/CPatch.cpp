@@ -483,6 +483,8 @@ uint32_t CStreaming__AddImageToList_Hook(const char* fileName, bool notPlayerFil
     return plugin::CallAndReturnDyn<uint32_t>(CStreaming__AddImageToList_ptr, fileName, notPlayerFile);
 }
 
+static constexpr unsigned int MISSION_BLOCK_SIZE = 0x20000;  // 128 KB, the original 69000
+
 void PatchSCM()
 {
     // fix modloader compatibility
@@ -504,6 +506,18 @@ void PatchSCM()
     // hook script.img loading
     CStreaming__AddImageToList_ptr = injector::GetBranchDestination(0x5B915B).as_int();
     patch::RedirectCall(0x5B915B, CStreaming__AddImageToList_Hook);
+
+    // a mission is read into CTheScripts::MissionBlock (0xA7A6A0, the 69000 bytes after main in ScriptSpace) and
+    // nothing past it: an adapted mission grew bigger (DRUGS4 75990 bytes). Its jumps go from its base IP and the
+    // globals from ScriptSpace, so it can live in a bigger buffer of ours. The launch handler (LOAD_AND_LAUNCH_MISSION
+    // and the debug one) is the only user: the read buffer and size, the start IP and the base IP
+    static uint8_t s_aMissionBlock[MISSION_BLOCK_SIZE];
+    for (uintptr_t address : {0x4899D7u, 0x4899F6u, 0x489A0Eu, 0x489A60u, 0x489A76u, 0x489A8Eu})
+    {
+        patch::SetPointer(address, s_aMissionBlock);
+    }
+    patch::SetUInt(0x4899D2, MISSION_BLOCK_SIZE);  // push 0x10D88
+    patch::SetUInt(0x489A5B, MISSION_BLOCK_SIZE);
 }
 
 void CPatch::ApplyPatches()
