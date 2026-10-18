@@ -952,7 +952,12 @@ void CNetworkVehicle::ApplyExtras(const SVehicleExtras& extras)
         return;
     }
 
-    m_pVehicle->m_nVehicleFlags.bEngineOn = extras.engineOn;
+    // we drive it: the engine is ours. Until the server makes us its syncer the old one's idle updates come on, the
+    // engine they said off stopped the one our enter started - a car that wouldn't go until got in again
+    if (!m_pVehicle->m_pDriver || m_pVehicle->m_pDriver != FindPlayerPed(0))
+    {
+        m_pVehicle->m_nVehicleFlags.bEngineOn = extras.engineOn;
+    }
     m_pVehicle->m_nVehicleFlags.bLightsOn = extras.lightsOn;
     m_pVehicle->m_nVehicleFlags.bSirenOrAlarm = extras.siren;
     m_pVehicle->m_nOverrideLights = extras.overrideLights;
