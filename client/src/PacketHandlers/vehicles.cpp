@@ -107,6 +107,12 @@ PACKET_HANDLER(ePacketType::VEHICLE_IDLE_UPDATE, Packets::Vehicles::VehicleIdleU
     if (CVehiclePushSync::IsWaitingForHandoff(pNetworkVehicle))
         return;
 
+    // our vehicle tows it, the server makes it ours on our next driver update; its syncer saw it standing
+    CVehicle* pTractorVehicle = pNetworkVehicle->m_pVehicle->m_pTractor;
+    CNetworkVehicle* pTractor = pTractorVehicle ? CNetworkVehicleManager::GetVehicle(pTractorVehicle) : nullptr;
+    if (pTractor && pTractor->m_bSyncing)
+        return;
+
     CVehicle* pVehicle = pNetworkVehicle->m_pVehicle;
     pNetworkVehicle->m_bHasRotorSpeed = pVehicleIdleUpdate->hasRotorSpeed;
     pNetworkVehicle->ApplyExtras(pVehicleIdleUpdate->extras);

@@ -929,6 +929,43 @@ void CDebugCommands::RunCommand(const std::string& line)
         ms_moves.clear();
         ms_nSnapsAtStart = CPlayerPositionSync::ms_nSnaps;
     }
+    else if (command == "tow")
+    {
+        // a tractor in front of the watched vehicle (a trailer), the player drives it, the trailer hitched at once;
+        // then a push forward (units per frame)
+        float speed = 0.3f;
+        int model = 515;  // roadtrain
+        stream >> speed >> model;
+        CVehicle* pTrailer = nullptr;
+        for (CNetworkVehicle* pWatched : CNetworkVehicleManager::m_pVehicles)
+        {
+            if (to_string(pWatched->m_vehicleId) == ms_watchedVehicle)
+            {
+                pTrailer = pWatched->m_pVehicle;
+            }
+        }
+        if (!pTrailer)
+        {
+            logger::info("stand debug: no watched trailer");
+            return;
+        }
+        plugin::Command<Commands::REQUEST_MODEL>(model);
+        plugin::Command<Commands::LOAD_ALL_MODELS_NOW>();
+        CVector pos = pTrailer->GetPosition() + pTrailer->GetForward() * 10.0f;
+        int car = 0;
+        plugin::Command<Commands::CREATE_CAR>(model, pos.x, pos.y, pos.z + 1.0f, &car);
+        CVehicle* pTractor = CPools::GetVehicle(car);
+        if (!pTractor)
+        {
+            return;
+        }
+        pTractor->SetHeading(pTrailer->GetHeading());
+        plugin::Command<Commands::WARP_CHAR_INTO_CAR>(CPools::GetPedRef(pPlayer), car);
+        pTrailer->SetTowLink(pTractor, true);
+        pTractor->m_vecMoveSpeed = pTractor->GetForward() * speed;
+        ms_nLastCar = car;
+        logger::info("stand debug: tow car %d, trailer towed %d", car, pTrailer->m_pTractor == pTractor);
+    }
     else if (command == "ride")
     {
         // a car with an npc driver wanders, the player stands on its roof
