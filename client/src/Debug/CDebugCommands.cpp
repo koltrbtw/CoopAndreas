@@ -273,6 +273,26 @@ void CDebugCommands::RunCommand(const std::string& line)
             CWanted::SetMaximumWantedLevel(6);
         }
     }
+    else if (command == "wanted")
+    {
+        int level = 4;
+        stream >> level;
+        plugin::Command<Commands::ALTER_WANTED_LEVEL>(0, level);
+    }
+    else if (command == "helis")
+    {
+        // police and news helis around: ours (we generated or got them) and clones
+        int ours = 0, clones = 0;
+        for (CNetworkVehicle* pNetworkVehicle : CNetworkVehicleManager::m_pVehicles)
+        {
+            CVehicle* pVehicle = pNetworkVehicle->m_pVehicle;
+            if (pVehicle && (pVehicle->m_nModelIndex == 497 || pVehicle->m_nModelIndex == 488))
+            {
+                (pNetworkVehicle->m_bSyncing ? ours : clones)++;
+            }
+        }
+        logger::info("stand debug: helis ours %d clones %d", ours, clones);
+    }
     else if (command == "mission-train")
     {
         int type = 0;
