@@ -48,6 +48,7 @@ void CNetworkPlayer::CreatePed(CVector position)
     *m_pPed->m_pPlayerData->m_pPedClothesDesc = m_pPedClothesDesc;
 
     CClothes::RebuildPlayer(m_pPed, false);
+    m_bHasTargetPos = false;  // the first update puts it there
 
     // a jacker of this game would drag it out here only, the sender keeps driving; a player jacking it is let
     // through by CPlayerPed__ProcessControl_Hook, the sender plays our enter task too

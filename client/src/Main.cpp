@@ -209,6 +209,7 @@ public:
 
                         onFootUpdate.idleAnimCount = CPedAnimSync::Collect(localPlayer, onFootUpdate.idleAnims,
                             Packets::Players::OnFootUpdate::MAX_IDLE_ANIMS, ANIM_GROUP_PLAYIDLES);
+                        CPlayerPositionSync::Collect(localPlayer, onFootUpdate);
                         GetPacketFactory().Send(onFootUpdate);
 
                         lastOnFootSyncTickRate = tickCount;
@@ -239,6 +240,7 @@ public:
                 CAimSync::ProcessSyncing();
 
                 CNetworkPedManager::Process();
+                CPlayerPositionSync::Process();
                 CNetworkVehicleManager::Process();
                 CSniperDot::Process();
 
