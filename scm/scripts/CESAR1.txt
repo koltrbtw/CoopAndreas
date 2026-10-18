@@ -3,6 +3,8 @@
 
 :CESAR1
 script_name 'CESAR1'
+Coop.EnableSyncingThisScript()
+
 gosub @CESAR1_1165
 if 
   has_deatharrest_been_executed 
@@ -157,7 +159,22 @@ return
 
 :CESAR1_1165
 Stat.RegisterMissionGiven
+$NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2] = Coop.CollectNetworkPlayersForTheMission()
 $onmission = 1
+160@ = -1 // the spare car for the network players
+161@ = 0
+for $temp_int = 0 to 2
+    162@($temp_int,3i) = 0 // car_blip_removed
+end
+165@ = 0 // the spare car blip is shown to the network players
+166@ = 0 // the destination shown to the network players: 1 cesar's car, 2 behind the start line
+167@ = 0
+168@ = 0.0 // the point a network player is moved to
+169@ = 0.0
+170@ = 0.0
+171@ = -1 // the car the network players are taken out of
+172@ = 0 // all the network players are behind the start line or in the host's car
+173@ = 0
 wait 0
 Text.LoadMissionText('CESAR1')
 Player.SetGroupRecruitment($player1, False)
@@ -258,6 +275,7 @@ Player.SetControl($player1, False)
 
 :CESAR1_1908
 wait 0
+gosub @CESAR1_COOP_UPDATE
 if 
   111@ <> 0
 goto_if_false @CESAR1_2251
@@ -288,6 +306,13 @@ if
 goto_if_false @CESAR1_2073
 Audio.PlayMissionAudio(113@)
 Text.PrintNow(59@(111@,17s), 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer(59@(111@,17s), 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 112@ = 3
 
 :CESAR1_2073
@@ -298,6 +323,13 @@ if
   Audio.HasMissionAudioFinished(113@)
 goto_if_false @CESAR1_2190
 Text.ClearThisPrint(59@(111@,17s))
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.ClearThisPrintForNetworkPlayer(59@(111@,17s), $NETWORK_PLAYER[$temp_int])
+    end
+end
 if 
   113@ == 1
 goto_if_false @CESAR1_2155
@@ -347,6 +379,13 @@ if
   Car.IsDead(125@)
 goto_if_false @CESAR1_2370
 Text.PrintNow('CES1_09', 7000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CES1_09', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @CESAR1_4957
 
 :CESAR1_2370
@@ -361,6 +400,11 @@ if and
   not Char.IsDead($scplayer)
 goto_if_false @CESAR1_2481
 Char.WarpIntoCar($scplayer, $cs1_player_car)
+
+// cesar drives out of his driveway around the host's car on a recording, keep the network players
+// behind the scene's camera until it is over
+gosub @CESAR1_COOP_PUT_BEHIND_CAMERA
+
 Text.ClearPrints
 43@ = Clock.GetGameTimer()
 gosub @CESAR1_203
@@ -451,8 +495,45 @@ Camera.RestoreJumpcut
 Camera.SetBehindPlayer
 Player.SetControl($player1, True)
 Hud.SwitchWidescreen(False)
+
+// the scene is over, bring the network players to the host
+Coop.TeleportPlayersToHostSafely($NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2])
+
+// the host has his lowrider, a spare one for the network players on the spot cesar's car has just left
+161@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        161@ += 1
+    end
+end
+if
+    161@ > 0
+then
+    World.ClearArea(1, 1793.687, -2138.686, 12.5547, 4.0)
+    160@ = Car.Create(567, 1793.687, -2138.686, 12.5547)
+    Car.SetHeading(160@, 0.1899)
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            162@($temp_int,3i) = 0 // car_blip_removed
+            Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 160@, true, BlipDisplay.MarkerOnly, BlipColor.Blue, 3)
+        end
+    end
+    165@ = 1
+end
+
 35@ = 1
 Text.PrintNow('CES1_04', 5000, 2)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CES1_04', 5000, 2, $NETWORK_PLAYER[$temp_int])
+    end
+end
 39@ = 2
 46@ = Clock.GetGameTimer()
 36@ = 3
@@ -555,6 +636,13 @@ goto_if_false @CESAR1_3746
 Blip.Remove(126@)
 124@ = Blip.AddForCoord(56@, 57@, 58@)
 Text.PrintNow('CES1_05', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CES1_05', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 39@ = 5
 38@ = 1
 
@@ -703,7 +791,7 @@ goto_if_false @CESAR1_4567
 if 
   $cs1_random_dialogue == 8
 goto_if_false @CESAR1_4652
-Text.PrintNow('CES1_04', 100, 1)
+Text.PrintNow('CES1_04', 100, 1) // printed every frame, not forwarded to the network players
 47@ = Clock.GetGameTimer()
 set_lvar_int_to_lvar_int 48@ = 47@
 sub_int_lvar_from_int_lvar 48@ -= 46@
@@ -749,8 +837,9 @@ goto_if_false @CESAR1_4924
 if 
   Char.IsInCar($scplayer, $cs1_player_car)
 goto_if_false @CESAR1_4924
-if 
+if and
   Char.LocateInCar3D($scplayer, 56@, 57@, 58@, 4.0, 4.0, 4.0, True)
+  172@ == 1
 goto_if_false @CESAR1_4924
 Player.SetControl($player1, False)
 Camera.DoFade(0, 1000)
@@ -793,6 +882,11 @@ Blip.Remove(126@)
 Blip.Remove(124@)
 Blip.Remove(42@)
 Streaming.MarkModelAsNoLongerNeeded(114)
+if // the cars are created by now
+    34@ <> 0
+then
+    gosub @CESAR1_COOP_LEAVE_MISSION_CARS // the cars are deleted below
+end
 Car.Delete(125@)
 Car.Delete(138@)
 Car.Delete(139@)
@@ -800,6 +894,19 @@ Car.Delete(140@)
 Car.Delete(141@)
 Streaming.UnloadSpecialCharacter(1)
 Streaming.UnloadSpecialCharacter(2)
+if
+    160@ <> -1
+then
+    Car.MarkAsNoLongerNeeded(160@)
+end
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        Coop.ClearAllEntityBlipsForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+    end
+end
 $onmission = 0
 $timer_mobile_start = Clock.GetGameTimer()
 Mission.Finish
@@ -816,6 +923,13 @@ if
   Car.IsDead($cs1_player_car)
 goto_if_false @CESAR1_5146
 Text.PrintNow('CES1_08', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CES1_08', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 34@ = 666
 
 :CESAR1_5146
@@ -857,7 +971,7 @@ goto_if_false @CESAR1_5518
 if 
   34@ == 1
 goto_if_false @CESAR1_5353
-Text.PrintNow('CES1_06', 100, 1)
+Text.PrintNow('CES1_06', 100, 1) // the host's own car, not forwarded
 
 :CESAR1_5353
 if 
@@ -892,4 +1006,191 @@ Blip.Remove(116@)
 
 :CESAR1_5518
 return 
+
+:CESAR1_COOP_UPDATE
+if // the spare car blip is not needed anymore when the player found a car
+    165@ == 1
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                162@($temp_int,3i) == 0
+            then
+                if
+                    Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+                then
+                    162@($temp_int,3i) = 1
+                    Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 160@)
+                end
+            end
+        end
+    end
+end
+
+// the network players get the host's destination: cesar's car to follow, then a checkpoint behind the
+// start line, off the spots of cesar's and the host's cars and of the race grid west of them
+167@ = 0
+if
+    34@ == 1
+then
+    if
+        38@ == 0
+    then
+        167@ = 1 // cesar's car
+    end
+    if
+        38@ == 1
+    then
+        167@ = 2 // behind the start line
+    end
+end
+if
+    not is_int_lvar_equal_to_int_lvar 167@ == 166@
+then
+    if // cesar's car is not the destination anymore
+        166@ == 1
+    then
+        if
+            Car.DoesExist(125@)
+        then
+            for $temp_int = 0 to 2
+                if
+                    Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                then
+                    Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 125@)
+                end
+            end
+        end
+    end
+    set_lvar_int_to_lvar_int 166@ = 167@
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+            if
+                166@ == 1
+            then
+                Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 125@, true, BlipDisplay.Both, BlipColor.Blue, 3) // cesar's car
+            end
+            if
+                166@ == 2
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(1533.008, -1877.243, 12.3828, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int]) // behind the start line
+            end
+        end
+    end
+end
+
+// the host's arrival at the start line waits for the network players behind it or riding in his car
+172@ = 1
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        173@ = 0
+        if
+            not Car.IsDead($cs1_player_car)
+        then
+            if
+                Char.IsInCar($NETWORK_PLAYER[$temp_int], $cs1_player_car)
+            then
+                173@ = 1
+            end
+        end
+        if
+            Char.LocateAnyMeans2D($NETWORK_PLAYER[$temp_int], 0, 1533.008, -1877.243, 8.0, 8.0)
+        then
+            173@ = 1
+        end
+        if
+            173@ == 0
+        then
+            172@ = 0
+        end
+    end
+end
+
+// cesar's car and the rivals' cars are driven by the mission and deleted at its end, keep the network players out of them
+if // all of them are created by now
+    34@ == 1
+then
+    gosub @CESAR1_COOP_LEAVE_MISSION_CARS
+end
+return
+
+:CESAR1_COOP_PUT_BEHIND_CAMERA
+// the street west of the scene's camera (1786.3, -2120.1), out of the way of cesar's recording
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        168@ = 1783.5
+        170@ = 12.55
+        if
+            $temp_int == 0
+        then
+            169@ = -2118.5
+        end
+        if
+            $temp_int == 1
+        then
+            169@ = -2120.0
+        end
+        if
+            $temp_int == 2
+        then
+            169@ = -2121.5
+        end
+        if
+            Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+        then
+            Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 168@, 169@, 170@)
+        else
+            Char.SetCoordinates($NETWORK_PLAYER[$temp_int], 168@, 169@, 170@)
+        end
+        Char.SetHeading($NETWORK_PLAYER[$temp_int], 270.0)
+        Char.SetAreaVisible($NETWORK_PLAYER[$temp_int], 0)
+    end
+end
+return
+
+:CESAR1_COOP_LEAVE_MISSION_CARS
+set_lvar_int_to_lvar_int 171@ = 125@
+gosub @CESAR1_COOP_LEAVE_CAR
+set_lvar_int_to_lvar_int 171@ = 138@
+gosub @CESAR1_COOP_LEAVE_CAR
+set_lvar_int_to_lvar_int 171@ = 139@
+gosub @CESAR1_COOP_LEAVE_CAR
+set_lvar_int_to_lvar_int 171@ = 140@
+gosub @CESAR1_COOP_LEAVE_CAR
+set_lvar_int_to_lvar_int 171@ = 141@
+gosub @CESAR1_COOP_LEAVE_CAR
+return
+
+:CESAR1_COOP_LEAVE_CAR
+// a network player in the car 171@ is taken out beside its left door
+if
+    Car.DoesExist(171@)
+then
+    if
+        not Car.IsDead(171@)
+    then
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                if
+                    Char.IsInCar($NETWORK_PLAYER[$temp_int], 171@)
+                then
+                    168@ = Car.GetOffsetInWorldCoords(169@, 170@, 171@, -2.5, 0.0, 0.0)
+                    Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 168@, 169@, 170@)
+                end
+            end
+        end
+    end
+end
+return
 
