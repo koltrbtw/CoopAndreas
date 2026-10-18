@@ -3,6 +3,8 @@
 
 :SWEET7
 script_name 'SWEET7'
+Coop.EnableSyncingThisScript()
+
 gosub @SWEET7_54
 if 
   has_deatharrest_been_executed 
@@ -16,6 +18,40 @@ terminate_this_script
 
 :SWEET7_54
 Stat.RegisterMissionGiven
+$NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2] = Coop.CollectNetworkPlayersForTheMission()
+600@ = -1 // the spare car for the network players at grove street
+for 632@ = 0 to 2
+    601@(632@,3i) = 0 // car_blip_removed
+    606@(632@,3i) = 1 // escape_car_blip_removed
+    620@(632@,3i) = 0 // the respect ballas' blips are shown to the network players
+end
+604@ = 0 // the spare car blip is shown to the network players
+605@ = -1 // the spare car for the network players next to the admiral
+609@ = 0 // the escape car blips are given to the network players
+610@ = 0 // the checkpoint of the host's destination: 1 the homies, 2 the cemetery, 3 sweet over the wall, 4 grove street
+611@ = 0 // the checkpoint shown to the network players
+612@ = 1 // all the network players are at the host's stop
+613@ = 0
+614@ = 0.0 // a point a network player is moved to or checked at
+615@ = 0.0
+616@ = 0.0
+617@ = -1 // the car the network players are kept out of
+618@ = 0 // kane has a blip for the network players
+619@ = 0 // kane's blip is shown to the network players
+623@ = 0
+for 632@ = 0 to 7
+    624@(632@,8i) = 0 // the blips of the ballas left after kane are shown to the network players
+end
+632@ = 0
+633@ = -1 // the char of the loop above
+635@ = 0 // a network player is within 20 m of kane
+636@ = 0 // a network player is within 10 m of kane
+637@ = 0 // a network player hurt kane
+638@ = 0 // a network player is within 50 m of kane
+639@ = 0 // a network player hurt the funeral before kane is there
+640@ = 0 // the weapon in a network player's slot
+641@ = 0
+642@ = 0
 Text.LoadMissionText('SWEET7')
 $onmission = 1
 wait 0
@@ -69,6 +105,9 @@ Weather.Release
 wait 0
 Char.SetCoordinates($scplayer, 2515.207, -1674.086, 12.7552)
 Char.SetHeading($scplayer, 54.1779)
+
+// the host is put outside sweet's house after the cutscene, bring the network players to him
+gosub @SWEET7_COOP_BRING_TO_HOST
 Streaming.LoadSpecialCharacter('SWEET', 1)
 Streaming.RequestModel(492)
 Streaming.RequestModel(68)
@@ -231,6 +270,42 @@ Car.SetHeading(78@, 354.4729)
 Car.SetCanBurstTires(78@, False)
 Car.ChangeColor(78@, 59, 34)
 Car.OpenDoor(78@, CarDoor.RightFrontDoor)
+
+// the greenwood is full with sweet and the two homies, a car for the network players across the street
+613@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        613@ += 1
+    end
+end
+if
+    613@ > 0
+then
+    World.ClearArea(1, 2494.91, -1682.17, 12.32, 4.0)
+    600@ = Car.Create(492, 2494.91, -1682.17, 12.32)
+    Car.SetHeading(600@, 90.0)
+    Car.SetHealth(600@, 1000)
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            601@($temp_int,3i) = 0 // car_blip_removed
+            Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 600@, true, BlipDisplay.MarkerOnly, BlipColor.Blue, 3)
+
+            // give a pistol for the fight at the funeral if the player has no handgun, the mission gives the host none
+            640@, 641@, 642@ = Char.GetWeaponInSlot($NETWORK_PLAYER[$temp_int], WeaponSlot.Pistols)
+            if or
+                640@ == 0
+                641@ <= 0
+            then
+                Char.GiveWeapon($NETWORK_PLAYER[$temp_int], WeaponType.Pistol, 100)
+            end
+        end
+    end
+    604@ = 1
+end
 79@ = Car.Create(445, 925.7109, -1122.968, 22.9909)
 Car.SetHeading(79@, 330.8056)
 Car.ChangeColor(79@, 59, 34)
@@ -563,6 +638,7 @@ set_lvar_int_to_constant 530@ = 38471
 
 :SWEET7_5066
 wait 0
+gosub @SWEET7_COOP_UPDATE
 if 
   304@ == 0
 goto_if_false @SWEET7_5102
@@ -624,6 +700,13 @@ if
 goto_if_false @SWEET7_5405
 Audio.PlayMissionAudio(532@)
 Text.PrintNow(310@(534@,74s), 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer(310@(534@,74s), 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 536@ = 3
 
 :SWEET7_5405
@@ -634,6 +717,13 @@ if
   Audio.HasMissionAudioFinished(532@)
 goto_if_false @SWEET7_5529
 Text.ClearThisPrint(310@(534@,74s))
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.ClearThisPrintForNetworkPlayer(310@(534@,74s), $NETWORK_PLAYER[$temp_int])
+    end
+end
 if 
   532@ == 1
 goto_if_false @SWEET7_5487
@@ -700,6 +790,13 @@ if
 goto_if_false @SWEET7_5798
 Text.ClearPrints
 Text.PrintNow('TWAR664', 6000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TWAR664', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @SWEET7_32404
 
 :SWEET7_5798
@@ -770,6 +867,13 @@ if
 goto_if_false @SWEET7_6244
 Text.ClearPrints
 Text.PrintNow('TWAR612', 6000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TWAR612', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 282@ = 1
 TIMERB = 0
 
@@ -810,6 +914,13 @@ if
 goto_if_false @SWEET7_6450
 Text.ClearPrints
 Text.PrintNow('TWAR618', 6000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TWAR618', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @SWEET7_32404
 
 :SWEET7_6450
@@ -940,6 +1051,13 @@ Blip.Remove(293@)
 Blip.Remove(294@)
 Text.ClearPrints
 Text.PrintNow('TWAR617', 6000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TWAR617', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 if 
   not Car.IsDead(78@)
 goto_if_false @SWEET7_7160
@@ -1037,6 +1155,13 @@ goto @SWEET7_7682
 :SWEET7_7622
 534@ = 0
 Text.PrintNow('TWAR650', 6000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TWAR650', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 if 
   not Char.IsDead($sweet)
 goto_if_false @SWEET7_7668
@@ -1105,6 +1230,13 @@ goto @SWEET7_8080
 :SWEET7_8043
 534@ = 0
 Text.PrintNow('TWAR650', 6000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TWAR650', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 542@ = 0
 goto @SWEET7_8080
 
@@ -1155,8 +1287,10 @@ Player.SetControl($player1, True)
 if 
   Char.IsInCar($scplayer, 78@)
 goto_if_false @SWEET7_8598
-if 
+// the host's stop at the homies waits for all the network players around it
+if and
   Char.LocateInCar3D($scplayer, 2460.499, -1656.57, 12.3125, 4.0, 4.0, 4.0, True)
+  612@ == 1
 goto_if_false @SWEET7_8598
 Player.SetControl($player1, False)
 if 
@@ -1227,6 +1361,13 @@ if
   TIMERA > 8000
 goto_if_false @SWEET7_8868
 Text.ClearThisPrint('TWAR652')
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.ClearThisPrintForNetworkPlayer('TWAR652', $NETWORK_PLAYER[$temp_int])
+    end
+end
 Text.PrintHelp('TWAR660')
 285@ = 2
 
@@ -1355,6 +1496,13 @@ goto @SWEET7_9588
 :SWEET7_9550
 534@ = 0
 Text.PrintNow('TWAR659', 6000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TWAR659', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 543@ = 999
 goto @SWEET7_9588
 
@@ -1421,6 +1569,13 @@ goto @SWEET7_10115
 :SWEET7_10024
 534@ = 0
 Text.PrintNow('TWAR652', 6000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TWAR652', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 if 
   not Car.IsDead(78@)
 goto_if_false @SWEET7_10101
@@ -1451,6 +1606,13 @@ goto_if_false @SWEET7_10303
 Text.ClearHelp
 Text.ClearPrints
 Text.PrintNow('TWAR654', 5500, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TWAR654', 5500, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 286@ = 1
 TIMERB = 0
 if 
@@ -1552,6 +1714,13 @@ if
 goto_if_false @SWEET7_10809
 Text.ClearPrints
 Text.PrintNow('TWAR638', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TWAR638', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @SWEET7_32404
 
 :SWEET7_10809
@@ -1566,6 +1735,13 @@ if
 goto_if_false @SWEET7_10882
 Text.ClearPrints
 Text.PrintNow('TWAR648', 6000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TWAR648', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @SWEET7_32404
 
 :SWEET7_10882
@@ -1617,6 +1793,13 @@ goto @SWEET7_11207
 :SWEET7_11170
 534@ = 0
 Text.PrintNow('TWAR631', 6000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TWAR631', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 539@ = 0
 goto @SWEET7_11207
 
@@ -1673,6 +1856,13 @@ goto @SWEET7_11582
 :SWEET7_11545
 534@ = 0
 Text.PrintNow('TWAR631', 6000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TWAR631', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 542@ = 0
 goto @SWEET7_11582
 
@@ -1737,8 +1927,10 @@ goto_if_false @SWEET7_12788
 if 
   Char.IsInCar($scplayer, 78@)
 goto_if_false @SWEET7_12788
-if 
+// the host's stop at the cemetery wall waits for all the network players around it
+if and
   Char.LocateInCar3D($scplayer, 799.0102, -1074.032, 23.0115, 3.8, 3.8, 4.0, True)
+  612@ == 1
 goto_if_false @SWEET7_12788
 Player.SetControl($player1, False)
 if 
@@ -2042,6 +2234,13 @@ Player.SetControl($player1, True)
 133@ = 20
 Text.ClearPrints
 Text.PrintNow('TWAR635', 6000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TWAR635', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 if 
   not Char.IsDead($sweet)
 goto_if_false @SWEET7_13858
@@ -2117,6 +2316,13 @@ if
 goto_if_false @SWEET7_14303
 Text.ClearPrints
 Text.PrintNow('TWAR633', 8000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TWAR633', 8000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @SWEET7_32404
 
 :SWEET7_14303
@@ -2382,6 +2588,47 @@ Task.SmartFleeChar(96@, $scplayer, 100.0, -1)
 53@ = 999
 
 :SWEET7_15562
+// a network player hurting the mourners or kane's men before kane is there gives the funeral away as the host does
+if and
+    5 > 53@
+    639@ == 1
+then
+    69@ = 1
+    if
+        not Char.IsDead(105@)
+    then
+        Char.ClearTasks(105@)
+        Task.KillCharOnFoot(105@, $scplayer)
+    end
+    if
+        not Char.IsDead(107@)
+    then
+        Char.ClearTasks(107@)
+        Task.KillCharOnFoot(107@, $scplayer)
+    end
+    if
+        not Char.IsDead(109@)
+    then
+        Char.ClearTasks(109@)
+        Task.KillCharOnFoot(109@, $scplayer)
+    end
+    if
+        not Char.IsDead(97@)
+    then
+        Char.ClearTasks(97@)
+        Task.SmartFleeChar(97@, $scplayer, 100.0, -1)
+    end
+    if
+        not Char.IsDead(96@)
+    then
+        Char.ClearTasks(96@)
+        Task.SmartFleeChar(96@, $scplayer, 100.0, -1)
+    end
+    540@ = Math.RandomIntInRange(0, 3)
+    539@ = 41
+    53@ = 999
+end
+
 if 
   53@ == 999
 goto_if_false @SWEET7_16519
@@ -2419,6 +2666,13 @@ goto @SWEET7_15820
 :SWEET7_15776
 534@ = 0
 Text.PrintNow('TWAR658', 6000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TWAR658', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 539@ = 0
 goto @SWEET7_32404
 goto @SWEET7_15820
@@ -2452,6 +2706,13 @@ goto @SWEET7_16034
 :SWEET7_15990
 534@ = 0
 Text.PrintNow('TWAR619', 6000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TWAR619', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 539@ = 0
 goto @SWEET7_32404
 goto @SWEET7_16034
@@ -2491,6 +2752,13 @@ goto @SWEET7_16273
 :SWEET7_16229
 534@ = 0
 Text.PrintNow('TWAR625', 6000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TWAR625', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 539@ = 0
 goto @SWEET7_32404
 goto @SWEET7_16273
@@ -2531,6 +2799,13 @@ goto @SWEET7_16519
 534@ = 0
 Text.ClearPrints
 Text.PrintNow('TWAR627', 8000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TWAR627', 8000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Char.Delete(98@)
 539@ = 0
 goto @SWEET7_32404
@@ -2729,6 +3004,13 @@ goto @SWEET7_17914
 :SWEET7_17877
 534@ = 0
 Text.PrintNow('TWAR646', 6000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TWAR646', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 539@ = 0
 goto @SWEET7_17914
 
@@ -2763,6 +3045,13 @@ goto @SWEET7_18133
 534@ = 0
 Text.ClearPrints
 Text.PrintNow('TWAR646', 6000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TWAR646', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 539@ = 0
 goto @SWEET7_18133
 
@@ -2796,6 +3085,13 @@ Blip.Remove(43@)
 Game.SetPoliceIgnorePlayer($player1, False)
 Text.ClearPrints
 Text.PrintNow('TWAR647', 8000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TWAR647', 8000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 44@ = 0
 
 :SWEET7_18332
@@ -2818,8 +3114,10 @@ goto_if_false @SWEET7_18514
 if 
   Char.IsInCar($scplayer, 79@)
 goto_if_false @SWEET7_18514
-if 
+// the host's stop at grove street waits for all the network players around it
+if and
   Char.LocateInCar3D($scplayer, 2501.634, -1674.131, 12.3689, 4.0, 4.0, 4.0, True)
+  612@ == 1
 goto_if_false @SWEET7_18514
 Player.SetControl($player1, False)
 if 
@@ -2942,6 +3240,9 @@ Char.ClearTasks($sweet)
 Hud.SwitchWidescreen(True)
 Char.SetCoordinates($scplayer, 816.8154, -1075.383, 23.3516)
 Char.SetHeading($scplayer, 277.0)
+
+// the host is put behind the cemetery wall for kane's arrival, bring the network players over it to him
+gosub @SWEET7_COOP_BRING_TO_HOST
 Camera.SetFixedPosition(822.0925, -1077.878, 23.6895, 0.0, 0.0, 0.0)
 Camera.PointAtPoint(821.1437, -1077.566, 23.7335, SwitchType.JumpCut)
 Streaming.LoadScene(803.9182, -1078.626, 23.3515)
@@ -3245,9 +3546,33 @@ Blip.ChangeColor(40@, BlipColor.Red)
 if 
   not Car.IsDead(78@)
 goto_if_false @SWEET7_21120
+set_lvar_int_to_lvar_int 617@ = 78@
+gosub @SWEET7_COOP_LEAVE_CAR // the greenwood is deleted below
 Car.Delete(78@)
 
 :SWEET7_21120
+// the admiral 79@ the host escapes in is full with sweet and the homies, a car for the network players next to it
+613@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        613@ += 1
+    end
+end
+if
+    613@ > 0
+then
+    if
+        not Car.IsDead(79@)
+    then
+        614@, 615@, 616@ = Car.GetOffsetInWorldCoords(79@, -3.5, 0.0, 0.0)
+        World.ClearArea(1, 614@, 615@, 616@, 2.5)
+        605@ = Car.Create(492, 614@, 615@, 616@)
+        Car.SetHeading(605@, 330.8056)
+        Car.SetHealth(605@, 1000)
+    end
+end
 Text.ClearHelp
 
 :SWEET7_21122
@@ -3371,6 +3696,13 @@ goto @SWEET7_21915
 
 :SWEET7_21878
 Text.PrintNow('TWAR636', 8000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TWAR636', 8000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 534@ = 0
 539@ = 0
 goto @SWEET7_21915
@@ -3782,8 +4114,10 @@ goto_if_false @SWEET7_24505
 if 
   not Char.IsDead(98@)
 goto_if_false @SWEET7_24505
-if 
+// kane runs on when a network player comes close or hurts him, as with the host
+if or
   Char.LocateAnyMeansChar2D($scplayer, 98@, 20.0, 20.0, False)
+  635@ == 1
 goto_if_false @SWEET7_24505
 53@ = 25
 139@ += 1
@@ -3799,8 +4133,10 @@ goto_if_false @SWEET7_24593
 if 
   not Char.IsDead(98@)
 goto_if_false @SWEET7_24593
-if 
+// kane runs on when a network player comes close or hurts him, as with the host
+if or
   Char.HasBeenDamagedByChar(98@, $scplayer)
+  637@ == 1
 goto_if_false @SWEET7_24593
 53@ = 25
 139@ += 1
@@ -3876,8 +4212,10 @@ goto_if_false @SWEET7_25026
 if 
   not Char.IsDead(98@)
 goto_if_false @SWEET7_25026
-if 
+// kane runs on when a network player comes close or hurts him, as with the host
+if or
   Char.LocateAnyMeansChar2D($scplayer, 98@, 20.0, 20.0, False)
+  635@ == 1
 goto_if_false @SWEET7_25026
 53@ = 30
 139@ += 1
@@ -3892,8 +4230,10 @@ goto_if_false @SWEET7_25114
 if 
   not Char.IsDead(98@)
 goto_if_false @SWEET7_25114
-if 
+// kane runs on when a network player comes close or hurts him, as with the host
+if or
   Char.HasBeenDamagedByChar(98@, $scplayer)
+  637@ == 1
 goto_if_false @SWEET7_25114
 53@ = 30
 139@ += 1
@@ -3914,8 +4254,10 @@ goto_if_false @SWEET7_25243
 if 
   not Char.IsDead(98@)
 goto_if_false @SWEET7_25243
-if 
+// kane runs on when a network player comes close or hurts him, as with the host
+if or
   Char.LocateAnyMeansChar2D($scplayer, 98@, 20.0, 20.0, False)
+  635@ == 1
 goto_if_false @SWEET7_25243
 53@ = 35
 139@ += 1
@@ -3929,8 +4271,10 @@ goto_if_false @SWEET7_25324
 if 
   not Char.IsDead(98@)
 goto_if_false @SWEET7_25324
-if 
+// kane runs on when a network player comes close or hurts him, as with the host
+if or
   Char.HasBeenDamagedByChar(98@, $scplayer)
+  637@ == 1
 goto_if_false @SWEET7_25324
 53@ = 35
 139@ += 1
@@ -3950,8 +4294,10 @@ goto_if_false @SWEET7_25460
 if 
   not Char.IsDead(98@)
 goto_if_false @SWEET7_25460
-if 
+// kane runs on when a network player comes close or hurts him, as with the host
+if or
   Char.LocateAnyMeansChar2D($scplayer, 98@, 10.0, 10.0, False)
+  636@ == 1
 goto_if_false @SWEET7_25460
 53@ = 40
 139@ += 1
@@ -3966,8 +4312,10 @@ goto_if_false @SWEET7_25548
 if 
   not Char.IsDead(98@)
 goto_if_false @SWEET7_25548
-if 
+// kane runs on when a network player comes close or hurts him, as with the host
+if or
   Char.HasBeenDamagedByChar(98@, $scplayer)
+  637@ == 1
 goto_if_false @SWEET7_25548
 53@ = 40
 139@ += 1
@@ -4145,6 +4493,13 @@ goto @SWEET7_26697
 :SWEET7_26660
 534@ = 0
 Text.PrintNow('TWAR626', 6000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TWAR626', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 539@ = 0
 goto @SWEET7_26697
 
@@ -4255,6 +4610,13 @@ goto @SWEET7_27333
 :SWEET7_27296
 534@ = 0
 Text.PrintNow('TWAR629', 6000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TWAR629', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 539@ = 0
 goto @SWEET7_27333
 
@@ -4316,6 +4678,13 @@ goto @SWEET7_27697
 534@ = 0
 Text.ClearPrints
 Text.PrintNow('TWAR629', 6000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TWAR629', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 539@ = 0
 goto @SWEET7_27697
 
@@ -4374,8 +4743,10 @@ goto_if_false @SWEET7_28238
 if 
   not Char.IsDead(98@)
 goto_if_false @SWEET7_28238
-if 
+// kane gets away only when no network player is close to him either
+if and
   not Char.LocateAnyMeansChar3D($scplayer, 98@, 50.0, 50.0, 50.0, False)
+  638@ == 0
 goto_if_false @SWEET7_28092
 if 
   not Car.IsOnScreen(77@)
@@ -4438,6 +4809,13 @@ goto @SWEET7_28441
 :SWEET7_28404
 534@ = 0
 Text.PrintNow('TWAR628', 6000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TWAR628', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 539@ = 0
 goto @SWEET7_28441
 
@@ -4455,6 +4833,13 @@ goto_if_false @SWEET7_28572
 Blip.SetAsFriendly(43@, True)
 Text.ClearPrints
 Text.PrintNow('TWAR644', 6000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TWAR644', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 if 
   Char.IsSittingInCar($sweet, 79@)
 goto_if_false @SWEET7_28550
@@ -4516,6 +4901,13 @@ goto @SWEET7_28901
 534@ = 0
 Text.ClearPrints
 Text.PrintNow('TWAR640', 6000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TWAR640', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 539@ = 0
 goto @SWEET7_28901
 
@@ -4584,6 +4976,13 @@ goto @SWEET7_29309
 :SWEET7_29272
 534@ = 0
 Text.PrintNow('TWAR641', 6000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TWAR641', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 539@ = 0
 goto @SWEET7_29309
 
@@ -4614,6 +5013,13 @@ if
 goto_if_false @SWEET7_29473
 40@ = Blip.AddForChar(98@)
 Text.PrintNow('TWAR641', 6000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TWAR641', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :SWEET7_29473
 44@ = 0
@@ -4680,6 +5086,13 @@ goto @SWEET7_29893
 :SWEET7_29856
 534@ = 0
 Text.PrintNow('TWAR649', 6000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('TWAR649', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 544@ = 0
 goto @SWEET7_29893
 
@@ -5232,7 +5645,576 @@ Streaming.MarkModelAsNoLongerNeeded(12)
 Path.SwitchRoadsOn(772.243, -1050.323, 10.2931, 806.2723, -1130.195, 23.8359)
 Path.SwitchRoadsOn(135@, 136@, 0.0, 137@, 138@, 60.0)
 Path.SwitchPedRoadsOn(135@, 136@, 0.0, 137@, 138@, 60.0)
+// the spare cars are not needed anymore, the network players lose their checkpoints and blips
+if
+    600@ <> -1
+then
+    Car.MarkAsNoLongerNeeded(600@)
+end
+if
+    605@ <> -1
+then
+    Car.MarkAsNoLongerNeeded(605@)
+end
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        Coop.ClearAllEntityBlipsForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+    end
+end
 $onmission = 0
 Mission.Finish
+return 
+
+:SWEET7_COOP_UPDATE
+if // the spare car blip is not needed anymore when the player found a car
+    604@ == 1
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                601@($temp_int,3i) == 0
+            then
+                if or
+                    Car.IsDead(600@)
+                    Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+                then
+                    601@($temp_int,3i) = 1
+                    Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 600@)
+                end
+            end
+        end
+    end
+end
+
+// the escape car next to the admiral gets its blip when the host is sent to the admiral (kane is dead and his men
+// too) or sweet runs to it for the chase of kane
+if and
+    609@ == 0
+    605@ <> -1
+then
+    613@ = 0
+    if
+        71@ >= 4
+    then
+        613@ = 1
+    end
+    if
+        132@ >= 1
+    then
+        613@ = 1
+    end
+    if
+        613@ == 1
+    then
+        if
+            not Car.IsDead(605@)
+        then
+            for $temp_int = 0 to 2
+                if
+                    Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                then
+                    606@($temp_int,3i) = 0 // escape_car_blip_removed
+                    Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 605@, true, BlipDisplay.MarkerOnly, BlipColor.Blue, 3)
+                end
+            end
+        end
+        609@ = 1
+    end
+end
+if // the escape car blip is not needed anymore when the player found a car
+    609@ == 1
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                606@($temp_int,3i) == 0
+            then
+                if or
+                    Car.IsDead(605@)
+                    Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+                then
+                    606@($temp_int,3i) = 1
+                    Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 605@)
+                end
+            end
+        end
+    end
+end
+
+// the network players get the checkpoint of the host's destination
+610@ = 0
+if
+    55@ == 2
+then
+    610@ = 1 // the homies
+end
+if and
+    55@ == 20
+    53@ == 0
+then
+    610@ = 2 // the cemetery
+end
+if and
+    53@ == 1
+    133@ == 20
+then
+    610@ = 3 // sweet over the wall
+end
+if
+    71@ == 8
+then
+    610@ = 4 // grove street
+end
+if
+    not is_int_lvar_equal_to_int_lvar 610@ == 611@
+then
+    set_lvar_int_to_lvar_int 611@ = 610@
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+            if
+                611@ == 1
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(2460.499, -1656.57, 12.3125, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int]) // the homies
+            end
+            if
+                611@ == 2
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(799.0102, -1074.032, 23.0115, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int]) // the cemetery
+            end
+            if
+                611@ == 3
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(818.4114, -1076.603, 23.0623, 2.0, 2.0, 2.0, $NETWORK_PLAYER[$temp_int]) // sweet over the wall
+            end
+            if
+                611@ == 4
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(2501.634, -1674.131, 12.3689, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int]) // grove street
+            end
+        end
+    end
+end
+
+// the host's stops at the homies, the cemetery wall and grove street wait for all the network players around them
+612@ = 1
+if or
+    610@ == 1
+    610@ == 2
+    610@ == 4
+then
+    if
+        610@ == 1
+    then
+        614@ = 2460.499
+        615@ = -1656.57
+    end
+    if
+        610@ == 2
+    then
+        614@ = 799.0102
+        615@ = -1074.032
+    end
+    if
+        610@ == 4
+    then
+        614@ = 2501.634
+        615@ = -1674.131
+    end
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if not Char.LocateAnyMeans2D($NETWORK_PLAYER[$temp_int], 0, 614@, 615@, 15.0, 15.0)
+            then
+                612@ = 0
+            end
+        end
+    end
+end
+
+// sweet and the homies take every seat of the greenwood 78@ (deleted at the cemetery) and of the admiral 79@, keep
+// the network players out of them
+set_lvar_int_to_lvar_int 617@ = 78@
+gosub @SWEET7_COOP_LEAVE_CAR
+set_lvar_int_to_lvar_int 617@ = 79@
+gosub @SWEET7_COOP_LEAVE_CAR
+
+// kane's admiral 76@ drives him to the funeral and is moved after the scene, keep them out of it until then
+if and
+    53@ >= 5
+    15 > 53@
+then
+    set_lvar_int_to_lvar_int 617@ = 76@
+    gosub @SWEET7_COOP_LEAVE_CAR
+end
+
+// kane flees in the greenwood 77@ of his men, keep them out of it while he is alive
+if and
+    53@ >= 55
+    999 > 53@
+then
+    if
+        not Char.IsDead(98@)
+    then
+        set_lvar_int_to_lvar_int 617@ = 77@
+        gosub @SWEET7_COOP_LEAVE_CAR
+    end
+end
+
+// the ballas sweet sends the host after to earn respect have a blip for the network players while the host has
+// theirs and they are alive
+for 632@ = 0 to 2
+    623@ = 0
+    if
+        55@ == 0
+    then
+        if
+            Blip.DoesExist(292@(632@,3i))
+        then
+            if
+                not Char.IsDead(289@(632@,3i))
+            then
+                623@ = 1
+            end
+        end
+    end
+
+    if and
+        623@ == 1
+        620@(632@,3i) == 0
+    then
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                Coop.UpdateCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 289@(632@,3i), false, BlipDisplay.Both, BlipColor.Red, 3)
+            end
+        end
+        620@(632@,3i) = 1
+    end
+
+    if and
+        623@ == 0
+        620@(632@,3i) == 1
+    then
+        if // a ballas let go by the mission may be removed, his blip with him
+            Char.DoesExist(289@(632@,3i))
+        then
+            for $temp_int = 0 to 2
+                if
+                    Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                then
+                    Coop.RemoveCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 289@(632@,3i))
+                end
+            end
+        end
+        620@(632@,3i) = 0
+    end
+end
+
+// a network player hurting one of those ballas makes them attack as the host does
+if and
+    55@ == 0
+    295@ == 0
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            for 632@ = 0 to 2
+                if
+                    Char.DoesExist(289@(632@,3i))
+                then
+                    if
+                        Char.HasBeenDamagedByChar(289@(632@,3i), $NETWORK_PLAYER[$temp_int])
+                    then
+                        295@ = 1
+                    end
+                end
+            end
+        end
+    end
+end
+
+// a network player hurting the mourners or kane's men before kane is there, read where the host's attack is
+639@ = 0
+if
+    5 > 53@
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            for 632@ = 0 to 4
+                gosub @SWEET7_COOP_GET_FUNERAL_CHAR
+                if
+                    Char.DoesExist(633@)
+                then
+                    if
+                        Char.HasBeenDamagedByChar(633@, $NETWORK_PLAYER[$temp_int])
+                    then
+                        639@ = 1
+                    end
+                end
+            end
+        end
+    end
+end
+
+// kane has a blip for the network players while the host has his and he is alive (40@ is set from the fight on)
+618@ = 0
+if
+    61@ >= 1
+then
+    if
+        Blip.DoesExist(40@)
+    then
+        if
+            not Char.IsDead(98@)
+        then
+            618@ = 1
+        end
+    end
+end
+if
+    not is_int_lvar_equal_to_int_lvar 618@ == 619@
+then
+    set_lvar_int_to_lvar_int 619@ = 618@
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                619@ == 1
+            then
+                Coop.UpdateCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 98@, false, BlipDisplay.Both, BlipColor.Red, 3) // kane
+            else
+                if // a removed kane takes his blip with him
+                    Char.DoesExist(98@)
+                then
+                    Coop.RemoveCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 98@)
+                end
+            end
+        end
+    end
+end
+
+// the network players close to kane or hurting him make him run on and keep him from getting away, as the host
+635@ = 0
+636@ = 0
+637@ = 0
+638@ = 0
+if
+    61@ >= 1
+then
+    if
+        not Char.IsDead(98@)
+    then
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                if
+                    Char.LocateAnyMeansChar2D($NETWORK_PLAYER[$temp_int], 98@, 20.0, 20.0, False)
+                then
+                    635@ = 1
+                end
+                if
+                    Char.LocateAnyMeansChar2D($NETWORK_PLAYER[$temp_int], 98@, 10.0, 10.0, False)
+                then
+                    636@ = 1
+                end
+                if
+                    Char.HasBeenDamagedByChar(98@, $NETWORK_PLAYER[$temp_int])
+                then
+                    637@ = 1
+                end
+                if
+                    Char.LocateAnyMeansChar3D($NETWORK_PLAYER[$temp_int], 98@, 50.0, 50.0, 50.0, False)
+                then
+                    638@ = 1
+                end
+            end
+        end
+    end
+end
+
+// the ballas left when kane is dead have a blip for the network players while the host has theirs and they are alive
+for 632@ = 0 to 7
+    gosub @SWEET7_COOP_GET_BALLA
+    623@ = 0
+    if
+        124@(632@,8i) == 1
+    then
+        if
+            not Char.IsDead(633@)
+        then
+            623@ = 1
+        end
+    end
+
+    if and
+        623@ == 1
+        624@(632@,8i) == 0
+    then
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                Coop.UpdateCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 633@, false, BlipDisplay.Both, BlipColor.Red, 2)
+            end
+        end
+        624@(632@,8i) = 1
+    end
+
+    if and
+        623@ == 0
+        624@(632@,8i) == 1
+    then
+        if
+            Char.DoesExist(633@)
+        then
+            for $temp_int = 0 to 2
+                if
+                    Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                then
+                    Coop.RemoveCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 633@)
+                end
+            end
+        end
+        624@(632@,8i) = 0
+    end
+end
+return 
+
+:SWEET7_COOP_GET_FUNERAL_CHAR
+// 633@ = the funeral char number 632@: kane's men 105@, 107@, 109@ and the mourners 96@, 97@
+if
+    632@ == 0
+then
+    set_lvar_int_to_lvar_int 633@ = 105@
+end
+if
+    632@ == 1
+then
+    set_lvar_int_to_lvar_int 633@ = 107@
+end
+if
+    632@ == 2
+then
+    set_lvar_int_to_lvar_int 633@ = 109@
+end
+if
+    632@ == 3
+then
+    set_lvar_int_to_lvar_int 633@ = 96@
+end
+if
+    632@ == 4
+then
+    set_lvar_int_to_lvar_int 633@ = 97@
+end
+return 
+
+:SWEET7_COOP_GET_BALLA
+// 633@ = the balla number 632@ the host gets the blip 45@-52@ of when kane is dead (its flag is 124@-131@)
+if
+    632@ == 0
+then
+    set_lvar_int_to_lvar_int 633@ = 105@
+end
+if
+    632@ == 1
+then
+    set_lvar_int_to_lvar_int 633@ = 107@
+end
+if
+    632@ == 2
+then
+    set_lvar_int_to_lvar_int 633@ = 109@
+end
+if
+    632@ == 3
+then
+    set_lvar_int_to_lvar_int 633@ = 111@
+end
+if
+    632@ == 4
+then
+    set_lvar_int_to_lvar_int 633@ = 112@
+end
+if
+    632@ == 5
+then
+    set_lvar_int_to_lvar_int 633@ = 113@
+end
+if
+    632@ == 6
+then
+    set_lvar_int_to_lvar_int 633@ = 117@
+end
+if
+    632@ == 7
+then
+    set_lvar_int_to_lvar_int 633@ = 119@
+end
+return 
+
+:SWEET7_COOP_LEAVE_CAR
+// a network player in the car 617@ is taken out beside its left door
+if
+    Car.DoesExist(617@)
+then
+    if
+        not Car.IsDead(617@)
+    then
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                if
+                    Char.IsInCar($NETWORK_PLAYER[$temp_int], 617@)
+                then
+                    614@, 615@, 616@ = Car.GetOffsetInWorldCoords(617@, -2.5, 0.0, 0.0)
+                    Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 614@, 615@, 616@)
+                end
+            end
+        end
+    end
+end
+return 
+
+:SWEET7_COOP_BRING_TO_HOST
+// the network players in a car are taken out of it at the host's spot first, the teleport moves them on foot
+613@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if
+            Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+        then
+            614@, 615@, 616@ = Char.GetCoordinates($scplayer)
+            Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 614@, 615@, 616@)
+            613@ = 1
+        end
+    end
+end
+if
+    613@ == 1
+then
+    wait 500 // let the warp out of the car reach them before the teleport
+end
+Coop.TeleportPlayersToHostSafely($NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2])
 return 
 
