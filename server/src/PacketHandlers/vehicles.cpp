@@ -183,6 +183,18 @@ PACKET_HANDLER(ePacketType::VEHICLE_EXIT, Packets::Vehicles::VehicleExit* pVehic
     }
 }
 
+PACKET_HANDLER(ePacketType::VEHICLE_BLOWN, Packets::Vehicles::VehicleBlown* pVehicleBlown, CNetworkPlayer* pNetworkPlayer)
+{
+    CNetworkVehicle* pNetworkVehicle = CNetworkVehicleManager::GetVehicle(pVehicleBlown->vehicleid);
+    if (!pNetworkVehicle || pNetworkVehicle->m_pSyncer != pNetworkPlayer)
+    {
+        return;
+    }
+
+    pNetworkVehicle->m_bWrecked = true;
+    CRelevanceManager::SendToRelevant(*pVehicleBlown, pNetworkVehicle->m_vRelevantTo, pNetworkPlayer);
+}
+
 PACKET_HANDLER(
     ePacketType::VEHICLE_DAMAGE, Packets::Vehicles::VehicleDamage* pVehicleDamage, CNetworkPlayer* pNetworkPlayer)
 {

@@ -155,6 +155,7 @@ static CVehicle* FindNearestVehicle(const CVector& position, float fMaxDistance)
 
 static std::string ms_watchedPed;  // to_string of a ped id watch-anims logs too (watch-ped, ram-ped)
 static int ms_nLastCar = -1;  // the script handle of the last `car`
+static std::string ms_watchedVehicle;  // to_string of a vehicle id blow, vehicle-health, vehicle-state act on
 
 // what a player ped plays and does, a line on every change: the active task, in a vehicle, the car anims
 static void LogPlayerAnims()
@@ -589,6 +590,52 @@ void CDebugCommands::RunCommand(const std::string& line)
             {
                 pNetworkPlayer->WarpIntoVehiclePassenger(pVehicle, 0);
             }
+        }
+    }
+    else if (command == "watch-vehicle")
+    {
+        stream >> ms_watchedVehicle;
+    }
+    else if (command == "blow" || command == "vehicle-health" || command == "vehicle-state")
+    {
+        // the watched vehicle (watch-vehicle <id>), else the last `car`, else the nearest one: blows up through the
+        // game's own BlowUpCar (CVehicleBlowSync takes it), gets a health (below 250 it burns, then blows up by its
+        // fire timer), logs its state
+        CVehicle* pVehicle = nullptr;
+        for (CNetworkVehicle* pWatched : CNetworkVehicleManager::m_pVehicles)
+        {
+            if (to_string(pWatched->m_vehicleId) == ms_watchedVehicle)
+            {
+                pVehicle = pWatched->m_pVehicle;
+            }
+        }
+        if (!pVehicle)
+        {
+            pVehicle = CPools::GetVehicle(ms_nLastCar);
+        }
+        if (!pVehicle)
+        {
+            pVehicle = FindNearestVehicle(pPlayer->GetPosition(), 30.0f);
+        }
+        CNetworkVehicle* pNetworkVehicle = pVehicle ? CNetworkVehicleManager::GetVehicle(pVehicle) : nullptr;
+        if (!pNetworkVehicle)
+        {
+            logger::info("stand debug: no network vehicle near");
+        }
+        else if (command == "blow")
+        {
+            pVehicle->BlowUpCar(pPlayer, false);
+        }
+        else if (command == "vehicle-health")
+        {
+            float health = 1000.0f;
+            stream >> health;
+            pVehicle->m_fHealth = health;
+        }
+        if (pNetworkVehicle)
+        {
+            logger::info("stand debug: vehicle %s syncing %d status %d health %.0f", to_string(pNetworkVehicle->m_vehicleId).c_str(),
+                pNetworkVehicle->m_bSyncing, pVehicle->m_nStatus, pVehicle->m_fHealth);
         }
     }
     else if (command == "knock-off")

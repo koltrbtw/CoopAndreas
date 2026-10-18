@@ -34,6 +34,7 @@ public:
     CVector m_vecRight{1.0f, 0.0f, 0.0f};        // matrix right vector, the updates carry no forward
     std::vector<CNetworkPlayer*> m_vRelevantTo;  // have a clone of it, see CRelevanceManager
     bool m_bTrain = false;     // the front carriage of a train, clones get TRAIN_SPAWN
+    bool m_bWrecked = false;   // VEHICLE_BLOWN came: the late ones spawn a wreck
     TrainState m_trainState{};  // from the last TRAIN_UPDATE
     // the last update from the syncer (an idle one comes at least once a second): a vehicle its syncer forgot is
     // removed, see CRelevanceManager::RemoveForgottenVehicles

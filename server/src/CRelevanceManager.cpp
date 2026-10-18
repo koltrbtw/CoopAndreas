@@ -86,6 +86,7 @@ void CRelevanceManager::SendVehicleSpawn(CNetworkVehicle* pNetworkVehicle, CNetw
     vehicleSpawnPacket.createdBy = static_cast<eVehicleCreatedBy>(pNetworkVehicle->m_nCreatedBy);
     vehicleSpawnPacket.extras[0] = pNetworkVehicle->m_anExtras[0];
     vehicleSpawnPacket.extras[1] = pNetworkVehicle->m_anExtras[1];
+    vehicleSpawnPacket.wrecked = pNetworkVehicle->m_bWrecked;
     GetPacketFactory().Send(vehicleSpawnPacket, pNetworkPlayer);
 
     Packets::Vehicles::VehicleDamage vehicleDamagePacket{};
