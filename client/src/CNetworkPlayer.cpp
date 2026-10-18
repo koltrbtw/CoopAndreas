@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "CPedAnimSync.h"
 #include <CTaskSimpleCarSetPedOut.h>
 #include <CCarEnterExit.h>
 #include <CTaskSimpleCarSetPedInAsPassenger.h>
@@ -148,6 +149,12 @@ void CNetworkPlayer::WarpIntoVehicleDriver(CVehicle* vehicle)
         return;
     }
 
+    // the next update gets it in once they are
+    if (!CPedAnimSync::AreVehicleAnimsLoaded(vehicle))
+    {
+        return;
+    }
+
     if (m_pPed->m_nPedFlags.bInVehicle && m_pPed->m_pVehicle)
     {
         RemoveFromVehicle(m_pPed->m_pVehicle);
@@ -172,6 +179,11 @@ void CNetworkPlayer::WarpIntoVehiclePassenger(CVehicle* vehicle, int seatid)
     }
 
     if (CNetworkVehicle::IsSeatHeldByPlayer(vehicle, seatid, m_pPed))
+    {
+        return;
+    }
+
+    if (!CPedAnimSync::AreVehicleAnimsLoaded(vehicle))
     {
         return;
     }
