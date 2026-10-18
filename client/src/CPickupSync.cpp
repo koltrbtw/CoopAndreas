@@ -58,10 +58,27 @@ static bool IsStandingOn(CPickup& pickup, CPlayerPed* pPlayerPed, CVehicle* pVeh
     return std::fabs(delta.z) < 2.0f && delta.x * delta.x + delta.y * delta.y < (pVehicle ? 4.0f : 1.8f);
 }
 
+static constexpr int MODEL_OYSTER = 953;
+static constexpr int MODEL_HORSESHOE = 954;
+
 static void ApplyState(CPickup& pickup, int32_t remainingMs)
 {
     if (remainingMs == PickupCollected::FOREVER)
     {
+        // a collectible: the collector's game counted it (PickedUpHorseShoe, PickedUpOyster, PictureTaken), the money
+        // came as shared money; the others count it too, for the "N of 50" and the 100% stats
+        if (pickup.m_nModelIndex == MODEL_HORSESHOE)
+        {
+            CStats::IncrementStat(STAT_HORSESHOES_COLLECTED, 1.0f);
+        }
+        else if (pickup.m_nModelIndex == MODEL_OYSTER)
+        {
+            CStats::IncrementStat(STAT_OYSTERS_COLLECTED, 1.0f);
+        }
+        else if (pickup.m_nPickupType == PICKUP_SNAPSHOT)
+        {
+            CStats::IncrementStat(STAT_SNAPSHOTS_TAKEN, 1.0f);
+        }
         pickup.Remove();
         return;
     }
@@ -130,6 +147,35 @@ static bool __fastcall CPickup__Update_Hook(
     return false;
 }
 
+// CWeapon::TakePhotograph -> CPickups::PictureTaken (0x73C243): the snapshot in the picture is removed there and then,
+// no CPickup::Update, so it goes to the others after it (the server takes it as it is: two photos of it within a
+// ping both count)
+static void __cdecl CPickups__PictureTaken_Hook()
+{
+    std::vector<std::pair<int, PickupKey>> snapshots;
+    for (int i = 0; i < PICKUP_COUNT; i++)
+    {
+        if (CPickups::aPickUps[i].m_nPickupType == PICKUP_SNAPSHOT)
+        {
+            snapshots.emplace_back(i, GetKey(CPickups::aPickUps[i]));
+        }
+    }
+
+    CPickups::PictureTaken();
+
+    for (const auto& [index, key] : snapshots)
+    {
+        if (CNetwork::m_bAuthenticated && CPickups::aPickUps[index].m_nPickupType != PICKUP_SNAPSHOT)
+        {
+            PickupCollected packet{};
+            packet.key = key;
+            packet.regenerationMs = PickupCollected::FOREVER;
+            GetPacketFactory().Send(packet);
+            logger::info("snapshot at %d %d %d taken", key.x, key.y, key.z);
+        }
+    }
+}
+
 // a pickup our game dropped goes to the others
 static void SendSpawn(int handle)
 {
@@ -183,6 +229,7 @@ void CPickupSync::InjectHooks()
         patch::RedirectCall(callSite, CPickups__GenerateNewOne_Hook);
     }
     patch::RedirectCall(0x4592F7, CPickups__GenerateNewOne_WeaponType_Hook);
+    patch::RedirectCall(0x73C243, CPickups__PictureTaken_Hook);
 }
 
 void CPickupSync::HandleSpawn(const PickupSpawn& packet)
