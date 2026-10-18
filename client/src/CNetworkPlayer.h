@@ -33,7 +33,10 @@ public:
 
 	bool m_bExtrapolating = false;
 
-	bool m_bRequestedDuckTask = false;
+	// the owner crouches: the clone's DuckJustDown is "pressed" while it differs, its own player code (aiming or not)
+	// gets it down or up; a mismatch since then (its CanPedDuck refused) is put right directly
+	bool m_bOwnerDucking = false;
+	unsigned int m_nDuckMismatchTime = 0;
 
 	bool m_bIsHost = false;
 

@@ -413,7 +413,7 @@ void CNetworkPlayer::HandleTask(Packets::Players::SetPlayerTask& packet)
         }
         case eTaskType::TASK_SIMPLE_DUCK:
         {
-            m_bRequestedDuckTask = true;
+            m_bOwnerDucking = packet.toggle;
             // if (packet.toggle)
             //{
             //     m_pPed->m_pIntelligence->SetTaskDuckSecondary(0);

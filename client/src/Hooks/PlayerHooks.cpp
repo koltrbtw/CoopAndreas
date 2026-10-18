@@ -417,12 +417,9 @@ bool __fastcall CPad__DuckJustDown_Hook(CPad* pPad, SKIP_EDX)
     if (CWorld::PlayerInFocus != 0)
     {
         CNetworkPlayer* pNetworkPlayer = CNetworkPlayerManager::GetPlayer(FindPlayerPed());
-        if (pNetworkPlayer && pNetworkPlayer->m_bRequestedDuckTask)
-        {
-            pNetworkPlayer->m_bRequestedDuckTask = false;
-            return true;
-        }
-        return false;
+        // a press of a toggle consumed by whichever of the control functions came first (and the direct apply of the on
+        // foot update undone by it) left an aiming clone standing
+        return pNetworkPlayer && CUtil::IsDucked(pNetworkPlayer->m_pPed) != pNetworkPlayer->m_bOwnerDucking;
     }
     return pPad->DuckJustDown();
 }
