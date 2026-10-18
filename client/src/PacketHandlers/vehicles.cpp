@@ -32,6 +32,12 @@ PACKET_HANDLER(ePacketType::VEHICLE_SPAWN, Packets::Vehicles::VehicleSpawn* pVeh
             pVehicleSpawn->rot.m_angle, pVehicleSpawn->color1, pVehicleSpawn->color2, pVehicleSpawn->createdBy,
             pVehicleSpawn->extras);
     CNetworkVehicleManager::Add(pNetworkVehicle);
+    // its model is still streaming (requested now): "not in my scope", the server sends the spawn again
+    if (!pNetworkVehicle->m_pVehicle)
+    {
+        CNetworkVehicleManager::DropClone(pNetworkVehicle, "no vehicle created");
+        return;
+    }
     if (pVehicleSpawn->wrecked && pNetworkVehicle->m_pVehicle)
     {
         CVehicleBlowSync::MakeWreck(pNetworkVehicle->m_pVehicle);

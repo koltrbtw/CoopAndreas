@@ -39,6 +39,15 @@ bool CNetworkVehicle::CreateVehicle(vehicleid_t vehicleid, int modelid, CVector 
         CStreaming::SetModelTxdIsDeletable(modelid);
     }
 
+    // the streaming busy (a mission start loads a lot at once) can leave it unloaded: the vehicle ctor then read the
+    // model's missing clump (0x4C9691 from CVehicle::SetModelIndex, a BMX of a remote player). No vehicle here, as with
+    // a full pool; the syncer's next packets bring it back
+    if (CStreaming::ms_aInfoForModel[modelid].m_nLoadState != LOADSTATE_LOADED)
+    {
+        logger::info("vehicle %s: model %d not loaded, not created", to_string(vehicleid).c_str(), modelid);
+        return false;
+    }
+
     // the creator's extras instead of random ones: ChooseComponent/ChooseSecondComponent take ms_compsToUse
     // unless it's -2 and reset it, the way CCarGenerator sets them
     CVehicleModelInfo::ms_compsToUse[0] = extras[0];
