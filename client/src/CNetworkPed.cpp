@@ -164,6 +164,12 @@ void CNetworkPed::WarpIntoVehicleDriver(CVehicle* vehicle)
         return;
     }
 
+    // the next update gets us in once they are
+    if (!CPedAnimSync::AreVehicleAnimsLoaded(vehicle))
+    {
+        return;
+    }
+
     if (m_pPed->m_nPedFlags.bInVehicle && m_pPed->m_pVehicle)
     {
         RemoveFromVehicle(m_pPed->m_pVehicle);
@@ -191,6 +197,11 @@ void CNetworkPed::WarpIntoVehiclePassenger(CVehicle* vehicle, int seatid)
     }
 
     if (CNetworkVehicle::IsSeatHeldByPlayer(vehicle, seatid, m_pPed))
+    {
+        return;
+    }
+
+    if (!CPedAnimSync::AreVehicleAnimsLoaded(vehicle))
     {
         return;
     }
@@ -303,6 +314,16 @@ void CNetworkPed::EnterVehicle(CVehicle* vehicle, bool bPassenger, int seat, pla
 
     CNetworkVehicle* pNetworkVehicle = CNetworkVehicleManager::GetVehicle(vehicle);
     if (!pNetworkVehicle)
+    {
+        return;
+    }
+
+    // no copy of the get in then: the driver/passenger updates warp it in once the anims are here. A copy onto a
+    // bike or a quad picked a door out of the get in task's range (8..18) and blended a garbage anim (0x64B311):
+    // those get warped on too
+    uint32_t nSubType = vehicle->m_nVehicleSubType;
+    if (!CPedAnimSync::AreVehicleAnimsLoaded(vehicle) || nSubType == VEHICLE_BIKE || nSubType == VEHICLE_BMX ||
+        nSubType == VEHICLE_QUAD)
     {
         return;
     }

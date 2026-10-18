@@ -13,4 +13,7 @@ public:
     static void Release(CPed* pPed);
     // false: its anim block is still streaming, it is requested now
     static bool IsGroupLoaded(int nGroup);
+    // the get in/sit/out anims of this vehicle (a quad, a bike: their own IFP) are loaded, requested if not. A clone
+    // warped or put in a vehicle whose block isn't loaded here crashed in CAnimManager::BlendAnimation (0x4D464E)
+    static bool AreVehicleAnimsLoaded(CVehicle* pVehicle);
 };

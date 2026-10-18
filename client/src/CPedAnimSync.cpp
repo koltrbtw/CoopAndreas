@@ -66,6 +66,46 @@ bool CPedAnimSync::IsGroupLoaded(int nGroup)
     return true;
 }
 
+// the group's block by its definition (CAnimManager::ms_aAnimAssocDefinitions): a group of a block never loaded has
+// no associations yet, so no block pointer either
+static bool RequestGroup(int nGroup)
+{
+    if (CPedAnimSync::IsGroupLoaded(nGroup))
+    {
+        return true;
+    }
+
+    int nBlockIndex = CAnimManager::GetAnimationBlockIndex(CAnimManager::ms_aAnimAssocDefinitions[nGroup].blockName);
+    if (nBlockIndex >= 0 && !CAnimManager::ms_aAnimBlocks[nBlockIndex].bLoaded)
+    {
+        CStreaming::RequestModel(IFP_MODEL_BASE + nBlockIndex, 0);
+    }
+    return false;
+}
+
+bool CPedAnimSync::AreVehicleAnimsLoaded(CVehicle* pVehicle)
+{
+    // CVehicleAnimGroup (0xC1CDC0, 0x94 bytes each) of the handling's anim group (+0xDE), its first and second
+    // group ids are the bytes 0 and 1 (GetGroup, 0x6E3B00)
+    const uint8_t* pHandling = *reinterpret_cast<uint8_t**>(reinterpret_cast<uint8_t*>(pVehicle) + 0x384);
+    if (!pHandling)
+    {
+        return true;
+    }
+    const int8_t* pAnimGroup = reinterpret_cast<const int8_t*>(0xC1CDC0 + pHandling[0xDE] * 0x94);
+
+    bool bLoaded = true;
+    for (int i = 0; i < 2; i++)
+    {
+        int nGroup = pAnimGroup[i];
+        if (nGroup >= 0 && nGroup < CAnimManager::ms_numAnimAssocDefinitions && !RequestGroup(nGroup))
+        {
+            bLoaded = false;
+        }
+    }
+    return bLoaded;
+}
+
 int CPedAnimSync::Collect(CPed* pPed, SPedAnim* pAnims, int nMaxAnims, int nOnlyGroup)
 {
     if (!pPed->m_pRwClump)
