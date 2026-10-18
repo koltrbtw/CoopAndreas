@@ -144,6 +144,18 @@ public:
                     Packets::Scripts::OnMissionFlagSync packet{};
                     packet.bOnMission = CTheScripts::ScriptSpace[CTheScripts::OnAMissionFlag];
                     GetPacketFactory().Send(packet);
+                    logger::info("our mission flag: %d", packet.bOnMission);
+                }
+                else if (!CLocalPlayer::m_bIsHost && CLocalPlayer::m_bHostOnMission && CTheScripts::OnAMissionFlag &&
+                         !CTheScripts::ScriptSpace[CTheScripts::OnAMissionFlag])
+                {
+                    CTheScripts::ScriptSpace[CTheScripts::OnAMissionFlag] = 1;
+                    static bool bLogged = false;
+                    if (!bLogged)
+                    {
+                        logger::info("the mission flag set back to the host's: a script of ours cleared it");
+                        bLogged = true;
+                    }
                 }
 
                 unsigned int tickCount = GetTickCount();

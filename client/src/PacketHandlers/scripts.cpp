@@ -12,6 +12,8 @@ PACKET_HANDLER(ePacketType::ON_MISSION_FLAG_SYNC, Packets::Scripts::OnMissionFla
 	if (CLocalPlayer::m_bIsHost)
 		return;
 
+	logger::info("the host's mission flag: %d", pOnMissionFlagSync->bOnMission);
+	CLocalPlayer::m_bHostOnMission = pOnMissionFlagSync->bOnMission;
 	if (CTheScripts::OnAMissionFlag)
 	{
         bool bWasOnMission = (bool)CTheScripts::ScriptSpace[CTheScripts::OnAMissionFlag];
