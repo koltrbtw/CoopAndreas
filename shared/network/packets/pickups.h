@@ -98,6 +98,32 @@ private:
     }
 };
 
+// a pickup one game drops (the money and weapons of a body, a jetpack, a gang war's armour): the others make the
+// same one, then its key is the same everywhere and it is collected like a map one
+class PickupSpawn : public Packet
+{
+    DEFINE_PACKET_TYPE(PickupSpawn, ePacketType::PICKUP_SPAWN, ePacketChannel::EVENT);
+
+public:
+    static constexpr int32_t NO_TIMEOUT = -1;
+
+    PickupKey key{};
+    uint32_t ammo = 0;  // the ammo of a weapon, the amount of money
+    bool isEmpty = false;
+    int32_t remainingMs = NO_TIMEOUT;  // till it goes by itself (CPickup::m_nRegenerationTime of a timeout one)
+
+private:
+    template <typename Stream>
+    bool Serialize(Stream& stream)
+    {
+        serialize_object(stream, key);
+        serialize_uint32(stream, ammo);
+        serialize_bool(stream, isEmpty);
+        serialize_int(stream, remainingMs, -1, 600000);
+        return true;
+    }
+};
+
 // server -> the others (and a late one): somebody took it, back in remainingMs or never
 class PickupState : public Packet
 {

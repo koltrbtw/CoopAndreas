@@ -96,6 +96,7 @@ enum class ePacketType : uint16_t
     PICKUP_GRANT,
     PICKUP_COLLECTED,
     PICKUP_STATE,
+    PICKUP_SPAWN,
     PACKET_ID_MAX
 };
 
@@ -122,7 +123,7 @@ extern inline const char* ePacketType_ToString(ePacketType packetType)
         "TRAIN_SPAWN", "TRAIN_UPDATE", "GANG_ZONES_UPDATE", "GANG_WARS_SETTINGS", "GANG_WAR_STATE",
         "WORLD_OBJECT_STATES", "WORLD_OBJECT_MOTION", "PED_VEHICLE_ENTER", "PLAYER_FALL", "PED_DIED",
         "PED_STEALTH_KILL", "PED_VEHICLE_EXIT", "VEHICLE_BLOWN", "PICKUP_COLLECT_REQUEST", "PICKUP_GRANT",
-        "PICKUP_COLLECTED", "PICKUP_STATE"};
+        "PICKUP_COLLECTED", "PICKUP_STATE", "PICKUP_SPAWN"};
     
     return array[(int)packetType];
 }

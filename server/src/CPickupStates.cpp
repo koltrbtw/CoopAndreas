@@ -41,8 +41,22 @@ void CPickupStates::HandleRequest(const PickupCollectRequest& packet, CNetworkPl
     GetPacketFactory().Send(grant, pSender);
 }
 
+void CPickupStates::HandleSpawn(const PickupSpawn& packet, CNetworkPlayer* pSender)
+{
+    // a new one at the spot of an old one taken for good
+    ms_entries.erase(packet.key);
+
+    SDropped& dropped = ms_dropped[packet.key];
+    dropped.spawn = packet;
+    dropped.goneAt = g_serverTime + (packet.remainingMs == PickupSpawn::NO_TIMEOUT
+                                         ? DROPPED_KEEP_TIME
+                                         : static_cast<server_time_t>(packet.remainingMs));
+    GetPacketFactory().SendToAll(dropped.spawn, pSender);
+}
+
 void CPickupStates::HandleCollected(const PickupCollected& packet, CNetworkPlayer* pSender)
 {
+    ms_dropped.erase(packet.key);
     SEntry& entry = ms_entries[packet.key];
     entry.pLock = nullptr;
     entry.bTaken = true;
@@ -57,6 +71,24 @@ void CPickupStates::HandleCollected(const PickupCollected& packet, CNetworkPlaye
 
 void CPickupStates::OnPlayerConnected(CNetworkPlayer* pNetworkPlayer)
 {
+    for (auto it = ms_dropped.begin(); it != ms_dropped.end();)
+    {
+        int32_t remaining = static_cast<int32_t>(it->second.goneAt - g_serverTime);
+        if (remaining <= 0)
+        {
+            it = ms_dropped.erase(it);
+            continue;
+        }
+
+        PickupSpawn spawn = it->second.spawn;
+        if (spawn.remainingMs != PickupSpawn::NO_TIMEOUT)
+        {
+            spawn.remainingMs = remaining;
+        }
+        GetPacketFactory().Send(spawn, pNetworkPlayer);
+        ++it;
+    }
+
     for (auto it = ms_entries.begin(); it != ms_entries.end();)
     {
         if (!IsAway(it->second))
