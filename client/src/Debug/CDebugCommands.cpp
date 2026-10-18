@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "CDebugCommands.h"
+#include "CScreenLog.h"
 #include <fstream>
 #include <sstream>
 #include <CWanted.h>
@@ -895,6 +896,12 @@ void CDebugCommands::RunCommand(const std::string& line)
             }
         }
         logger::info("stand debug: %d mission objects hit", count);
+    }
+    else if (command == "hud")
+    {
+        // what is on our screen now (CScreenLog): the texts, widescreen, the control, the camera, the counters, the
+        // checkpoint and the blips
+        CScreenLog::DumpState();
     }
     else if (command == "control")
     {

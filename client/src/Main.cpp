@@ -7,6 +7,7 @@
 #include "CNetworkPlayerObjects.h"
 #include "CNetworkCameraScene.h"
 #include "CMissionCarHealthBar.h"
+#include "Debug/CScreenLog.h"
 #include "CPedAnimSync.h"
 #include "CSniperDot.h"
 #include "CCutsceneMgr.h"
@@ -99,6 +100,7 @@ public:
         Events::gameProcessEvent += []
         {
             CStandAgent::Process();
+            CScreenLog::Process();
             CNetworkAnimQueue::Process();
             CEntryExitTransitionSync::Process();
             CDiscordRPCMgr::Update();

@@ -32,6 +32,8 @@
 //   enter-passenger             into the nearest network vehicle as a passenger, as the G key
 //   script-enter [seat] [time] [control] TASK_ENTER_CAR_AS_PASSENGER into the nearest vehicle with no control (a scene)
 //   control                     the control back
+//   hud                         what is on our screen: texts, widescreen, control, camera, counters, checkpoint, blips
+//                               (the changes are "screen:" lines in the log all the time, CScreenLog)
 //   break-bottles               the mission objects within 40 m hit by us (SWEET2 bottles)
 //   warp-remote-passenger       warp the other players into seat 0 of the vehicle nearest to them (a late passenger update)
 //   g                           press G for a frame, the passenger enter of CPassengerEnter
