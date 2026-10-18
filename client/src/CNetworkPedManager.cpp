@@ -227,6 +227,8 @@ void CNetworkPedManager::Process()
         if (ped == nullptr)
             continue;
 
+        networkPed->ProcessFreeze();
+
         // our copy of the enter task turns and walks it to the door
         CNetworkVehicle* pEnterVehicle = CNetworkVehicleManager::GetVehicle(networkPed->m_enterVehicleId);
         if (pEnterVehicle && networkPed->IsEnteringVehicle(pEnterVehicle->m_pVehicle))

@@ -450,6 +450,13 @@ void CNetworkPed::BecomeSyncer(bool bResumeAmbientLife)
 {
     m_bSyncing = true;
     m_bClaimOnRelease = false;
+    // our physics moves it from now on
+    if (m_bFrozen && m_pPed)
+    {
+        m_pPed->m_nPhysicalFlags.bDontApplySpeed = false;
+    }
+    m_bFrozen = false;
+
     // the clone's wait for a leave of the old syncer is over; our own leave is watched from now on
     m_pendingExit.reset();
     m_nLeaveVehicleTime = 0;
@@ -601,6 +608,35 @@ void CNetworkPed::ProcessTargetPosition()
         return;
     }
 
-    float fPull = std::min(1.0f, 0.1f * CTimer::ms_fTimeStep);
+    // frozen its own walk doesn't move it, the pull is all it moves by: close behind the prediction
+    float fPull = std::min(1.0f, (m_bFrozen ? 0.5f : 0.1f) * CTimer::ms_fTimeStep);
     m_pPed->SetPosn(m_pPed->GetPosition() + error * fPull);
+}
+
+void CNetworkPed::ProcessFreeze()
+{
+    // pushed by vehicles and peds of this game, the clone was a few cm off its owner's ped every hit and the pull dragged
+    // it back (neon's UpdateRemoteReplicaPhysicsFence): on foot its physics doesn't move it, the position sync does; a
+    // hit still pushes the vehicle back by the ped's mass. Its own tasks keep the physics: our copies of an enter,
+    // a leave, a fall, a death, a stealth kill
+    bool bFreeze = ms_bFreezeClones && !m_bSyncing && m_pPed && m_pPed->IsAlive() && !m_pPed->m_nPedFlags.bInVehicle && m_bHasTargetPos &&
+                   !m_pPed->m_pAttachedTo;
+    if (bFreeze)
+    {
+        auto& taskManager = m_pPed->m_pIntelligence->m_TaskMgr;
+        for (int i = TASK_PRIMARY_PHYSICAL_RESPONSE; i <= TASK_PRIMARY_PRIMARY && bFreeze; i++)
+        {
+            bFreeze = taskManager.m_aPrimaryTasks[i] == nullptr;
+        }
+    }
+
+    if (bFreeze != m_bFrozen && m_pPed)
+    {
+        m_pPed->m_nPhysicalFlags.bDontApplySpeed = bFreeze;
+        if (bFreeze)
+        {
+            m_pPed->m_vecMoveSpeed = CVector(0.0f, 0.0f, 0.0f);
+        }
+    }
+    m_bFrozen = bFreeze;
 }
