@@ -45,6 +45,7 @@ public:
 	unsigned int m_nExitVehicleTime = 0;
 	std::optional<Packets::Peds::PedVehicleExit> m_pendingExit;
 	unsigned int m_nNoHealthSince = 0;  // a clone: CTimer time its syncer said 0 health and it still lives here
+	uint8_t m_nLastStateFlags = 0;  // a clone: CPedStateSync flags of the last on foot update
 
 	static CNetworkPed* CreateHosted(CPed* ped);
 	void WarpIntoVehicleDriver(CVehicle* vehicle);

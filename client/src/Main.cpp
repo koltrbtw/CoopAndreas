@@ -210,6 +210,7 @@ public:
                         onFootUpdate.idleAnimCount = CPedAnimSync::Collect(localPlayer, onFootUpdate.idleAnims,
                             Packets::Players::OnFootUpdate::MAX_IDLE_ANIMS, ANIM_GROUP_PLAYIDLES);
                         CPlayerPositionSync::Collect(localPlayer, onFootUpdate);
+                        onFootUpdate.stateFlags = CPedStateSync::Collect(localPlayer);
                         GetPacketFactory().Send(onFootUpdate);
 
                         lastOnFootSyncTickRate = tickCount;

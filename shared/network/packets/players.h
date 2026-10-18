@@ -130,6 +130,7 @@ public:
     vehicleid_t contactVehicle{};
     CVector contactOffset{};
     static constexpr float MAX_CONTACT_OFFSET = 30.0f;
+    uint8_t stateFlags = 0;  // CPedStateSync: on fire, swimming, choking, climbing
 
 private:
     template <typename Stream>
@@ -171,6 +172,7 @@ private:
         }
 
         serialize_uint8(stream, epoch);
+        serialize_uint8(stream, stateFlags);
         bool hasContact = Stream::IsWriting && contactVehicle.valid();
         serialize_bool(stream, hasContact);
         if (hasContact)

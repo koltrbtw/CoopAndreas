@@ -146,6 +146,7 @@ public:
     WorldPositionCompressed weaponAim{};
     int animCount = 0;
     SPedAnim anims[MAX_ANIMS]{};
+    uint8_t stateFlags = 0;  // CPedStateSync: on fire, swimming, choking, climbing
 
 private:
     template <typename Stream>
@@ -172,6 +173,7 @@ private:
         {
             serialize_object(stream, anims[i]);
         }
+        serialize_uint8(stream, stateFlags);
         return true;
     }
 };

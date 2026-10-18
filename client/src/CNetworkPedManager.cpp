@@ -206,6 +206,7 @@ void CNetworkPedManager::Update()
 
             packet.fightingStyle = pPed->m_nFightingStyle;
             packet.animCount = CPedAnimSync::Collect(pPed, packet.anims, Packets::Peds::PedOnFoot::MAX_ANIMS);
+            packet.stateFlags = CPedStateSync::Collect(pPed);
 
             GetPacketFactory().Send(packet);
         }

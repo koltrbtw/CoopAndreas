@@ -112,8 +112,9 @@ void CPlayerPositionSync::Warp(CNetworkPlayer* pNetworkPlayer, const CVector& po
 void CPlayerPositionSync::ProcessClone(CNetworkPlayer* pNetworkPlayer)
 {
     CPlayerPed* pPlayerPed = pNetworkPlayer->m_pPed;
+    // a climb task holds it at the handhold (CPedStateSync)
     if (ms_bOldWay || !pPlayerPed || !pNetworkPlayer->m_bHasTargetPos || pPlayerPed->m_nPedFlags.bInVehicle ||
-        pPlayerPed->m_pAttachedTo)
+        pPlayerPed->m_pAttachedTo || CPedStateSync::IsClimbing(pPlayerPed))
     {
         return;
     }

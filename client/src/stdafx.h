@@ -132,6 +132,7 @@ using namespace plugin;
 #include "CPlayerFallSync.h"
 #include "CPedDeathSync.h"
 #include "CPlayerPositionSync.h"
+#include "CPedStateSync.h"
 #include "CDriveBy.h"
 #include "CNetworkPedManager.h"
 #include "CDebugPedTasks.h"
