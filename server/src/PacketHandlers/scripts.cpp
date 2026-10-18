@@ -97,6 +97,18 @@ PACKET_HANDLER(ePacketType::NETWORK_PLAYER_OBJECT, Packets::Scripts::NetworkPlay
     }
 }
 
+PACKET_HANDLER(ePacketType::NETWORK_PLAYER_CAMERA_SCENE, Packets::Scripts::NetworkPlayerCameraScene* pScene,
+    CNetworkPlayer* pNetworkPlayer)
+{
+    if (pNetworkPlayer->m_bIsHost)
+    {
+        if (auto pTargetPlayer = CNetworkPlayerManager::GetPlayer(pScene->forWhoPlayerId))
+        {
+            GetPacketFactory().Send(*pScene, pTargetPlayer);
+        }
+    }
+}
+
 PACKET_HANDLER(ePacketType::NETWORK_PLAYER_OBJECT_BROKEN, Packets::Scripts::NetworkPlayerObjectBroken* pBroken,
     CNetworkPlayer* pNetworkPlayer)
 {

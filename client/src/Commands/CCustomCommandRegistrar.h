@@ -33,6 +33,7 @@
 #include "Commands/CCommandGetObjectsBrokenByNetworkPlayer.h"
 #include "Commands/CCommandPauseSyncingThisScript.h"
 #include "Commands/CCommandBreakObjectForNetworkPlayer.h"
+#include "Commands/CCommandPlayCameraSceneForNetworkPlayer.h"
 
 class CCustomCommandRegistrar
 {
@@ -71,5 +72,6 @@ public:
 		CCustomCommandMgr::RegisterCommand(0x1D1D, new CCommandGetObjectsBrokenByNetworkPlayer());
 		CCustomCommandMgr::RegisterCommand(0x1D1E, new CCommandPauseSyncingThisScript());
 		CCustomCommandMgr::RegisterCommand(0x1D1F, new CCommandBreakObjectForNetworkPlayer());
+		CCustomCommandMgr::RegisterCommand(0x1D20, new CCommandPlayCameraSceneForNetworkPlayer());
 	}
 };

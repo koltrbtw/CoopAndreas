@@ -308,4 +308,39 @@ private:
         return true;
     }
 };
+
+// a camera scene of the host's mission for one player, see CNetworkCameraScene; host -> that player
+class NetworkPlayerCameraScene : public Packet
+{
+    DEFINE_PACKET_TYPE(NetworkPlayerCameraScene, ePacketType::NETWORK_PLAYER_CAMERA_SCENE, ePacketChannel::SCRIPT);
+
+public:
+    playerid_t forWhoPlayerId{};
+    CVector camPos{};
+    CVector lookAt{};
+    char text[8]{};
+    char help[8]{};
+    uint16_t delay = 0;     // ms
+    uint16_t duration = 0;  // ms
+
+private:
+    template <typename Stream>
+    bool Serialize(Stream& stream)
+    {
+        serialize_playerid(stream, forWhoPlayerId);
+        serialize_float(stream, camPos.x);
+        serialize_float(stream, camPos.y);
+        serialize_float(stream, camPos.z);
+        serialize_float(stream, lookAt.x);
+        serialize_float(stream, lookAt.y);
+        serialize_float(stream, lookAt.z);
+        serialize_string(stream, text, 8);
+        text[ARRAY_SIZE(text) - 1] = '\0';
+        serialize_string(stream, help, 8);
+        help[ARRAY_SIZE(help) - 1] = '\0';
+        serialize_uint16(stream, delay);
+        serialize_uint16(stream, duration);
+        return true;
+    }
+};
 }  // namespace Packets::Scripts

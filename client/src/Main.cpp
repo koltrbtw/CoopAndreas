@@ -5,6 +5,7 @@
 #include "stdafx.h"
 #include "CClothesChangeSync.h"
 #include "CNetworkPlayerObjects.h"
+#include "CNetworkCameraScene.h"
 #include "CPedAnimSync.h"
 #include "CSniperDot.h"
 #include "CCutsceneMgr.h"
@@ -263,6 +264,7 @@ public:
                 CPlayerPositionSync::Process();
                 CClothesChangeSync::Process();
                 CNetworkPlayerObjects::Process();
+                CNetworkCameraScene::Process();
                 CLocalPlayer::ProcessVehicleWeapon();
                 CPedAnimSync::Process();
                 CNetworkVehicleManager::Process();

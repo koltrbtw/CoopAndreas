@@ -7,6 +7,7 @@
 #include <COpCodeSync.h>
 #include <CTaskSequenceSync.h>
 #include <CNetworkPlayerObjects.h>
+#include <CNetworkCameraScene.h>
 
 PACKET_HANDLER(ePacketType::ON_MISSION_FLAG_SYNC, Packets::Scripts::OnMissionFlagSync* pOnMissionFlagSync)
 {
@@ -136,6 +137,12 @@ PACKET_HANDLER(ePacketType::NETWORK_PLAYER_OBJECT, Packets::Scripts::NetworkPlay
 		return;
 	}
 	CNetworkPlayerObjects::Add(pObject->model, pObject->pos, pObject->heading);
+}
+
+PACKET_HANDLER(ePacketType::NETWORK_PLAYER_CAMERA_SCENE, Packets::Scripts::NetworkPlayerCameraScene* pScene)
+{
+	CNetworkCameraScene::Start(pScene->camPos, pScene->lookAt, pScene->text, pScene->help, pScene->delay,
+		pScene->duration);
 }
 
 PACKET_HANDLER(ePacketType::NETWORK_PLAYER_OBJECT_BROKEN, Packets::Scripts::NetworkPlayerObjectBroken* pBroken)
