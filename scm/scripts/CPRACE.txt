@@ -4,6 +4,13 @@ if
   has_deatharrest_been_executed 
 goto_if_false @CPRACE_43
 Text.PrintNow('RACES25', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RACES25', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @CPRACE_103
 
 :CPRACE_43
@@ -29,6 +36,26 @@ terminate_this_script
 $onmission = 1
 $disable_mod_garage = 1
 script_name 'CPRACE'
+Coop.EnableSyncingThisScript()
+
+// the race's own Stat.RegisterMissionGiven is skipped for cesar's race and the replays, collect them here
+$NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2] = Coop.CollectNetworkPlayersForTheMission()
+743@ = 0 // the network players are placed behind the grid and follow the race
+for $temp_int = 0 to 2
+    744@($temp_int,3i) = -1 // their spare cars
+    747@($temp_int,3i) = 0 // car_blip_removed
+end
+750@ = 0 // a racer index
+751@ = -1 // a racer's car
+752@ = 0 // the host's next checkpoint is shown to the network players
+753@ = 0 // its index
+754@ = 0 // its lap
+755@ = 0.0 // a point
+756@ = 0.0
+757@ = 0.0
+758@ = 0.0 // the heading of the host's car on the grid
+759@ = 0.0 // the offset of a spare car behind it
+760@ = 0 // the host's next checkpoint should be shown
 wait 0
 World.DisableAllEntryExits(True)
 Text.LoadMissionText('RACETOR')
@@ -364,6 +391,7 @@ $race_debug = -1
 
 :CPRACE_2634
 wait 0
+gosub @CPRACE_COOP_UPDATE
 $game_timer = Clock.GetGameTimer()
 if 
   13 > 49@
@@ -1404,6 +1432,10 @@ goto @CPRACE_8848
 Player.SetControl($player1, False)
 Camera.SetBehindPlayer
 Camera.RestoreJumpcut
+
+// the grid is set up and the host is in his car at its back, bring the network players behind it
+gosub @CPRACE_COOP_SETUP
+
 49@ = 7
 goto @CPRACE_11213
 
@@ -1751,6 +1783,13 @@ if
   is_int_var_greater_than_int_lvar $game_timer > 446@
 goto_if_false @CPRACE_13670
 Text.PrintNow('RACES20', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RACES20', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 if 
   $show_race_selection == 0
 goto_if_false @CPRACE_13625
@@ -1795,6 +1834,13 @@ if
   not is_int_lvar_equal_to_int_lvar 443@ == 379@(442@,16i)
 goto_if_false @CPRACE_13910
 Text.PrintNow('RACES24', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RACES24', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 if 
   $show_race_selection == 0
 goto_if_false @CPRACE_13865
@@ -1817,6 +1863,13 @@ goto @CPRACE_14012
 
 :CPRACE_13917
 Text.PrintNow('RACES24', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RACES24', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 if 
   $show_race_selection == 0
 goto_if_false @CPRACE_13967
@@ -1839,6 +1892,13 @@ goto @CPRACE_14114
 
 :CPRACE_14019
 Text.PrintNow('RACES24', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RACES24', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 if 
   $show_race_selection == 0
 goto_if_false @CPRACE_14069
@@ -6388,6 +6448,7 @@ return
 return 
 
 :CPRACE_51327
+gosub @CPRACE_COOP_CLEANUP
 if or
   53@ == 0
   53@ == 1
@@ -6556,3 +6617,182 @@ $onmission = 0
 Mission.Finish
 return 
 
+:CPRACE_COOP_SETUP
+// the network players follow the ground races from a row of spare cars behind the grid, they are
+// frozen with the host until the start; the air races are time trials started in the air and the stadium
+// races are in an interior, they are left where they are there
+if and
+    not is_int_lvar_equal_to_constant 205@ == 3
+    221@ == 0
+    not Car.IsDead(379@(442@,16i))
+then
+    743@ = 1
+    758@ = Car.GetHeading(379@(442@,16i))
+    // the host's car is the last one of the grid, the row behind it is off the racers' slots
+    755@ = Car.GetOffsetInWorldCoords(756@, 757@, 379@(442@,16i), 0.0, -16.0, 0.0)
+    World.ClearArea(0, 755@, 756@, 757@, 12.0)
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                $temp_int == 0
+            then
+                759@ = -9.0
+            end
+            if
+                $temp_int == 1
+            then
+                759@ = -16.0
+            end
+            if
+                $temp_int == 2
+            then
+                759@ = -23.0
+            end
+            755@ = Car.GetOffsetInWorldCoords(756@, 757@, 379@(442@,16i), 0.0, 759@, 0.0)
+            757@ += 3.0
+            757@ = World.GetGroundZFor3DCoord(755@, 756@, 757@)
+            // the host's race vehicle model, it is loaded for the grid
+            744@($temp_int,3i) = Car.Create(716@(442@,16i), 755@, 756@, 757@)
+            Car.SetHeading(744@($temp_int,3i), 758@)
+            747@($temp_int,3i) = 0 // car_blip_removed
+            Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 744@($temp_int,3i), true, BlipDisplay.MarkerOnly, BlipColor.Blue, 3)
+            755@ = Car.GetOffsetInWorldCoords(756@, 757@, 744@($temp_int,3i), -2.5, 0.0, 0.0)
+            if
+                Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+            then
+                Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 755@, 756@, 757@)
+            else
+                Char.SetCoordinates($NETWORK_PLAYER[$temp_int], 755@, 756@, 757@)
+            end
+            Char.SetHeading($NETWORK_PLAYER[$temp_int], 758@)
+            Char.SetAreaVisible($NETWORK_PLAYER[$temp_int], 0)
+        end
+    end
+end
+return
+
+:CPRACE_COOP_UPDATE
+if
+    743@ == 1
+then
+    // the spare car blip is not needed anymore when the player found a car after the start, before it
+    // the host still sees him in the car he was warped out of
+    if
+        49@ > 10
+    then
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                if
+                    747@($temp_int,3i) == 0
+                then
+                    if
+                        Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+                    then
+                        747@($temp_int,3i) = 1
+                        Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 744@($temp_int,3i))
+                    end
+                end
+            end
+        end
+    end
+
+    // the racers' cars are driven by the race and the doors are locked for the host only, a network
+    // player in one is taken out beside its left door
+    for 750@ = 0 to 15
+        if
+            is_int_lvar_greater_than_int_lvar 256@ > 750@
+        then
+            if
+                not is_int_lvar_equal_to_int_lvar 750@ == 442@
+            then
+                if
+                    not Char.IsDead(395@(750@,16i))
+                then
+                    if
+                        Char.IsInAnyCar(395@(750@,16i))
+                    then
+                        751@ = Char.StoreCarIsInNoSave(395@(750@,16i))
+                        for $temp_int = 0 to 2
+                            if
+                                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                            then
+                                if
+                                    Char.IsInCar($NETWORK_PLAYER[$temp_int], 751@)
+                                then
+                                    755@ = Car.GetOffsetInWorldCoords(756@, 757@, 751@, -2.5, 0.0, 0.0)
+                                    Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 755@, 756@, 757@)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    // the host's next checkpoint is mirrored while he races in his car, the race checkpoint isn't synced
+    760@ = 0
+    if and
+        49@ == 12
+        207@ == 0
+        363@(442@,16f) <> 99999.0
+    then
+        760@ = 1
+    end
+    if
+        760@ == 1
+    then
+        if or
+            752@ == 0
+            not is_int_lvar_equal_to_int_lvar 753@ == 257@(442@,16i)
+            not is_int_lvar_equal_to_int_lvar 754@ == 273@(442@,16i)
+        then
+            752@ = 1
+            set_lvar_int_to_lvar_int 753@ = 257@(442@,16i)
+            set_lvar_int_to_lvar_int 754@ = 273@(442@,16i)
+            for $temp_int = 0 to 2
+                if
+                    Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                then
+                    Coop.UpdateCheckpointForNetworkPlayer(331@(442@,16f), 347@(442@,16f), 363@(442@,16f), 325@, 325@, 325@, $NETWORK_PLAYER[$temp_int])
+                end
+            end
+        end
+    else
+        if
+            752@ == 1
+        then
+            752@ = 0
+            for $temp_int = 0 to 2
+                if
+                    Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                then
+                    Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+                end
+            end
+        end
+    end
+end
+return
+
+:CPRACE_COOP_CLEANUP
+743@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        Coop.ClearAllEntityBlipsForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+    end
+    if
+        744@($temp_int,3i) <> -1
+    then
+        Car.MarkAsNoLongerNeeded(744@($temp_int,3i))
+        744@($temp_int,3i) = -1
+    end
+end
+return
