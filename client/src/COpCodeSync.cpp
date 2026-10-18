@@ -179,6 +179,15 @@ const SSyncedOpCode syncedOpcodes[] = {
     {0x01B4, true, {eSyncedParamType::PLAYER}},  // set_player_control[Player] {state}[bool]
     {COMMAND_ADD_SCORE, true, {eSyncedParamType::PLAYER}},
 
+    // Wanted level: what the mission gives or takes from the host's player every player gets (the stars after the
+    // drive-by of SWEET4, each loses his own), the limits and the free resprays of the mission are everyone's
+    {COMMAND_ALTER_WANTED_LEVEL, true, {eSyncedParamType::PLAYER}},
+    {COMMAND_ALTER_WANTED_LEVEL_NO_DROP, true, {eSyncedParamType::PLAYER}},
+    {COMMAND_CLEAR_WANTED_LEVEL, true, {eSyncedParamType::PLAYER}},
+    {COMMAND_SET_MAX_WANTED_LEVEL},
+    {COMMAND_SET_FREE_RESPRAYS},
+    {COMMAND_SET_WANTED_MULTIPLIER},
+
     {COMMAND_REQUEST_MODEL}};
 
 static uint8_t textLengthBuffer[NUM_SYNCED_PARAMS];
