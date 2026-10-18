@@ -1,11 +1,10 @@
 //-------------Mission 25---------------
 // Originally: Catalyst
-Coop.AddChatMessage("{ffff00}[CoopAndreas Warning]{ffffff} This mission is currently unsupported and not recommended to play!")
-Coop.AddChatMessage("{ffff00}[CoopAndreas Warning]{ffffff} It may cause desyncs, crashes, or other unexpected behavior!")
-
 
 :RYDER3
 script_name 'RYDER3'
+Coop.EnableSyncingThisScript()
+
 gosub @RYDER3_47
 if 
   has_deatharrest_been_executed 
@@ -18,7 +17,28 @@ terminate_this_script
 
 :RYDER3_47
 Stat.RegisterMissionGiven
+$NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2] = Coop.CollectNetworkPlayersForTheMission()
 $onmission = 1
+for 205@ = 0 to 3
+    184@(205@,4i) = 0 // the vago blip is shown to the network players
+    188@(205@,4i) = 0 // the balla blip is shown to the network players
+end
+192@ = -1 // the spare car for the network players
+193@ = 0
+194@ = 0 // all the network players are where the host stops
+195@ = 0 // 1: the network players drive to the train, 2: they follow it
+for $temp_int = 0 to 2
+    196@($temp_int,3i) = 0 // car_blips_removed
+    207@($temp_int,3i) = -1 // the network players teleported to the host
+end
+199@ = 0 // the checkpoint shown to the network players: 1 the train yard, 2 pay'n'spray, 3 grove street
+200@ = 0
+201@ = -1
+202@ = 0.0 // the point a network player is moved to
+203@ = 0.0
+204@ = 0.0
+205@ = 0
+206@ = 0
 Game.MakeRoomInPlayerGangForMissionPeds(1)
 89@ = 0
 $r3_rnd = 0
@@ -95,6 +115,7 @@ Streaming.RequestModel(569)
 Streaming.RequestModel(492)
 Streaming.RequestModel(105)
 Streaming.RequestModel(106)
+Streaming.RequestModel(466) // the spare car for the network players
 Streaming.LoadSpecialCharacter('RYDER2', 1)
 Streaming.LoadAllModelsNow
 
@@ -135,6 +156,7 @@ if or
   not Streaming.HasModelLoaded(492)
   not Streaming.HasModelLoaded(105)
   not Streaming.HasModelLoaded(106)
+  not Streaming.HasModelLoaded(466)
   not Streaming.HasAnimationLoaded("SWAT")
 goto_if_false @RYDER3_579
 wait 0
@@ -234,6 +256,42 @@ Char.SetDecisionMaker($ryder, 72@)
 Game.SetRelationship(RelationshipType.Like, PedType.Mission1, PedType.Mission1)
 Game.SetRelationship(RelationshipType.Like, PedType.Mission1, PedType.Player1)
 Game.SetRelationship(RelationshipType.Like, PedType.Mission2, PedType.Mission2)
+
+// ryder takes the truck's only passenger seat, a car for the network players
+193@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        193@ += 1
+    end
+end
+if
+    193@ > 0
+then
+    World.ClearArea(1, 2494.91, -1682.17, 12.32, 5.0)
+    192@ = Car.Create(466, 2494.91, -1682.17, 12.32)
+    Car.SetHeading(192@, 90.0)
+    Car.SetHealth(192@, 1000)
+end
+
+// the host is put in front of ryder's house after the cutscene
+Coop.TeleportPlayersToHostSafely($NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2])
+
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        196@($temp_int,3i) = 0 // car_blips_removed
+        Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 108@, true, BlipDisplay.MarkerOnly, BlipColor.Blue, 3)
+        if
+            192@ <> -1
+        then
+            Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 192@, true, BlipDisplay.MarkerOnly, BlipColor.Blue, 3)
+        end
+    end
+end
+195@ = 1
 109@ = 0
 
 :RYDER3_1724
@@ -285,6 +343,13 @@ Camera.PointAtPoint(2473.833, -1674.969, 13.4843, SwitchType.JumpCut)
 gosub @RYDER3_19023
 Text.PrintNow('RYD3_Z', 6000, 1)
 TIMERB = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RYD3_Z', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :RYDER3_2200
 if 
@@ -308,6 +373,7 @@ goto_if_false @RYDER3_18050
 wait 0
 gosub @RYDER3_19056
 gosub @RYDER3_20126
+gosub @RYDER3_COOP_UPDATE
 if 
 is_ps2_keyboard_key_just_pressed 83
 goto_if_false @RYDER3_2310
@@ -925,10 +991,25 @@ if and
   not Char.IsDead($scplayer)
   not Car.IsDead(108@)
 goto_if_false @RYDER3_6821
-if 
+194@ = 1 // all the network players are at the train yard
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if not Char.LocateAnyMeans2D($NETWORK_PLAYER[$temp_int], 0, 2289.591, -1135.625, 50.0, 50.0)
+        then
+            194@ = 0
+        end
+    end
+end
+
+if and
   Car.LocateStopped3D(108@, 0, 2289.591, -1135.625, 25.6863, 40.0, 40.0, 40.0)
+  194@ == 1
 goto_if_false @RYDER3_6821
 Blip.Remove(34@)
+195@ = 0
+gosub @RYDER3_COOP_REMOVE_CAR_BLIPS
 if 
   Blip.DoesExist(99@)
 goto_if_false @RYDER3_6533
@@ -1010,6 +1091,13 @@ if or
   not Char.IsDead(133@)
 goto_if_false @RYDER3_6917
 Text.PrintNow('RYD3_M', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RYD3_M', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :RYDER3_6917
 89@ += 1
@@ -1207,6 +1295,13 @@ Sequence.Clear(159@)
 :RYDER3_8102
 gosub @RYDER3_19023
 Text.PrintNow('RYD3_2', 3000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RYD3_2', 3000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 wait 1000
 TIMERB = 0
 
@@ -1226,6 +1321,13 @@ goto @RYDER3_8137
 :RYDER3_8191
 gosub @RYDER3_18958
 Text.PrintNow('RYD3_DA', 3000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RYD3_DA', 3000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 set_lvar_text_label 106@s = 'RYD3_DA'
 set_lvar_int_to_constant 96@ = 34018
 gosub @RYDER3_20106
@@ -1321,6 +1423,30 @@ goto_if_false @RYDER3_9092
 89@ += 1
 68@ = Blip.AddForCoord(2287.147, -1121.702, 25.8903)
 Blip.SetCoordAppearance(68@, 0)
+
+// the train leaves once the host climbs on it, point the network players on foot to their car
+if
+    192@ <> -1
+then
+    if
+        not Car.IsDead(192@)
+    then
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                196@($temp_int,3i) = 1 // car_blips_removed
+                if
+                    not Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+                then
+                    196@($temp_int,3i) = 0
+                    Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 192@, true, BlipDisplay.MarkerOnly, BlipColor.Blue, 3)
+                end
+            end
+        end
+        195@ = 2
+    end
+end
 set_lvar_text_label 106@s = 'RYD3_EA'
 set_lvar_int_to_constant 96@ = 34021
 gosub @RYDER3_20106
@@ -1358,6 +1484,13 @@ if and
   85@ == 0
 goto_if_false @RYDER3_9159
 Text.PrintNow('RYD3_1', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RYD3_1', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 85@ = 1
 
 :RYDER3_9159
@@ -1422,6 +1555,7 @@ wait 0
 goto @RYDER3_9512
 
 :RYDER3_9544
+gosub @RYDER3_COOP_FREE_TRUCK_DRIVER // 162@ is warped into the driver seat below
 World.ClearArea(1, 2284.732, -1121.916, 27.0, 50.0)
 if 
   not Car.IsDead(108@)
@@ -1546,6 +1680,13 @@ goto @RYDER3_10266
 :RYDER3_10292
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 Text.PrintNow('RYD3_FA', 2000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RYD3_FA', 2000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 wait 2000
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Audio.LoadMissionAudio(34023, 1)
@@ -1560,6 +1701,13 @@ goto @RYDER3_10330
 :RYDER3_10356
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 Text.PrintNow('RYD3_FB', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RYD3_FB', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 wait 4000
 if 
   not Car.IsDead(129@)
@@ -1571,6 +1719,18 @@ Char.SetProofs($scplayer, True, True, True, True, True)
 Char.SetCollision($scplayer, False)
 
 :RYDER3_10474
+// the host rides the train, the network players follow ryder's truck that collects the crates
+if
+    not Car.IsDead(108@)
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 108@, true, BlipDisplay.Both, BlipColor.Blue, 3)
+        end
+    end
+end
 gosub @RYDER3_18958
 World.SetCarDensityMultiplier(0.0)
 Hud.DrawCrosshair(True)
@@ -2105,6 +2265,11 @@ Car.SetStatus(108@, EntityStatus.Player)
 Car.LockDoors(108@, CarLock.Unlocked)
 
 :RYDER3_14235
+gosub @RYDER3_COOP_LEAVE_TRUCK // 162@ is created in the passenger seat below
+// the host is put down next to the stopped train, bring the network players who fell behind
+gosub @RYDER3_COOP_BRING_FAR_PLAYERS
+195@ = 0
+gosub @RYDER3_COOP_REMOVE_CAR_BLIPS
 gosub @RYDER3_18930
 Camera.SetFixedPosition(47@, 48@, 49@, 0.0, 0.0, 0.0)
 Streaming.LoadSceneInDirection(47@, 48@, 49@, 178@)
@@ -2151,6 +2316,13 @@ goto @RYDER3_14479
 :RYDER3_14505
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 Text.PrintNow('RYD3_JG', 2000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RYD3_JG', 2000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @RYDER3_14591
 
 :RYDER3_14532
@@ -2167,6 +2339,13 @@ goto @RYDER3_14545
 :RYDER3_14571
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 Text.PrintNow('RYD3_HN', 2000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RYD3_HN', 2000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :RYDER3_14591
 wait 4000
@@ -2228,6 +2407,7 @@ goto_if_false @RYDER3_14860
 if 
   not Char.IsInCar($scplayer, 108@)
 goto_if_false @RYDER3_14860
+gosub @RYDER3_COOP_FREE_TRUCK_DRIVER // the host is warped into the driver seat
 Char.WarpIntoCar($scplayer, 108@)
 
 :RYDER3_14860
@@ -2244,6 +2424,13 @@ goto @RYDER3_14867
 :RYDER3_14908
 gosub @RYDER3_19023
 Text.PrintNow('RYD3_T', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RYD3_T', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @RYDER3_18057
 
 :RYDER3_14938
@@ -2284,6 +2471,13 @@ Task.ToggleDuck($ryder, True)
 
 :RYDER3_15162
 Text.PrintNow('RYD3_13', 7000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RYD3_13', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 89@ += 1
 39@ = 0
 
@@ -2459,6 +2653,13 @@ Task.TogglePedThreatScanner($ryder, True, True, True)
 Char.SetDecisionMaker($ryder, 72@)
 Task.ToggleDuck($ryder, True)
 Text.PrintNow('RYD3_I', 7000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RYD3_I', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 34@ = Blip.AddForCoord(2067.463, -1831.67, 12.5527)
 103@ = 0
 
@@ -2469,17 +2670,45 @@ if and
   104@ == 0
 goto_if_false @RYDER3_16374
 Text.PrintNow('RYD3101', 7000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RYD3101', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 104@ = 1
 
 :RYDER3_16374
 if 
   not Player.IsWantedLevelGreater($player1, 0)
 goto_if_false @RYDER3_17965
+194@ = 1 // all the network players are at grove street
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if not Char.LocateAnyMeans2D($NETWORK_PLAYER[$temp_int], 0, 2446.887, -1661.962, 15.0, 15.0)
+        then
+            194@ = 0
+        end
+    end
+end
+
 if and
   Char.LocateAnyMeans3D($scplayer, 1, 2446.887, -1661.962, 12.3047, 4.0, 4.0, 4.0)
   Char.IsInCar($scplayer, 108@)
+  194@ == 1
 goto_if_false @RYDER3_17965
 Player.ClearWantedLevel($player1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        Coop.ClearAllEntityBlipsForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+    end
+end
 World.ClearArea(1, 2483.618, -1666.093, 12.3594, 50.0)
 gosub @RYDER3_18990
 if and
@@ -2541,6 +2770,13 @@ goto @RYDER3_16772
 :RYDER3_16798
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 Text.PrintNow('RYD3_MA', 8000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RYD3_MA', 8000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 TIMERB = 0
 
 :RYDER3_16825
@@ -2565,6 +2801,13 @@ goto @RYDER3_16866
 :RYDER3_16892
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 Text.PrintNow('RYD3_MB', 8000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RYD3_MB', 8000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 TIMERB = 0
 
 :RYDER3_16919
@@ -2589,6 +2832,13 @@ goto @RYDER3_16960
 :RYDER3_16986
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 Text.PrintNow('RYD3_MC', 8000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RYD3_MC', 8000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 TIMERB = 0
 
 :RYDER3_17013
@@ -2636,6 +2886,13 @@ goto @RYDER3_17237
 :RYDER3_17263
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 Text.PrintNow('RYD3_MD', 8000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RYD3_MD', 8000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 TIMERB = 0
 
 :RYDER3_17290
@@ -2716,6 +2973,13 @@ goto @RYDER3_17844
 :RYDER3_17870
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 Text.PrintNow('RYD3_ME', 8000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RYD3_ME', 8000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 TIMERB = 0
 
 :RYDER3_17897
@@ -2743,6 +3007,13 @@ if
   Car.IsDead(108@)
 goto_if_false @RYDER3_18004
 Text.PrintNow('RYD3_14', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RYD3_14', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @RYDER3_18057
 
 :RYDER3_18004
@@ -2750,6 +3021,13 @@ if
   Char.IsDead($ryder)
 goto_if_false @RYDER3_18043
 Text.PrintNow('RYD3_B', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('RYD3_B', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @RYDER3_18057
 
 :RYDER3_18043
@@ -2915,6 +3193,20 @@ Path.SwitchRoadsBackToOriginal(2287.321, -1132.571, 10.0, 2360.839, -1177.134, 4
 Path.SwitchRoadsBackToOriginal(2311.676, -1375.397, 10.0, 2292.365, -1303.102, 40.0)
 Path.SwitchRoadsBackToOriginal(2268.695, -1138.541, 10.0, 2282.362, -1159.604, 40.0)
 Path.SwitchRoadsBackToOriginal(2307.537, -1162.624, 10.0, 2266.351, -1136.99, 40.0)
+if
+    192@ <> -1
+then
+    Car.MarkAsNoLongerNeeded(192@)
+end
+Streaming.MarkModelAsNoLongerNeeded(466)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        Coop.ClearAllEntityBlipsForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+    end
+end
 $onmission = 0
 $timer_mobile_start = Clock.GetGameTimer()
 Player.ClearWantedLevel($player1)
@@ -3142,6 +3434,13 @@ if and
 goto_if_false @RYDER3_20169
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 Text.PrintNow(106@s, 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer(106@s, 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 95@ = 1
 
 :RYDER3_20169
@@ -3151,8 +3450,281 @@ if and
 goto_if_false @RYDER3_20207
 Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Text.ClearThisPrint(106@s)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.ClearThisPrintForNetworkPlayer(106@s, $NETWORK_PLAYER[$temp_int])
+    end
+end
 95@ = 2
 
 :RYDER3_20207
 return 
 
+:RYDER3_COOP_UPDATE
+if // the car blips are not needed anymore when the player found a car
+    195@ == 1
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                196@($temp_int,3i) == 0
+            then
+                if
+                    Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+                then
+                    196@($temp_int,3i) = 1
+                    Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 108@)
+                    if
+                        192@ <> -1
+                    then
+                        Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 192@)
+                    end
+                end
+            end
+        end
+    end
+end
+
+if // the spare car blip is not needed anymore when the player found a car
+    195@ == 2
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                196@($temp_int,3i) == 0
+            then
+                if or
+                    Car.IsDead(192@)
+                    Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+                then
+                    196@($temp_int,3i) = 1
+                    Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 192@)
+                end
+            end
+        end
+    end
+end
+
+// the vagos at the train have a blip for the network players while the host's blip exists and the vago is alive
+for 205@ = 0 to 3
+    206@ = 0
+    if
+        Blip.DoesExist(136@(205@,6i))
+    then
+        if
+            not Char.IsDead(130@(205@,6i))
+        then
+            206@ = 1
+        end
+    end
+
+    if and
+        206@ == 1
+        184@(205@,4i) == 0
+    then
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                Coop.UpdateCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 130@(205@,6i), false, BlipDisplay.BlipOnly, BlipColor.Red, 2)
+            end
+        end
+        184@(205@,4i) = 1
+    end
+
+    if and
+        206@ == 0
+        184@(205@,4i) == 1
+    then
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                Coop.RemoveCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 130@(205@,6i))
+            end
+        end
+        184@(205@,4i) = 0
+    end
+end
+
+// the same for the ballas who come to the train
+for 205@ = 0 to 3
+    206@ = 0
+    if
+        Blip.DoesExist(155@(205@,4i))
+    then
+        if
+            not Char.IsDead(151@(205@,4i))
+        then
+            206@ = 1
+        end
+    end
+
+    if and
+        206@ == 1
+        188@(205@,4i) == 0
+    then
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                Coop.UpdateCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 151@(205@,4i), false, BlipDisplay.BlipOnly, BlipColor.Red, 2)
+            end
+        end
+        188@(205@,4i) = 1
+    end
+
+    if and
+        206@ == 0
+        188@(205@,4i) == 1
+    then
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                Coop.RemoveCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 151@(205@,4i))
+            end
+        end
+        188@(205@,4i) = 0
+    end
+end
+
+// the network players get the checkpoint of the host's destination
+199@ = 0
+if
+    3 > 89@
+then
+    199@ = 1 // the train yard
+end
+if and
+    89@ >= 36
+    38 > 89@
+then
+    if
+        103@ == 1
+    then
+        199@ = 3 // grove street
+    else
+        199@ = 2 // pay'n'spray
+    end
+end
+if
+    not is_int_lvar_equal_to_int_lvar 199@ == 200@
+then
+    set_lvar_int_to_lvar_int 200@ = 199@
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+            if
+                200@ == 1
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(2289.591, -1135.625, 25.6863, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int]) // the train yard
+            end
+            if
+                200@ == 2
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(2067.463, -1831.67, 12.5527, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int]) // pay'n'spray
+            end
+            if
+                200@ == 3
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(2446.887, -1661.962, 12.3047, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int]) // grove street
+            end
+        end
+    end
+end
+return
+
+:RYDER3_COOP_REMOVE_CAR_BLIPS
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        196@($temp_int,3i) = 1 // car_blips_removed
+        Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 108@)
+        if
+            192@ <> -1
+        then
+            Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 192@)
+        end
+    end
+end
+return
+
+:RYDER3_COOP_FREE_TRUCK_DRIVER
+// a network player in the truck's driver seat is taken out in front of it
+if
+    not Car.IsDead(108@)
+then
+    201@ = Car.GetDriver(108@)
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                is_int_var_equal_to_int_lvar $NETWORK_PLAYER[$temp_int] == 201@
+            then
+                202@ = Car.GetOffsetInWorldCoords(203@, 204@, 108@, 0.0, 4.5, 0.0)
+                Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 202@, 203@, 204@)
+            end
+        end
+    end
+end
+return
+
+:RYDER3_COOP_LEAVE_TRUCK
+// a network player in the truck is taken out in front of it
+if
+    not Car.IsDead(108@)
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                Char.IsInCar($NETWORK_PLAYER[$temp_int], 108@)
+            then
+                202@ = Car.GetOffsetInWorldCoords(203@, 204@, 108@, 0.0, 4.5, 0.0)
+                Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 202@, 203@, 204@)
+            end
+        end
+    end
+end
+return
+
+:RYDER3_COOP_BRING_FAR_PLAYERS
+// the network players far from the host are teleported to him, the ones following nearby keep their car
+206@ = 0
+for $temp_int = 0 to 2
+    207@($temp_int,3i) = -1
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if
+            not Char.LocateAnyMeansChar2D($NETWORK_PLAYER[$temp_int], $scplayer, 100.0, 100.0, False)
+        then
+            if
+                Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+            then
+                202@, 203@, 204@ = Char.GetCoordinates($scplayer)
+                Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 202@, 203@, 204@)
+            end
+            set_lvar_int_to_var_int 207@($temp_int,3i) = $NETWORK_PLAYER[$temp_int]
+            206@ = 1
+        end
+    end
+end
+if
+    206@ == 1
+then
+    Coop.TeleportPlayersToHostSafely(207@, 208@, 209@)
+end
+return
