@@ -1,8 +1,36 @@
 #include "stdafx.h"
 #include "CNetworkEntityBlip.h"
 
+static constexpr unsigned int PENDING_TIME = 10000;  // ms, the spawn of a new entity comes within it
+
+static bool IsSameEntity(const CNetworkEntitySerializer& a, const CNetworkEntitySerializer& b)
+{
+    if (a.entityType != b.entityType)
+    {
+        return false;
+    }
+    return a.entityType == eNetworkEntityType::NETWORK_ENTITY_TYPE_PED ? a.pedid == b.pedid : a.vehicleid == b.vehicleid;
+}
+
+void CNetworkEntityBlip::DropPending(const CNetworkEntitySerializer& entity)
+{
+    ms_pending.erase(std::remove_if(ms_pending.begin(), ms_pending.end(),
+                         [&](const SPending& pending) { return IsSameEntity(pending.packet.entity, entity); }),
+        ms_pending.end());
+}
+
 void CNetworkEntityBlip::UpdateEntityBlip(Packets::Blips::UpdateEntityBlip* packet)
 {
+    DropPending(packet->entity);
+    if (!Apply(*packet))
+    {
+        ms_pending.push_back({*packet, CTimer::m_snTimeInMilliseconds});
+    }
+}
+
+bool CNetworkEntityBlip::Apply(const Packets::Blips::UpdateEntityBlip& updateBlip)
+{
+    const Packets::Blips::UpdateEntityBlip* packet = &updateBlip;
     int handle = -1;
 
     switch (packet->entity.entityType)
@@ -46,10 +74,13 @@ void CNetworkEntityBlip::UpdateEntityBlip(Packets::Blips::UpdateEntityBlip* pack
         CRadar::ChangeBlipDisplay(handle, (eBlipDisplay)packet->display);
         CRadar::SetBlipFriendly(handle, packet->isFriendly);
     }
+    return handle >= 0;
 }
 
 void CNetworkEntityBlip::RemoveEntityBlip(Packets::Blips::RemoveEntityBlip* packet)
 {
+    DropPending(packet->entity);
+
     switch (packet->entity.entityType)
     {
         case eNetworkEntityType::NETWORK_ENTITY_TYPE_PED:
@@ -83,6 +114,8 @@ void CNetworkEntityBlip::RemoveEntityBlip(Packets::Blips::RemoveEntityBlip* pack
 
 void CNetworkEntityBlip::ClearEntityBlips()
 {
+    ms_pending.clear();
+
     for (auto pNetworkPed : CNetworkPedManager::m_pPeds)
     {
         if (pNetworkPed->m_nBlipHandle == -1 || !pNetworkPed->m_pPed)
@@ -108,6 +141,13 @@ void CNetworkEntityBlip::ClearEntityBlips()
 
 void CNetworkEntityBlip::Update()
 {
+    ms_pending.erase(std::remove_if(ms_pending.begin(), ms_pending.end(),
+                         [](const SPending& pending) {
+                             return CTimer::m_snTimeInMilliseconds - pending.receivedTime > PENDING_TIME ||
+                                    Apply(pending.packet);
+                         }),
+        ms_pending.end());
+
     /*
         remove blips if the entities are dead
     */
