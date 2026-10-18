@@ -3,6 +3,8 @@
 
 :BCRASH1
 script_name 'BCRASH1'
+Coop.EnableSyncingThisScript()
+
 gosub @BCRASH1_922
 if 
   has_deatharrest_been_executed 
@@ -146,6 +148,24 @@ return
 
 :BCRASH1_922
 Stat.RegisterMissionGiven
+$NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2] = Coop.CollectNetworkPlayersForTheMission()
+334@ = 0 // the checkpoint of the host's destination: 1 the first checkpoint, 2 the drop
+335@ = 0 // the checkpoint shown to the network players
+336@ = 1 // all the network players are near the mountain spot
+337@ = 0 // a network player is within 100 m of the snitch
+338@ = 0 // a network player is within 25 m of the snitch
+339@ = 0 // the snitch's blip is shown to the network players
+340@ = 0 // the network players got 'BCR1_10' the host prints every frame
+341@ = 0.0 // a point
+342@ = 0.0
+343@ = 0.0
+for $temp_int = 0 to 2
+    344@($temp_int,3i) = -1 // the sanchez of each network player at the cabin
+    347@($temp_int,3i) = 0 // bike_blip_removed
+end
+350@ = 0.0 // the offset of a spare sanchez behind the host's
+351@ = 0 // the network players left far behind were brought to the host on the mountain
+352@ = 0 // a network player was taken out of a car
 $onmission = 1
 wait 0
 Text.LoadMissionText('BCRASH1')
@@ -388,9 +408,22 @@ Object.SetRotation(275@, -1.869, 8.724, -44.611)
 gosub @BCRASH1_47
 Player.SetGroupRecruitment($player1, False)
 Char.GiveWeapon($scplayer, WeaponType.Camera, 30000)
+
+// the host gets the camera for the proof, so do the network players (only the host's photo counts: the photo flag
+// of the snitch is set by the game of the one who takes it)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Char.GiveWeapon($NETWORK_PLAYER[$temp_int], WeaponType.Camera, 30000)
+    end
+end
 Player.SetControl($player1, False)
 Hud.SwitchWidescreen(True)
 Char.SetHeading($scplayer, 54.0)
+
+// the mission starts at the host's trailer in angel pine, bring the network players to him
+gosub @BCRASH1_COOP_BRING_TO_HOST
 Camera.SetFixedPosition(-2041.009, -2527.207, 33.9116, 0.0, 0.0, 0.0)
 Camera.PointAtPoint(-2041.785, -2526.603, 34.0884, SwitchType.JumpCut)
 Camera.DoFade(1, 300)
@@ -409,10 +442,18 @@ Hud.SwitchWidescreen(False)
 Camera.RestoreJumpcut
 Camera.SetBehindPlayer
 Text.PrintNow('BCR1_03', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('BCR1_03', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 65@ = Blip.AddForCoord(98@, 101@, 104@)
 
 :BCRASH1_3584
 wait 0
+gosub @BCRASH1_COOP_UPDATE
 if 
 is_ps2_keyboard_key_pressed 83
 goto_if_false @BCRASH1_3610
@@ -505,6 +546,13 @@ Blip.Remove(65@)
 97@ = 140.388
 64@ = Blip.AddForCoord(95@, 96@, 97@)
 Text.PrintNow('BCR1_18', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('BCR1_18', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 if 
   $flag_bcr1_skip == 1
 goto_if_false @BCRASH1_4135
@@ -564,8 +612,10 @@ $bc1_cut = 6
 if 
   $bc1_cut == 0
 goto_if_false @BCRASH1_4617
-if 
+// the scene at the cabin waits for all the network players around the mountain spot
+if and
   Char.LocateAnyMeans3D($scplayer, 0, 95@, 96@, 97@, 100.0, 100.0, 100.0)
+  336@ == 1
 goto_if_false @BCRASH1_4617
 38@ = 1
 Player.SetControl($player1, False)
@@ -583,6 +633,9 @@ gosub @BCRASH1_168
 gosub @BCRASH1_248
 gosub @BCRASH1_682
 gosub @BCRASH1_794
+
+// the sanchez by the cabin is for the host only, a sanchez for each network player behind it
+gosub @BCRASH1_COOP_CREATE_BIKES
 266@ = Clock.GetGameTimer()
 if 
   $flag_bcr1_skip == 1
@@ -625,6 +678,13 @@ goto @BCRASH1_4774
 
 :BCRASH1_4798
 Text.PrintNow('BCR1_04', 3000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('BCR1_04', 3000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Blip.Remove(64@)
 if 
   not Char.IsDead(291@)
@@ -667,6 +727,13 @@ if
   268@ > 3000
 goto_if_false @BCRASH1_5029
 Text.PrintNow('BCR1_19', 3000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('BCR1_19', 3000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 266@ = Clock.GetGameTimer()
 $bc1_cut = 3
 
@@ -681,6 +748,13 @@ if
   268@ > 3000
 goto_if_false @BCRASH1_5166
 Text.PrintNow('BCR1_20', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('BCR1_20', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Camera.SetFixedPosition(-2793.092, -1510.473, 139.2297, 0.0, 0.0, 0.0)
 Camera.PointAtPoint(-2793.947, -1510.945, 139.4455, SwitchType.JumpCut)
 266@ = Clock.GetGameTimer()
@@ -1214,6 +1288,13 @@ goto @BCRASH1_8313
 
 :BCRASH1_8290
 Text.PrintNow('BCR1_10', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('BCR1_10', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 $bc1_stage = 7
 
 :BCRASH1_8313
@@ -1299,6 +1380,13 @@ StuckCarCheck.AddWithWarp(322@, 1.0, 2000, True, True, True, 1)
 
 :BCRASH1_8873
 Text.PrintNow('BCR1_07', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('BCR1_07', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 if 
   not Car.IsDead(328@)
 goto_if_false @BCRASH1_8942
@@ -1309,6 +1397,22 @@ goto_if_false @BCRASH1_8942
 Text.Print('BCR1_14', 4000, 1)
 
 :BCRASH1_8942
+// the network players on foot are told to get a vehicle as well
+if
+    not Car.IsDead(328@)
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                not Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+            then
+                Coop.PrintForNetworkPlayer('BCR1_14', 4000, 1, $NETWORK_PLAYER[$temp_int])
+            end
+        end
+    end
+end
 Player.SetControl($player1, False)
 Hud.SwitchWidescreen(True)
 Camera.SetFixedPosition(-2795.252, -1505.949, 138.8073, 0.0, 0.0, 0.0)
@@ -1370,6 +1474,13 @@ Hud.SwitchWidescreen(False)
 Camera.RestoreJumpcut
 Camera.SetBehindPlayer
 Text.PrintNow('BCR1_10', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('BCR1_10', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 $bc1_stage = 7
 
 :BCRASH1_9317
@@ -1397,6 +1508,13 @@ if
 goto_if_false @BCRASH1_9447
 Char.Delete(284@)
 Text.PrintNow('BCR1_09', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('BCR1_09', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @BCRASH1_13511
 goto @BCRASH1_9454
 
@@ -1492,10 +1610,19 @@ goto_if_false @BCRASH1_10134
 if 
   not Char.IsOnScreen(284@)
 goto_if_false @BCRASH1_10134
-if 
+// he gets away only when no network player is chasing him either
+if and
   not Char.LocateAnyMeansChar3D($scplayer, 284@, 100.0, 100.0, 100.0, False)
+  337@ == 0
 goto_if_false @BCRASH1_10134
 Text.PrintNow('BCR1_12', 6000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('BCR1_12', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @BCRASH1_13511
 
 :BCRASH1_10134
@@ -1519,6 +1646,13 @@ if
 goto_if_false @BCRASH1_10293
 Car.SetPlaybackSpeed(322@, 0.8)
 Text.PrintNow('BCR1_15', 6000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('BCR1_15', 6000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 57@ = 1
 
 :BCRASH1_10293
@@ -1586,16 +1720,25 @@ if and
   268@ > 1000
   6000 > 268@
 goto_if_false @BCRASH1_10811
-Text.PrintNow('BCR1_07', 100, 1)
+Text.PrintNow('BCR1_07', 100, 1) // printed every frame, not forwarded to the network players
 
 :BCRASH1_10811
 if 
   268@ > 30000
 goto_if_false @BCRASH1_10889
-if 
+// he gets away only when no network player is chasing him either
+if and
   not Char.LocateAnyMeansChar3D($scplayer, 284@, 25.0, 25.0, 25.0, False)
+  338@ == 0
 goto_if_false @BCRASH1_10889
 Text.PrintNow('BCR1_12', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('BCR1_12', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @BCRASH1_13511
 
 :BCRASH1_10889
@@ -1628,6 +1771,13 @@ if
 goto_if_false @BCRASH1_11075
 Char.Delete(284@)
 Text.PrintNow('BCR1_09', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('BCR1_09', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @BCRASH1_13511
 goto @BCRASH1_11082
 
@@ -1683,6 +1833,13 @@ Car.LockDoors(322@, CarLock.Unlocked)
 
 :BCRASH1_11338
 Text.PrintNow('BCR1_09', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('BCR1_09', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @BCRASH1_13511
 
 :BCRASH1_11361
@@ -1742,6 +1899,13 @@ goto_if_false @BCRASH1_11700
 Blip.Remove(285@)
 285@ = Blip.AddForChar(284@)
 Text.PrintNow('BCR1_08', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('BCR1_08', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 $bc1_stage = 7
 
 :BCRASH1_11700
@@ -1755,6 +1919,13 @@ if
   not Char.DoesExist(284@)
 goto_if_false @BCRASH1_11775
 Text.PrintNow('BCR1_09', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('BCR1_09', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @BCRASH1_13511
 
 :BCRASH1_11775
@@ -1768,6 +1939,13 @@ if
   Char.IsHeadMissing(284@)
 goto_if_false @BCRASH1_11848
 Text.PrintNow('BCR1_09', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('BCR1_09', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @BCRASH1_13511
 
 :BCRASH1_11848
@@ -1835,13 +2013,22 @@ sub_int_lvar_from_int_lvar 268@ -= 266@
 if 
   268@ > 1000
 goto_if_false @BCRASH1_12311
-Text.PrintNow('BCR1_07', 100, 1)
+Text.PrintNow('BCR1_07', 100, 1) // printed every frame, not forwarded to the network players
 
 :BCRASH1_12311
-if 
+// he gets away only when no network player is chasing him either
+if and
   268@ > 15000
+  338@ == 0
 goto_if_false @BCRASH1_12353
 Text.PrintNow('BCR1_12', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('BCR1_12', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @BCRASH1_13511
 
 :BCRASH1_12353
@@ -1872,6 +2059,13 @@ if
 goto_if_false @BCRASH1_12538
 66@ = Blip.AddForCoord(-2044.1, -2523.86, 31.11)
 Text.PrintNow('BCR1_17', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('BCR1_17', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 $bc1_stage = 8
 
 :BCRASH1_12538
@@ -1920,6 +2114,18 @@ if and
   Char.IsDead(284@)
 goto_if_false @BCRASH1_13045
 Text.PrintNow('BCR1_10', 100, 1)
+if // the host prints it every frame, the network players get it once
+    340@ == 0
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            Coop.PrintNowForNetworkPlayer('BCR1_10', 5000, 1, $NETWORK_PLAYER[$temp_int])
+        end
+    end
+    340@ = 1
+end
 if 
   Char.DoesExist(284@)
 goto_if_false @BCRASH1_13045
@@ -1945,11 +2151,25 @@ if
   $bc1_in_water == 1
 goto_if_false @BCRASH1_13022
 Text.PrintNow('BCR1_16', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('BCR1_16', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @BCRASH1_13511
 goto @BCRASH1_13045
 
 :BCRASH1_13022
 Text.PrintNow('BCR1_16', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('BCR1_16', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @BCRASH1_13511
 
 :BCRASH1_13045
@@ -1971,7 +2191,7 @@ goto_if_false @BCRASH1_13111
 if 
   59@ == 0
 goto_if_false @BCRASH1_13192
-Text.PrintNow('BCR1_11', 5000, 1)
+Text.PrintNow('BCR1_11', 5000, 1) // the host's camera is out of film, not forwarded to the network players
 Blip.Remove(285@)
 270@ = Pickup.CreateWithAmmo(367, 3, 24, -2044.1, -2523.86, 31.11)
 271@ = Blip.AddForPickup(270@)
@@ -2010,6 +2230,13 @@ if or
   not Char.LocateAnyMeansCar2D($scplayer, 328@, 50.0, 50.0, False)
 goto_if_false @BCRASH1_13425
 Text.Print('BCR1_13', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintForNetworkPlayer('BCR1_13', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 54@ = 0
 
 :BCRASH1_13425
@@ -2020,6 +2247,13 @@ if
   not Char.IsInCar($scplayer, 328@)
 goto_if_false @BCRASH1_13483
 Text.Print('BCR1_13', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintForNetworkPlayer('BCR1_13', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 54@ = 0
 
 :BCRASH1_13483
@@ -2095,6 +2329,26 @@ Blip.Remove(65@)
 Blip.Remove(66@)
 Blip.Remove(271@)
 Pickup.Remove(270@)
+// the spare bikes are not needed anymore, the network players lose their checkpoints and blips
+for $temp_int = 0 to 2
+    if
+        344@($temp_int,3i) <> -1
+    then
+        if
+            not Car.IsDead(344@($temp_int,3i))
+        then
+            Car.SetProofs(344@($temp_int,3i), False, False, False, False, False)
+        end
+        Car.MarkAsNoLongerNeeded(344@($temp_int,3i))
+        344@($temp_int,3i) = -1
+    end
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        Coop.ClearAllEntityBlipsForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+    end
+end
 $onmission = 0
 $timer_mobile_start = Clock.GetGameTimer()
 Mission.Finish
@@ -2138,6 +2392,264 @@ goto @BCRASH1_13905
 
 :BCRASH1_14093
 return 
+
+:BCRASH1_COOP_UPDATE
+// the spare bike blip is not needed anymore when the player found a vehicle
+for $temp_int = 0 to 2
+    if
+        344@($temp_int,3i) <> -1
+    then
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                347@($temp_int,3i) == 0
+            then
+                if or
+                    Car.IsDead(344@($temp_int,3i))
+                    Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+                then
+                    347@($temp_int,3i) = 1
+                    Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 344@($temp_int,3i))
+                end
+            end
+        end
+    end
+end
+
+// the network players get the checkpoint of the host's destination
+334@ = 0
+if
+    $bc1_stage == -1
+then
+    334@ = 1 // the first checkpoint on the way to the mountain
+end
+if
+    $bc1_stage == 8
+then
+    334@ = 2 // the drop at the trailer
+end
+if
+    not is_int_lvar_equal_to_int_lvar 334@ == 335@
+then
+    set_lvar_int_to_lvar_int 335@ = 334@
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+            if
+                335@ == 1
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(-2346.7, -2240.18, 17.29, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int]) // the first checkpoint
+            end
+            if
+                335@ == 2
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(-2044.1, -2523.86, 31.11, 1.2, 1.2, 2.0, $NETWORK_PLAYER[$temp_int]) // the drop
+            end
+        end
+    end
+end
+
+// the scene at the cabin waits for all the network players around the mountain spot
+336@ = 1
+if and
+    $bc1_stage == 0
+    $bc1_cut == 0
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                not Char.LocateAnyMeans2D($NETWORK_PLAYER[$temp_int], 0, -2774.981, -1591.26, 120.0, 120.0)
+            then
+                336@ = 0
+            end
+        end
+    end
+
+    // the ones left far behind when the host is there (a trip skip puts him up the mountain) are brought to him once
+    if and
+        336@ == 0
+        351@ == 0
+    then
+        if
+            Char.LocateAnyMeans3D($scplayer, 0, 95@, 96@, 97@, 100.0, 100.0, 100.0)
+        then
+            for $temp_int = 0 to 2
+                if
+                    Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                then
+                    if
+                        not Char.LocateAnyMeans2D($NETWORK_PLAYER[$temp_int], 0, -2774.981, -1591.26, 300.0, 300.0)
+                    then
+                        351@ = 1
+                    end
+                end
+            end
+            if
+                351@ == 1
+            then
+                gosub @BCRASH1_COOP_BRING_TO_HOST
+            end
+        end
+    end
+end
+
+// the snitch's washington is his way out, keep the network players out of it until he leaves it
+if and
+    $bc1_stage > 0
+    6 > $bc1_stage
+then
+    if
+        not Car.IsDead(322@)
+    then
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                if
+                    Char.IsInCar($NETWORK_PLAYER[$temp_int], 322@)
+                then
+                    341@, 342@, 343@ = Car.GetOffsetInWorldCoords(322@, -2.5, 0.0, 0.0)
+                    Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 341@, 342@, 343@)
+                end
+            end
+        end
+    end
+end
+
+// the snitch has a blip for the network players while the host has his and he is alive; the network players near
+// him keep the host's "you let him get away" checks off
+337@ = 0
+338@ = 0
+if and
+    $bc1_stage > 0
+    Blip.DoesExist(285@)
+    not Char.IsDead(284@)
+then
+    if
+        339@ == 0
+    then
+        339@ = 1
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                Coop.UpdateCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 284@, false, BlipDisplay.Both, BlipColor.Red, 3)
+            end
+        end
+    end
+else
+    if
+        339@ == 1
+    then
+        339@ = 0
+        if // a removed char takes its blip with it
+            Char.DoesExist(284@)
+        then
+            for $temp_int = 0 to 2
+                if
+                    Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                then
+                    Coop.RemoveCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 284@)
+                end
+            end
+        end
+    end
+end
+if and
+    $bc1_stage > 0
+    not Char.IsDead(284@)
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                Char.LocateAnyMeansChar3D($NETWORK_PLAYER[$temp_int], 284@, 100.0, 100.0, 100.0, False)
+            then
+                337@ = 1
+            end
+            if
+                Char.LocateAnyMeansChar3D($NETWORK_PLAYER[$temp_int], 284@, 25.0, 25.0, 25.0, False)
+            then
+                338@ = 1
+            end
+        end
+    end
+end
+return
+
+:BCRASH1_COOP_CREATE_BIKES
+// the bikes stand in a row behind the host's (north of it), off the feds' walk round the cabin; proofed like his
+// while the feds are about
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if
+            344@($temp_int,3i) == -1
+        then
+            if
+                $temp_int == 0
+            then
+                350@ = -2.5
+            end
+            if
+                $temp_int == 1
+            then
+                350@ = -5.0
+            end
+            if
+                $temp_int == 2
+            then
+                350@ = -7.5
+            end
+            341@, 342@, 343@ = Car.GetOffsetInWorldCoords(328@, 0.0, 350@, 0.0)
+            343@ += 3.0
+            343@ = World.GetGroundZFor3DCoord(341@, 342@, 343@)
+            344@($temp_int,3i) = Car.Create(468, 341@, 342@, 343@)
+            Car.SetHeading(344@($temp_int,3i), 333@)
+            Car.SetHealth(344@($temp_int,3i), 1000)
+            Car.SetProofs(344@($temp_int,3i), True, True, True, True, True)
+            347@($temp_int,3i) = 0 // bike_blip_removed
+            Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 344@($temp_int,3i), true, BlipDisplay.MarkerOnly, BlipColor.Blue, 3)
+        end
+    end
+end
+return
+
+:BCRASH1_COOP_LEAVE_ANY_CAR
+// the network players in a car are taken out of it at the host's spot
+352@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if
+            Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+        then
+            341@, 342@, 343@ = Char.GetCoordinates($scplayer)
+            Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 341@, 342@, 343@)
+            352@ = 1
+        end
+    end
+end
+if
+    352@ == 1
+then
+    wait 500 // let the warp out of the car reach them before a teleport
+end
+return
+
+:BCRASH1_COOP_BRING_TO_HOST
+// the teleport moves the network players on foot, the ones in a car are taken out of it first
+gosub @BCRASH1_COOP_LEAVE_ANY_CAR
+Coop.TeleportPlayersToHostSafely($NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2])
+return
 
 //-------------Mission 40---------------
 // Originally: First Date
