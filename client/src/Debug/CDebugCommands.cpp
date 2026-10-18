@@ -10,6 +10,7 @@
 #include <CTaskComplexEnterCarAsDriver.h>
 #include <CCarEnterExit.h>
 #include "CPassengerEnter.h"
+#include "CStandAgent.h"
 
 static CTrain* FindNearestFrontCarriage(const CVector& position, bool bMissionOnly = false)
 {
@@ -937,6 +938,16 @@ void CDebugCommands::Process()
         CPad* pPad = CPad::GetPad(0);
         pPad->OldState.DPadUp = 0;
         pPad->NewState.DPadUp = 255;
+    }
+
+    // the commands of the stand hub answer with the lines they log
+    for (const auto& [id, command] : CStandAgent::TakeCommands())
+    {
+        std::string output;
+        logger::ms_pCapture = &output;
+        RunCommand(command);
+        logger::ms_pCapture = nullptr;
+        CStandAgent::Reply(id, output);
     }
 
     static unsigned int nLastCheck = 0;
