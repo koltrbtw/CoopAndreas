@@ -93,6 +93,8 @@ const SSyncedOpCode syncedOpcodes[] = {
     {0x06AB, true, {eSyncedParamType::PED}},  // hide_char_weapon_for_scripted_cutscene [Char] {state} [bool]
     {0x07A7, true, {eSyncedParamType::PED}},  // task_jetpack {handle} [Char]
     {COMMAND_GIVE_WEAPON_TO_CHAR, true, {eSyncedParamType::PED}},
+    // the ammo a mission gave a network player for its part (SWEET2's endless pistol) set back after it
+    {COMMAND_SET_CHAR_AMMO, true, {eSyncedParamType::PED}},
     {COMMAND_SET_CURRENT_CHAR_WEAPON, true, {eSyncedParamType::PED}},
     {COMMAND_REMOVE_WEAPON_FROM_CHAR, true, {eSyncedParamType::PED}},
 
@@ -161,6 +163,9 @@ const SSyncedOpCode syncedOpcodes[] = {
     {COMMAND_WARP_CHAR_FROM_CAR_TO_COORD, true, {eSyncedParamType::PED}},
     {COMMAND_WARP_CHAR_INTO_CAR, true, {eSyncedParamType::PED, eSyncedParamType::VEHICLE}},
     {COMMAND_WARP_CHAR_INTO_CAR_AS_PASSENGER, true, {eSyncedParamType::PED, eSyncedParamType::VEHICLE}},
+    // a car scene's camera inside the car films through the hole: a client syncing the car kept the windscreen, its
+    // glass hid the weapons (drawn after the scene) in the hands of the passengers behind it (SWEET4)
+    {COMMAND_POP_CAR_PANEL, true, {eSyncedParamType::VEHICLE}},  // pop_car_panel [Car] {panelId} [int] {visibility} [bool]
 
     // Explosions
     {0x070C, true, {eSyncedParamType::VEHICLE}},  // explode_car_in_cutscene [Car]
@@ -427,6 +432,7 @@ std::vector<uint8_t> COpCodeSync::SerializeOpcode(int idx, int& outSize)
                         {
                             param.entityType = eSyncedParamType::PLAYER;
                             param.playerid = networkPlayer->m_playerId;
+                            logger::info("opcode sync: %04X for %s", lastOpCodeProcessed, networkPlayer->GetName().c_str());
                         }
                         else
                             param.SetValue(-1);
@@ -718,6 +724,7 @@ void COpCodeSync::HandlePacket(const uint8_t* buffer, int bufferSize)
                                 if (auto playerPed = FindPlayerPed(0))
                                 {
                                     param.value = CPools::GetPedRef(playerPed);
+                                    logger::info("opcode sync: %04X for us", header.opcode);
                                 }
                             }
                             else
@@ -891,6 +898,20 @@ void COpCodeSync::HandlePacket(const uint8_t* buffer, int bufferSize)
 
     switch (header.opcode)
     {
+        // the weapon's model as the mission loaded it on the host: unloaded here the ped got the weapon with nothing
+        // in his hand (SWEET4's homies in the car scene)
+        case COMMAND_GIVE_WEAPON_TO_CHAR:
+        case COMMAND_SET_CURRENT_CHAR_WEAPON:
+        {
+            int nWeapon = scriptParamsBuffer[1].value;
+            int nModel = nWeapon > WEAPON_UNARMED && nWeapon <= WEAPON_FLARE ? CUtil::GetWeaponModelById(nWeapon) : -1;
+            if (nModel > 0 && CStreaming::ms_aInfoForModel[nModel].m_nLoadState != LOADSTATE_LOADED)
+            {
+                CStreaming::RequestModel(nModel, eStreamingFlags::GAME_REQUIRED | eStreamingFlags::PRIORITY_REQUEST);
+                CStreaming::LoadAllRequestedModels(false);
+            }
+            break;
+        }
         case COMMAND_TASK_PLAY_ANIM:
         case COMMAND_TASK_CHAR_SLIDE_TO_COORD_AND_PLAY_ANIM:
         case COMMAND_TASK_PLAY_ANIM_NON_INTERRUPTABLE:
