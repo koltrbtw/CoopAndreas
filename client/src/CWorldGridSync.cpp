@@ -92,6 +92,47 @@ static void __fastcall CCarGenerator__DoInternalProcessing_Hook(CCarGenerator* T
     plugin::CallMethod<0x6F34D0, CCarGenerator*>(This);
 }
 
+// CHeli::UpdateHelis (0x6C79A0) from CGame::Process: every wanted player's game made its own 2 police helis (and the
+// news one), the others got them as clones too. With a remote one of those near a new one waits: the next generation
+// time (CHeli::TestForNewRandomHelisTimer, 0xC1C960; GenerateHeli's result is stored unchecked, 0x6C7ADD, so it
+// can't be vetoed itself) goes on
+static void __cdecl CHeli__UpdateHelis_Hook()
+{
+    constexpr float NEAR_DISTANCE = 400.0f;
+    constexpr unsigned int WAIT = 1000;
+    constexpr int MODEL_POLMAV = 497;
+    constexpr int MODEL_VCNMAV = 488;  // the news heli
+
+    CPlayerPed* pPlayer = FindPlayerPed(0);
+    if (pPlayer)
+    {
+        for (CNetworkVehicle* pNetworkVehicle : CNetworkVehicleManager::m_pVehicles)
+        {
+            CVehicle* pVehicle = pNetworkVehicle->m_pVehicle;
+            if (!pNetworkVehicle->m_bSyncing && pVehicle &&
+                (pVehicle->m_nModelIndex == MODEL_POLMAV || pVehicle->m_nModelIndex == MODEL_VCNMAV) &&
+                (pVehicle->GetPosition() - pPlayer->GetPosition()).Magnitude() < NEAR_DISTANCE)
+            {
+                unsigned int& nNextHeliTime = *reinterpret_cast<unsigned int*>(0xC1C960);
+                nNextHeliTime = std::max(nNextHeliTime, CTimer::m_snTimeInMilliseconds + WAIT);
+                break;
+            }
+        }
+    }
+
+    plugin::Call<0x6C79A0>();
+}
+
+// CPlane::DoPlaneGenerationAndRemoval (0x6CD2F0) from CGame::Process: the planes in the sky are the host's, as the
+// world state; every game had its own, the others' as clones on top
+static void __cdecl CPlane__DoPlaneGenerationAndRemoval_Hook()
+{
+    if (CLocalPlayer::m_bIsHost || !CNetwork::m_bAuthenticated)
+    {
+        plugin::Call<0x6CD2F0>();
+    }
+}
+
 void CWorldGridSync::InjectHooks()
 {
     // call sites, not the functions: they start with HOODLUM stubs
@@ -100,4 +141,6 @@ void CWorldGridSync::InjectHooks()
     patch::RedirectCall(0x614B1C, CPathFind__GeneratePedCreationCoors_Hook);  // CPopulation::AddToPopulation
     patch::RedirectCall(0x615C0D, CPopulation__AddPedAtAttractor_Hook);      // GeneratePedsAtAttractors
     patch::RedirectCall(0x6F3EC1, CCarGenerator__DoInternalProcessing_Hook);  // CCarGenerator::Process
+    patch::RedirectCall(0x53BFE2, CHeli__UpdateHelis_Hook);                    // CGame::Process
+    patch::RedirectCall(0x434272, CPlane__DoPlaneGenerationAndRemoval_Hook);   // CGame::Process
 }

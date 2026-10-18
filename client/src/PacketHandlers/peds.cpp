@@ -267,7 +267,10 @@ PACKET_HANDLER(ePacketType::PED_DRIVER_UPDATE, Packets::Peds::PedDriverUpdate* p
     pNetworkVehicle->SetTargetTransform(pPedDriverUpdate->pos, pPedDriverUpdate->roll, pPedDriverUpdate->rot,
         pPedDriverUpdate->velocity, pPedDriverUpdate->turnSpeed, pPedDriverUpdate->sendTime);
     pNetworkPed->m_vecVelocity = pPedDriverUpdate->velocity;
-    pNetworkVehicle->m_bKeepSpeed = pPedDriverUpdate->onRails;
+    // an npc heli or plane: the clone's pedals (VehicleHooks) mean nothing to its flight, it sagged between updates
+    // and the target pulled it up again
+    bool bAircraft = pVehicle->m_nVehicleSubType == VEHICLE_HELI || pVehicle->m_nVehicleSubType == VEHICLE_PLANE;
+    pNetworkVehicle->m_bKeepSpeed = pPedDriverUpdate->onRails || bAircraft;
     pNetworkVehicle->m_vecKeptMoveSpeed = pPedDriverUpdate->velocity;
     pNetworkVehicle->m_vecKeptTurnSpeed = pPedDriverUpdate->turnSpeed;
     pNetworkVehicle->m_bHasRotorSpeed = pPedDriverUpdate->hasRotorSpeed;
