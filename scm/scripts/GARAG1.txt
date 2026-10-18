@@ -3,6 +3,8 @@
 
 :GARAG1
 script_name 'GARAG1'
+Coop.EnableSyncingThisScript()
+
 gosub @GARAG1_47
 if 
   has_deatharrest_been_executed 
@@ -17,6 +19,36 @@ terminate_this_script
 $onmission = 1
 Weather.ForceNow(WeatherType.SunnySf)
 Stat.RegisterMissionGiven
+$NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2] = Coop.CollectNetworkPlayersForTheMission()
+351@ = 0 // the host drives to a stop (inside the drive loop)
+352@ = 1 // all the network players are around the host's stop
+353@ = 0.0 // the host's stop
+354@ = 0.0
+355@ = 0.0
+356@ = 0 // the host's stop: 0 none, 1 jethro, 2 the first look, 3 dwaine, 4 the second look, 5 zero, 6 the garage
+for $temp_int = 0 to 2
+    357@($temp_int,3i) = -1 // the spare car of each network player
+    360@($temp_int,3i) = 0 // spare_car_blip_removed
+    363@($temp_int,3i) = 0 // the stop whose checkpoint is shown to each network player
+end
+366@ = -1 // the car the network players are kept out of
+367@ = 0.0 // a point
+368@ = 0.0
+369@ = 0.0
+370@ = 0 // a network player was taken out of a car
+371@ = 0.0 // the heading of a road node
+372@ = 0 // the number of a road node
+373@ = 0.0 // the distance from a road node to a spot
+374@ = 0 // a slot
+375@ = 0.0 // the position of a spare car
+376@ = 0.0
+377@ = 0.0
+378@ = 0.0 // the position of the truth's car, the spare cars stand around it
+379@ = 0.0
+380@ = 0.0
+381@ = 0.0 // the position of the host
+382@ = 0.0
+383@ = 0.0
 Text.LoadMissionText('GARAGE1')
 Player.SetControl($player1, False)
 Camera.DoFade(0, 1000)
@@ -398,6 +430,8 @@ Char.SetProofs(93@, False, False, False, True, False)
 Char.SetHealth(93@, 200)
 Char.SetSuffersCriticalHits(93@, False)
 Char.SetHeading($scplayer, 0.0)
+// the host is put by the garage after the cut scene (the screen is faded out), bring the network players to him
+gosub @GARAG1_COOP_BRING_TO_HOST
 Camera.SetBehindPlayer
 
 :GARAG1_3532
@@ -622,13 +656,16 @@ if
 goto_if_false @GARAG1_5345
 127@ = Blip.AddForCar(34@)
 Blip.SetAsFriendly(127@, True)
-Text.PrintNow('GAR1_22', 5000, 1)
+Text.PrintNow('GAR1_22', 5000, 1) // get in the truth's car, not forwarded to the network players (they get their own cars)
+// the truth's car fills with the truth, jethro and zero, a car for each network player to follow the host
+gosub @GARAG1_COOP_CREATE_CARS
 
 :GARAG1_4928
 if 
   not Char.IsInCar($scplayer, 34@)
 goto_if_false @GARAG1_5292
 wait 0
+gosub @GARAG1_COOP_UPDATE
 if 
 is_ps2_keyboard_key_pressed 83
 goto_if_false @GARAG1_5024
@@ -647,6 +684,13 @@ if
   Car.IsDead(34@)
 goto_if_false @GARAG1_5114
 Text.PrintNow('GAR1_07', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GAR1_07', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 101@ = 0
 102@ = 0
 103@ = 0
@@ -662,6 +706,13 @@ if
   Char.IsDead(93@)
 goto_if_false @GARAG1_5204
 Text.PrintNow('GAR1_17', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GAR1_17', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 101@ = 0
 102@ = 0
 103@ = 0
@@ -678,6 +729,13 @@ if
 goto_if_false @GARAG1_5285
 Car.Explode(34@)
 Text.PrintNow('GAR1_07', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GAR1_07', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 101@ = 0
 102@ = 0
 103@ = 0
@@ -697,6 +755,13 @@ goto @GARAG1_5377
 
 :GARAG1_5345
 Text.PrintNow('GAR1_07', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GAR1_07', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 101@ = 0
 110@ = 1
 return 
@@ -773,6 +838,9 @@ World.ClearArea(1, 54@(134@,5f), 59@(134@,5f), 64@(134@,5f), 1000.0)
 if 
   not Car.IsDead(34@)
 goto_if_false @GARAG1_5951
+// the mission deletes whoever sits in the passenger seat it needs, take the network players out of the truth's car
+set_lvar_int_to_lvar_int 366@ = 34@
+gosub @GARAG1_COOP_LEAVE_CAR
 if 
   not Car.IsPassengerSeatFree(34@, SeatIndex.RearRight)
 goto_if_false @GARAG1_5951
@@ -784,6 +852,7 @@ if
   114@ <> 20
 goto_if_false @GARAG1_7286
 wait 0
+gosub @GARAG1_COOP_UPDATE
 if 
   114@ == 0
 goto_if_false @GARAG1_6228
@@ -819,6 +888,13 @@ goto @GARAG1_6228
 
 :GARAG1_6196
 Text.PrintNow('GAR1_07', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GAR1_07', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 101@ = 0
 110@ = 1
 return 
@@ -1030,6 +1106,9 @@ goto_if_false @GARAG1_7558
 if 
   not Char.IsInCar(93@, 34@)
 goto_if_false @GARAG1_7558
+// the mission deletes whoever sits in the passenger seat it needs, take the network players out of the truth's car
+set_lvar_int_to_lvar_int 366@ = 34@
+gosub @GARAG1_COOP_LEAVE_CAR
 if 
   Car.IsPassengerSeatFree(34@, SeatIndex.TandemRear)
 goto_if_false @GARAG1_7533
@@ -1048,6 +1127,9 @@ goto_if_false @GARAG1_7669
 if 
   not Char.IsInCar(94@(134@,4i), 34@)
 goto_if_false @GARAG1_7669
+// the mission deletes whoever sits in the passenger seat it needs, take the network players out of the truth's car
+set_lvar_int_to_lvar_int 366@ = 34@
+gosub @GARAG1_COOP_LEAVE_CAR
 if 
   Car.IsPassengerSeatFree(34@, SeatIndex.RearRight)
 goto_if_false @GARAG1_7640
@@ -1184,6 +1266,7 @@ if
   114@ <> 10
 goto_if_false @GARAG1_9623
 wait 0
+gosub @GARAG1_COOP_UPDATE
 gosub @GARAG1_22044
 if 
   110@ == 1
@@ -1529,6 +1612,7 @@ if
   114@ <> 20
 goto_if_false @GARAG1_13033
 wait 0
+gosub @GARAG1_COOP_UPDATE
 gosub @GARAG1_22044
 if 
   110@ == 1
@@ -1613,6 +1697,13 @@ goto @GARAG1_11687
 
 :GARAG1_11655
 Text.PrintNow('GAR1_07', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GAR1_07', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 102@ = 0
 110@ = 1
 return 
@@ -1635,6 +1726,13 @@ goto @GARAG1_11783
 
 :GARAG1_11751
 Text.PrintNow('GAR1_07', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GAR1_07', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 102@ = 0
 110@ = 1
 return 
@@ -1857,6 +1955,9 @@ goto_if_false @GARAG1_13231
 if 
   not Char.IsInCar(93@, 34@)
 goto_if_false @GARAG1_13231
+// the mission deletes whoever sits in the passenger seat it needs, take the network players out of the truth's car
+set_lvar_int_to_lvar_int 366@ = 34@
+gosub @GARAG1_COOP_LEAVE_CAR
 if 
   Car.IsPassengerSeatFree(34@, SeatIndex.TandemRear)
 goto_if_false @GARAG1_13206
@@ -2012,6 +2113,7 @@ if
   114@ <> 20
 goto_if_false @GARAG1_14973
 wait 0
+gosub @GARAG1_COOP_UPDATE
 gosub @GARAG1_22044
 if 
   110@ == 1
@@ -2290,6 +2392,9 @@ goto @GARAG1_15919
 Car.SetHeading(34@, 0.0)
 
 :GARAG1_15919
+// the mission deletes whoever sits in the passenger seat it needs, take the network players out of the truth's car
+set_lvar_int_to_lvar_int 366@ = 34@
+gosub @GARAG1_COOP_LEAVE_CAR
 if 
   not Car.IsPassengerSeatFree(34@, SeatIndex.RearLeft)
 goto_if_false @GARAG1_15952
@@ -2315,6 +2420,7 @@ if
   114@ <> 10
 goto_if_false @GARAG1_16806
 wait 0
+gosub @GARAG1_COOP_UPDATE
 if 
   114@ == 0
 goto_if_false @GARAG1_16099
@@ -2382,6 +2488,13 @@ goto @GARAG1_16501
 
 :GARAG1_16469
 Text.PrintNow('GAR1_07', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GAR1_07', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 103@ = 0
 110@ = 1
 return 
@@ -2449,6 +2562,9 @@ goto_if_false @GARAG1_16944
 if 
   not Char.IsInCar(96@, 34@)
 goto_if_false @GARAG1_16944
+// the mission deletes whoever sits in the passenger seat it needs, take the network players out of the truth's car
+set_lvar_int_to_lvar_int 366@ = 34@
+gosub @GARAG1_COOP_LEAVE_CAR
 if 
   Car.IsPassengerSeatFree(34@, SeatIndex.RearLeft)
 goto_if_false @GARAG1_16901
@@ -2559,6 +2675,13 @@ goto @GARAG1_17488
 
 :GARAG1_17514
 Text.PrintNow('GAR1_PH', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GAR1_PH', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 
 :GARAG1_17534
@@ -2577,6 +2700,7 @@ if
   4000 > TIMERA
 goto_if_false @GARAG1_18065
 wait 0
+gosub @GARAG1_COOP_UPDATE
 if 
   114@ == 0
 goto_if_false @GARAG1_17979
@@ -2686,6 +2810,9 @@ goto @GARAG1_18203
 :GARAG1_18227
 Char.SetCoordinates($scplayer, -2028.0, 177.0, 28.2)
 Char.SetHeading($scplayer, 267.0)
+// the host is taken out of the truth's car for the closing cut scene (the screen is faded out), bring the network
+// players to him (out of the cars deleted below)
+gosub @GARAG1_COOP_BRING_TO_HOST
 Char.Delete(93@)
 Char.Delete(94@)
 Char.Delete(95@)
@@ -2746,6 +2873,7 @@ goto @GARAG1_18424
 return 
 
 :GARAG1_18471
+351@ = 1 // the host drives to a stop, the network players get its checkpoint
 if 
   not Car.IsDead(34@)
 goto_if_false @GARAG1_21950
@@ -2755,6 +2883,7 @@ if
   119@ <> 1
 goto_if_false @GARAG1_21943
 wait 0
+gosub @GARAG1_COOP_UPDATE
 gosub @GARAG1_22044
 if 
   110@ == 1
@@ -2974,6 +3103,10 @@ goto_if_false @GARAG1_20515
 if 
   Car.LocateStopped3D(34@, 0, 54@(134@,5f), 59@(134@,5f), 64@(134@,5f), 2.5, 2.5, 2.5)
 goto_if_false @GARAG1_20506
+// the host's stop by a garage worker waits for all the network players around it
+if
+  352@ == 1
+goto_if_false @GARAG1_20506
 if 
   118@ == 0
 goto_if_false @GARAG1_20323
@@ -3033,6 +3166,10 @@ goto_if_false @GARAG1_20612
 if 
   Char.LocateInCar3D($scplayer, 45@, 46@, 47@, 4.0, 4.0, 4.0, True)
 goto_if_false @GARAG1_20612
+// the host's stop waits for all the network players around it
+if
+  352@ == 1
+goto_if_false @GARAG1_20612
 119@ = 1
 Player.SetControl($player1, False)
 $car = Char.StoreCarIsInNoSave($scplayer)
@@ -3044,6 +3181,10 @@ if
 goto_if_false @GARAG1_20709
 if 
   Char.LocateInCar3D($scplayer, 48@, 49@, 50@, 4.0, 4.0, 4.0, True)
+goto_if_false @GARAG1_20709
+// the host's stop waits for all the network players around it
+if
+  352@ == 1
 goto_if_false @GARAG1_20709
 119@ = 1
 Player.SetControl($player1, False)
@@ -3067,6 +3208,10 @@ goto_if_false @GARAG1_20903
 if and
   40@ > 0.0
   180.0 > 40@
+goto_if_false @GARAG1_20903
+// the host's drive into the garage waits for all the network players around it
+if
+  352@ == 1
 goto_if_false @GARAG1_20903
 Garage.Open('HBGDSFS')
 113@ = 1
@@ -3167,7 +3312,7 @@ wait 0
 goto @GARAG1_21335
 
 :GARAG1_21361
-Text.PrintNow('TRUX_AC', 10000, 1)
+Text.PrintNow('TRUX_AC', 10000, 1) // the host got out of the truth's car, not forwarded to the network players
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 
 :GARAG1_21381
@@ -3188,6 +3333,7 @@ if
   not Char.IsInCar($scplayer, 34@)
 goto_if_false @GARAG1_21680
 wait 0
+gosub @GARAG1_COOP_UPDATE
 if 
   112@ == 0
 goto_if_false @GARAG1_21482
@@ -3201,6 +3347,13 @@ goto @GARAG1_21565
 
 :GARAG1_21505
 Text.PrintNow('GAR1_07', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GAR1_07', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 101@ = 0
 102@ = 0
 103@ = 0
@@ -3215,6 +3368,13 @@ if
 goto_if_false @GARAG1_21646
 Car.Explode(34@)
 Text.PrintNow('GAR1_07', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GAR1_07', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 101@ = 0
 102@ = 0
 103@ = 0
@@ -3267,6 +3427,13 @@ goto @GARAG1_21936
 
 :GARAG1_21876
 Text.PrintNow('GAR1_07', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GAR1_07', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 101@ = 0
 102@ = 0
 103@ = 0
@@ -3283,6 +3450,13 @@ goto @GARAG1_22003
 
 :GARAG1_21950
 Text.PrintNow('GAR1_07', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GAR1_07', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 101@ = 0
 102@ = 0
 103@ = 0
@@ -3291,6 +3465,7 @@ Text.PrintNow('GAR1_07', 5000, 1)
 return 
 
 :GARAG1_22003
+351@ = 0 // the host reached the stop
 119@ = 0
 Blip.Remove(122@(134@,5i))
 118@ = 0
@@ -3314,6 +3489,13 @@ goto_if_false @GARAG1_22161
 107@ = 0
 110@ = 1
 Text.PrintNow('GAR1_18', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GAR1_18', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :GARAG1_22161
 if 
@@ -3343,6 +3525,13 @@ goto_if_false @GARAG1_22352
 107@ = 0
 110@ = 1
 Text.PrintNow('GAR1_19', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GAR1_19', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :GARAG1_22352
 goto @GARAG1_22384
@@ -3384,6 +3573,13 @@ goto_if_false @GARAG1_22593
 107@ = 0
 110@ = 1
 Text.PrintNow('GAR1_20', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GAR1_20', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :GARAG1_22593
 goto @GARAG1_22625
@@ -3425,6 +3621,13 @@ goto_if_false @GARAG1_22834
 107@ = 0
 110@ = 1
 Text.PrintNow('GAR1_21', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GAR1_21', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :GARAG1_22834
 goto @GARAG1_22866
@@ -3447,6 +3650,13 @@ goto_if_false @GARAG1_22949
 107@ = 0
 110@ = 1
 Text.PrintNow('GAR1_17', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GAR1_17', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 return 
 
 :GARAG1_22949
@@ -3467,6 +3677,13 @@ goto_if_false @GARAG1_23068
 107@ = 0
 110@ = 1
 Text.PrintNow('GAR1_14', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GAR1_14', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 return 
 
 :GARAG1_23068
@@ -3481,6 +3698,13 @@ goto_if_false @GARAG1_23151
 107@ = 0
 110@ = 1
 Text.PrintNow('GAR1_14', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GAR1_14', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 return 
 
 :GARAG1_23151
@@ -3498,6 +3722,13 @@ goto_if_false @GARAG1_23252
 107@ = 0
 110@ = 1
 Text.PrintNow('GAR1_14', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GAR1_14', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 return 
 
 :GARAG1_23252
@@ -3515,6 +3746,13 @@ goto_if_false @GARAG1_23353
 107@ = 0
 110@ = 1
 Text.PrintNow('GAR1_15', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GAR1_15', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 return 
 
 :GARAG1_23353
@@ -3529,6 +3767,13 @@ goto_if_false @GARAG1_23436
 107@ = 0
 110@ = 1
 Text.PrintNow('GAR1_15', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GAR1_15', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 return 
 
 :GARAG1_23436
@@ -3546,6 +3791,13 @@ goto_if_false @GARAG1_23537
 107@ = 0
 110@ = 1
 Text.PrintNow('GAR1_14', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GAR1_14', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 return 
 
 :GARAG1_23537
@@ -3563,6 +3815,13 @@ goto_if_false @GARAG1_23638
 107@ = 0
 110@ = 1
 Text.PrintNow('GAR1_16', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GAR1_16', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 return 
 
 :GARAG1_23638
@@ -3581,6 +3840,13 @@ Char.SetCollision(96@, True)
 Char.SetHealth(96@, 0)
 110@ = 1
 Text.PrintNow('GAR1_16', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GAR1_16', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 return 
 
 :GARAG1_23728
@@ -3599,6 +3865,13 @@ Char.SetCollision(96@, True)
 Char.SetHealth(96@, 0)
 110@ = 1
 Text.PrintNow('GAR1_16', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GAR1_16', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 return 
 
 :GARAG1_23815
@@ -3616,6 +3889,13 @@ goto_if_false @GARAG1_23916
 107@ = 0
 110@ = 1
 Text.PrintNow('GAR1_14', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GAR1_14', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 return 
 
 :GARAG1_23916
@@ -3630,6 +3910,13 @@ goto_if_false @GARAG1_23999
 107@ = 0
 110@ = 1
 Text.PrintNow('GAR1_16', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GAR1_16', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 return 
 
 :GARAG1_23999
@@ -3648,6 +3935,13 @@ goto_if_false @GARAG1_24107
 107@ = 0
 110@ = 1
 Text.PrintNow('GAR1_14', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('GAR1_14', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 return 
 
 :GARAG1_24107
@@ -3676,6 +3970,13 @@ Char.StartFacialTalk(242@(348@,106i), 10000)
 :GARAG1_24214
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 Text.PrintNow($garage1_text(348@,106s), 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer($garage1_text(348@,106s), 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 349@ = 2
 
 :GARAG1_24239
@@ -3712,6 +4013,13 @@ goto @GARAG1_24351
 
 :GARAG1_24377
 Text.PrintNow($garage1_text(348@,106s), 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer($garage1_text(348@,106s), 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 
 :GARAG1_24395
@@ -3838,7 +4146,281 @@ $flag_is_zero_on_bike = 0
 117@ = 0
 118@ = 0
 Particle.Stop(350@)
+// the spare cars are not needed anymore, the network players lose their checkpoints and blips
+for $temp_int = 0 to 2
+    if
+        357@($temp_int,3i) <> -1
+    then
+        Car.MarkAsNoLongerNeeded(357@($temp_int,3i))
+        357@($temp_int,3i) = -1
+    end
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        Coop.ClearAllEntityBlipsForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+    end
+end
 $onmission = 0
 Mission.Finish
 return 
 
+:GARAG1_COOP_UPDATE
+// the spare car blip is not needed anymore when the player found a vehicle
+for $temp_int = 0 to 2
+    if
+        357@($temp_int,3i) <> -1
+    then
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                360@($temp_int,3i) == 0
+            then
+                if or
+                    Car.IsDead(357@($temp_int,3i))
+                    Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+                then
+                    360@($temp_int,3i) = 1
+                    Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 357@($temp_int,3i))
+                end
+            end
+        end
+    end
+end
+
+// the truth's car seats the truth, jethro and zero and the mission moves and deletes it, the cars of jethro, dwaine and
+// the cut scenes are locked and deleted, keep the network players out of them
+set_lvar_int_to_lvar_int 366@ = 34@
+gosub @GARAG1_COOP_LEAVE_CAR
+set_lvar_int_to_lvar_int 366@ = 35@
+gosub @GARAG1_COOP_LEAVE_CAR
+set_lvar_int_to_lvar_int 366@ = 36@
+gosub @GARAG1_COOP_LEAVE_CAR
+set_lvar_int_to_lvar_int 366@ = 38@
+gosub @GARAG1_COOP_LEAVE_CAR
+
+// the host's stop while he drives to it in the truth's car
+356@ = 0
+if and
+    351@ == 1
+    112@ == 0
+then
+    if
+        101@ == 1
+    then
+        356@ = 1 // jethro
+    end
+    if
+        105@ == 1
+    then
+        356@ = 2 // the first look
+        set_lvar_float_to_lvar_float 353@ = 45@
+        set_lvar_float_to_lvar_float 354@ = 46@
+        set_lvar_float_to_lvar_float 355@ = 47@
+    end
+    if
+        102@ == 1
+    then
+        356@ = 3 // dwaine
+    end
+    if
+        106@ == 1
+    then
+        356@ = 4 // the second look
+        set_lvar_float_to_lvar_float 353@ = 48@
+        set_lvar_float_to_lvar_float 354@ = 49@
+        set_lvar_float_to_lvar_float 355@ = 50@
+    end
+    if
+        103@ == 1
+    then
+        356@ = 5 // zero
+    end
+    if
+        107@ == 1
+    then
+        356@ = 6 // the garage
+        353@ = -2034.59
+        354@ = 180.23
+        355@ = 28.43
+    end
+    if or
+        356@ == 1
+        356@ == 3
+        356@ == 5
+    then
+        // the garage workers stand at 54@-64@(134@)
+        set_lvar_float_to_lvar_float 353@ = 54@(134@,5f)
+        set_lvar_float_to_lvar_float 354@ = 59@(134@,5f)
+        set_lvar_float_to_lvar_float 355@ = 64@(134@,5f)
+    end
+end
+
+// each network player gets a checkpoint on the host's stop
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if
+            not is_int_lvar_equal_to_int_lvar 356@ == 363@($temp_int,3i)
+        then
+            set_lvar_int_to_lvar_int 363@($temp_int,3i) = 356@
+            Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+            if
+                356@ <> 0
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(353@, 354@, 355@, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int])
+            end
+        end
+    end
+end
+
+// the host's stop waits for all the network players around it
+352@ = 1
+if
+    356@ <> 0
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                not Char.LocateAnyMeans2D($NETWORK_PLAYER[$temp_int], 0, 353@, 354@, 20.0, 20.0)
+            then
+                352@ = 0
+            end
+        end
+    end
+end
+return
+
+:GARAG1_COOP_LEAVE_CAR
+// a network player in the car 366@ is taken out beside its left side
+if and
+    366@ <> 0
+    366@ <> -1
+then
+    if
+        Car.DoesExist(366@)
+    then
+        if
+            not Car.IsDead(366@)
+        then
+            for $temp_int = 0 to 2
+                if
+                    Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                then
+                    if
+                        Char.IsInCar($NETWORK_PLAYER[$temp_int], 366@)
+                    then
+                        367@, 368@, 369@ = Car.GetOffsetInWorldCoords(366@, -3.0, 0.0, 0.0)
+                        Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 367@, 368@, 369@)
+                    end
+                end
+            end
+        end
+    end
+end
+return
+
+:GARAG1_COOP_CREATE_CARS
+// the cars stand on the road nodes nearest to the truth's car, facing along the road
+378@, 379@, 380@ = Car.GetCoordinates(34@)
+381@, 382@, 383@ = Char.GetCoordinates($scplayer)
+372@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if
+            357@($temp_int,3i) == -1
+        then
+            gosub @GARAG1_COOP_WAIT_CAR
+            gosub @GARAG1_COOP_GET_CAR_POINT
+            World.ClearArea(1, 367@, 368@, 369@, 4.0)
+            357@($temp_int,3i) = Car.Create(426, 367@, 368@, 369@)
+            Car.SetHeading(357@($temp_int,3i), 371@)
+            Car.SetHealth(357@($temp_int,3i), 1000)
+            360@($temp_int,3i) = 0 // spare_car_blip_removed
+            Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 357@($temp_int,3i), true, BlipDisplay.MarkerOnly, BlipColor.Blue, 3)
+        end
+    end
+end
+Streaming.MarkModelAsNoLongerNeeded(426)
+return
+
+:GARAG1_COOP_GET_CAR_POINT
+// the next road node 367@-369@ (heading 371@) at least 12 m away from the truth's car and the host, 8 m from the other
+// spare cars (gives up after 20 nodes)
+372@ += 1
+367@, 368@, 369@, 371@ = Path.GetNthClosestCarNodeWithHeading(378@, 379@, 380@, 372@)
+if
+    20 > 372@
+then
+    373@ = Math.GetDistanceBetweenCoords2D(367@, 368@, 378@, 379@) // the truth's car
+    if
+        12.0 > 373@
+    then
+        goto @GARAG1_COOP_GET_CAR_POINT
+    end
+    373@ = Math.GetDistanceBetweenCoords2D(367@, 368@, 381@, 382@) // the host
+    if
+        12.0 > 373@
+    then
+        goto @GARAG1_COOP_GET_CAR_POINT
+    end
+    for 374@ = 0 to 2 // the spare cars already standing
+        if
+            357@(374@,3i) <> -1
+        then
+            375@, 376@, 377@ = Car.GetCoordinates(357@(374@,3i))
+            373@ = Math.GetDistanceBetweenCoords2D(367@, 368@, 375@, 376@)
+            if
+                8.0 > 373@
+            then
+                goto @GARAG1_COOP_GET_CAR_POINT
+            end
+        end
+    end
+end
+return
+
+:GARAG1_COOP_WAIT_CAR
+if
+    not Streaming.HasModelLoaded(426)
+then
+    Streaming.RequestModel(426)
+    wait 0
+    goto @GARAG1_COOP_WAIT_CAR
+end
+return
+
+:GARAG1_COOP_LEAVE_ANY_CAR
+// the network players in a car are taken out of it at the host's spot
+370@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if
+            Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+        then
+            367@, 368@, 369@ = Char.GetCoordinates($scplayer)
+            Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 367@, 368@, 369@)
+            370@ = 1
+        end
+    end
+end
+if
+    370@ == 1
+then
+    wait 500 // let the warp out of the car reach them before a teleport
+end
+return
+
+:GARAG1_COOP_BRING_TO_HOST
+// the teleport moves the network players on foot, the ones in a car are taken out of it first
+gosub @GARAG1_COOP_LEAVE_ANY_CAR
+Coop.TeleportPlayersToHostSafely($NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2])
+return
