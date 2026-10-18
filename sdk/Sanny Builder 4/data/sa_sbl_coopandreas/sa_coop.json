@@ -64803,6 +64803,236 @@
                         "is_static": true
                     },
                     "short_desc": "args can be ignored by passing -1 or invalid (IsNetworkPlayerActorValid) char variable"
+                },
+                {
+                    "input": [
+                        {
+                            "name": "player_actor",
+                            "type": "Char"
+                        },
+                        {
+                            "name": "modelId",
+                            "type": "model_object"
+                        },
+                        {
+                            "name": "x",
+                            "type": "float"
+                        },
+                        {
+                            "name": "y",
+                            "type": "float"
+                        },
+                        {
+                            "name": "z",
+                            "type": "float"
+                        },
+                        {
+                            "name": "heading",
+                            "type": "float"
+                        }
+                    ],
+                    "id": "1D13",
+                    "name": "coop_create_object_for_network_player",
+                    "num_params": 6,
+                    "class": "Coop",
+                    "member": "CreateObjectForNetworkPlayer",
+                    "attrs": {
+                        "is_static": true
+                    },
+                    "short_desc": "an object of the player's own, created in his game (each player breaks his own)"
+                },
+                {
+                    "input": [
+                        {
+                            "name": "player_actor",
+                            "type": "Char"
+                        }
+                    ],
+                    "id": "1D14",
+                    "name": "coop_remove_objects_for_network_player",
+                    "num_params": 1,
+                    "class": "Coop",
+                    "member": "RemoveObjectsForNetworkPlayer",
+                    "attrs": {
+                        "is_static": true
+                    },
+                    "short_desc": "removes the player's objects, his broken count starts at 0"
+                },
+                {
+                    "input": [
+                        {
+                            "name": "player_actor",
+                            "type": "Char"
+                        }
+                    ],
+                    "output": [
+                        {
+                            "name": "count",
+                            "type": "int"
+                        }
+                    ],
+                    "id": "1D1D",
+                    "name": "coop_get_objects_broken_by_network_player",
+                    "num_params": 2,
+                    "class": "Coop",
+                    "member": "GetObjectsBrokenByNetworkPlayer",
+                    "attrs": {
+                        "is_static": true
+                    },
+                    "short_desc": "how many of his objects the player broke"
+                },
+                {
+                    "input": [
+                        {
+                            "name": "state",
+                            "type": "bool"
+                        }
+                    ],
+                    "id": "1D1E",
+                    "name": "coop_pause_syncing_this_script",
+                    "num_params": 1,
+                    "class": "Coop",
+                    "member": "PauseSyncingThisScript",
+                    "attrs": {
+                        "is_static": true
+                    },
+                    "short_desc": "true: what this script does is the host's own until false (EnableSyncingThisScript resumes it too)"
+                },
+                {
+                    "input": [
+                        {
+                            "name": "player_actor",
+                            "type": "Char"
+                        },
+                        {
+                            "name": "x",
+                            "type": "float"
+                        },
+                        {
+                            "name": "y",
+                            "type": "float"
+                        },
+                        {
+                            "name": "z",
+                            "type": "float"
+                        }
+                    ],
+                    "id": "1D1F",
+                    "name": "coop_break_object_for_network_player",
+                    "num_params": 4,
+                    "class": "Coop",
+                    "member": "BreakObjectForNetworkPlayer",
+                    "attrs": {
+                        "is_static": true
+                    },
+                    "short_desc": "breaks the player's own object (CreateObjectForNetworkPlayer) at that point"
+                },
+                {
+                    "input": [
+                        {
+                            "name": "text",
+                            "type": "gxt_key"
+                        },
+                        {
+                            "name": "help",
+                            "type": "gxt_key"
+                        },
+                        {
+                            "name": "player_actor",
+                            "type": "Char"
+                        },
+                        {
+                            "name": "camX",
+                            "type": "float"
+                        },
+                        {
+                            "name": "camY",
+                            "type": "float"
+                        },
+                        {
+                            "name": "camZ",
+                            "type": "float"
+                        },
+                        {
+                            "name": "lookX",
+                            "type": "float"
+                        },
+                        {
+                            "name": "lookY",
+                            "type": "float"
+                        },
+                        {
+                            "name": "lookZ",
+                            "type": "float"
+                        },
+                        {
+                            "name": "delay",
+                            "type": "int"
+                        },
+                        {
+                            "name": "duration",
+                            "type": "int"
+                        }
+                    ],
+                    "id": "1D20",
+                    "name": "coop_play_camera_scene_for_network_player",
+                    "num_params": 11,
+                    "class": "Coop",
+                    "member": "PlayCameraSceneForNetworkPlayer",
+                    "attrs": {
+                        "is_static": true
+                    },
+                    "short_desc": "in the player's game: no control, widescreen, after delay ms the fixed camera and the text for duration ms, then the help"
+                },
+                {
+                    "input": [
+                        {
+                            "name": "player_actor",
+                            "type": "Char"
+                        },
+                        {
+                            "name": "var",
+                            "type": "int"
+                        },
+                        {
+                            "name": "text",
+                            "type": "gxt_key"
+                        },
+                        {
+                            "name": "car1",
+                            "type": "Car"
+                        },
+                        {
+                            "name": "car2",
+                            "type": "Car"
+                        }
+                    ],
+                    "id": "1D21",
+                    "name": "coop_show_mission_car_health_bar",
+                    "num_params": 5,
+                    "class": "Coop",
+                    "member": "ShowMissionCarHealthBar",
+                    "attrs": {
+                        "is_static": true
+                    },
+                    "short_desc": "a health bar in the player's game of the one of the two cars he sits in, the value kept in the global var"
+                },
+                {
+                    "input": [
+                        {
+                            "name": "player_actor",
+                            "type": "Char"
+                        }
+                    ],
+                    "id": "1D22",
+                    "name": "coop_remove_mission_car_health_bar",
+                    "num_params": 1,
+                    "class": "Coop",
+                    "member": "RemoveMissionCarHealthBar",
+                    "attrs": {
+                        "is_static": true
+                    },
+                    "short_desc": "removes the bar of ShowMissionCarHealthBar"
                 }
             ]
         }

@@ -3402,6 +3402,14 @@ PedResetAllClaims,1D19,0,0,("char: Char")
 PedTakeHost,1D1A,0,0,("char: Char" "allowReturnToPreviousHost: bool")
 GetNetworkPlayerInternalId,1D1B,0,0,("char: Char" "playerId: int")
 TeleportPlayersToHostSafely,1D1C,0,0,("player1: Char" "player2: Char" "player3: Char")
+CreateObjectForNetworkPlayer,1D13,0,0,("player_actor: Char" "modelId: model_object" "x: float" "y: float" "z: float" "heading: float")
+RemoveObjectsForNetworkPlayer,1D14,0,0,("player_actor: Char")
+GetObjectsBrokenByNetworkPlayer,1D1D,0,0,("player_actor: Char" "count: int")
+PauseSyncingThisScript,1D1E,0,0,("state: bool")
+BreakObjectForNetworkPlayer,1D1F,0,0,("player_actor: Char" "x: float" "y: float" "z: float")
+ShowMissionCarHealthBar,1D21,0,0,("player_actor: Char" "var: int" "text: gxt_key" "car1: Car" "car2: Car")
+RemoveMissionCarHealthBar,1D22,0,0,("player_actor: Char")
+PlayCameraSceneForNetworkPlayer,1D20,0,0,("text: gxt_key" "help: gxt_key" "player_actor: Char" "camX: float" "camY: float" "camZ: float" "lookX: float" "lookY: float" "lookZ: float" "delay: int" "duration: int")
 $END
 
 #EOF
