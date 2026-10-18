@@ -3,6 +3,8 @@
 
 :MUSIC3
 script_name 'MUSIC3'
+Coop.EnableSyncingThisScript()
+
 gosub @MUSIC3_47
 if 
   has_deatharrest_been_executed 
@@ -16,6 +18,27 @@ terminate_this_script
 :MUSIC3_47
 $onmission = 1
 Stat.RegisterMissionGiven
+$NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2] = Coop.CollectNetworkPlayersForTheMission()
+240@ = -1 // the spare car for the network players
+241@ = 0
+for $temp_int = 0 to 2
+    242@($temp_int,3i) = 0 // car_blip_removed
+end
+245@ = 0 // the spare car blip is shown to the network players
+246@ = 0.0 // the point a network player is moved to
+247@ = 0.0
+248@ = 0.0
+249@ = 0.0 // its heading
+250@ = 0 // the destination shown to the network players: 1 the chauffeur's car, 2 the convoy line, 3 the convoy stop, 4 the pier
+251@ = 0
+252@ = 0 // all the network players are where the host stops
+253@ = -1 // the car the network players are taken out of
+254@ = -1 // the convoy man of a blip
+for 264@ = 0 to 7
+    256@(264@,8i) = -1 // the convoy man whose blip is shown to the network players
+end
+264@ = 0
+265@ = -1
 Text.LoadMissionText('STRAP3')
 if 
   $onmission == 0
@@ -164,6 +187,7 @@ Streaming.RequestModel(507)
 Streaming.RequestModel(346)
 Streaming.RequestModel(330)
 Audio.LoadMissionAudio(24600, 3)
+Streaming.RequestModel(467) // the spare car for the network players
 Streaming.LoadAllModelsNow
 Group.Remove($Players_Group)
 Player.SetGroupRecruitment($player1, False)
@@ -224,11 +248,61 @@ Path.MarkRoadNodeAsDontWander(794.8, -1033.6, 23.7)
 Path.MarkRoadNodeAsDontWander(1311.1, -701.7, 91.7)
 Path.MarkRoadNodeAsDontWander(2838.7, -1024.2, 21.5)
 Text.PrintNow('STP3_01', 7000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('STP3_01', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Text.Print('STP3_02', 7000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintForNetworkPlayer('STP3_02', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 World.ClearArea(1, 794.6, -1597.1, 12.5, 1.0)
 Streaming.LoadScene(794.6, -1597.1, 12.5)
 Char.SetCoordinates($scplayer, 794.6, -1597.1, 12.5)
 Char.SetHeading($scplayer, 45.0)
+
+// the host starts on foot, a car for the network players for the drive to the chauffeur
+241@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        241@ += 1
+    end
+end
+if
+    241@ > 0
+then
+    246@, 247@, 248@, 249@ = Path.GetClosestCarNodeWithHeading(794.6, -1597.1, 12.5)
+    World.ClearArea(1, 246@, 247@, 248@, 4.0)
+    240@ = Car.Create(467, 246@, 247@, 248@)
+    Car.SetHeading(240@, 249@)
+    Car.SetHealth(240@, 1000)
+end
+
+// the host is put at the marina after the cutscene
+Coop.TeleportPlayersToHostSafely($NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2])
+
+if
+    240@ <> -1
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            242@($temp_int,3i) = 0 // car_blip_removed
+            Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 240@, true, BlipDisplay.MarkerOnly, BlipColor.Blue, 3)
+        end
+    end
+    245@ = 1
+end
 Clock.SetTimeOfDay(16, 0)
 Camera.SetBehindPlayer
 Camera.RestoreJumpcut
@@ -239,6 +313,7 @@ Camera.DoFade(1, 500)
 
 :MUSIC3_2268
 wait 0
+gosub @MUSIC3_COOP_UPDATE
 if 
 is_ps2_keyboard_key_pressed 83
 goto_if_false @MUSIC3_2294
@@ -286,6 +361,13 @@ if
   Char.IsInCar(76@, 73@)
 goto_if_false @MUSIC3_2572
 Text.Print('STP3_19', 7000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintForNetworkPlayer('STP3_19', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :MUSIC3_2572
 goto @MUSIC3_2586
@@ -540,6 +622,13 @@ if
   Car.Locate2D(73@, 0, 1316.4, -1136.5, 5.0, 5.0)
 goto_if_false @MUSIC3_4106
 Text.PrintNow('STP3_03', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('STP3_03', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 150@ = 1
 122@ = 9
 
@@ -623,6 +712,13 @@ Blip.Remove(113@)
 113@ = Blip.AddForCoord(1306.4, -1137.5, 22.5)
 Text.ClearThisPrint('STP3_11')
 Text.Print('STP3_33', 7000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintForNetworkPlayer('STP3_33', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Streaming.MarkModelAsNoLongerNeeded(330)
 175@ = 0
 123@ = 0
@@ -690,6 +786,13 @@ if
   159@ > 4000
 goto_if_false @MUSIC3_4959
 Text.Print('STP3_33', 7000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintForNetworkPlayer('STP3_33', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 160@ = 1
 
 :MUSIC3_4959
@@ -756,14 +859,38 @@ Text.Print('STP3_22', 11000, 1)
 123@ = 0
 
 :MUSIC3_5408
+// the host waits parked in the convoy line for the network players, he parks again if he leaves meanwhile
+if
+    123@ == 2
+then
+    if or
+        not Char.IsInCar($scplayer, 73@)
+        not Car.Locate3D(73@, 0, 1306.4, -1137.5, 22.5, 4.0, 4.0, 4.0)
+    then
+        123@ = 1
+    end
+end
+252@ = 1 // all the network players are behind the convoy line
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if not Char.LocateAnyMeans2D($NETWORK_PLAYER[$temp_int], 0, 1332.0, -1137.5, 14.0, 14.0)
+        then
+            252@ = 0
+        end
+    end
+end
+
 if 
   Car.IsHealthGreater(73@, 700)
 goto_if_false @MUSIC3_5512
 if 
   not Car.IsVisiblyDamaged(73@)
 goto_if_false @MUSIC3_5512
-if 
+if and
   123@ == 2
+  252@ == 1
 goto_if_false @MUSIC3_5512
 Player.SetControl($player1, False)
 Char.MarkAsNoLongerNeeded(76@)
@@ -820,9 +947,13 @@ Char.SetCoordinates($scplayer, 1247.1, -1156.0, 22.7)
 
 :MUSIC3_5766
 Streaming.LoadScene(1305.5, -1131.7, 22.6)
+set_lvar_int_to_lvar_int 253@ = 72@
+gosub @MUSIC3_COOP_LEAVE_CAR // the car is deleted below
 Car.Delete(72@)
 Car.MarkAsNoLongerNeeded(73@)
 Char.Delete(76@)
+set_lvar_int_to_lvar_int 253@ = 74@
+gosub @MUSIC3_COOP_LEAVE_CAR // the car is deleted below
 Car.Delete(74@)
 Audio.SetRadioChannel(RadioChannel.UserTracks)
 World.ClearArea(1, 1303.5, -1131.5, 22.6, 5.0)
@@ -881,10 +1012,24 @@ if
   150@ == 0
 goto_if_false @MUSIC3_6446
 Text.PrintNow('STP3_20', 8000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('STP3_20', 8000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @MUSIC3_6462
 
 :MUSIC3_6446
 Text.PrintNow('STP3_21', 8000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('STP3_21', 8000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :MUSIC3_6462
 Camera.DoFade(1, 500)
@@ -1010,10 +1155,24 @@ if
   150@ == 0
 goto_if_false @MUSIC3_7152
 Text.PrintNow('STP3_20', 5500, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('STP3_20', 5500, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @MUSIC3_7168
 
 :MUSIC3_7152
 Text.PrintNow('STP3_21', 5500, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('STP3_21', 5500, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :MUSIC3_7168
 Camera.DoFade(1, 500)
@@ -1411,7 +1570,11 @@ Char.Delete(64@)
 Char.Delete(111@)
 Char.Delete(69@)
 Char.Delete(70@)
+set_lvar_int_to_lvar_int 253@ = 66@
+gosub @MUSIC3_COOP_LEAVE_CAR // the car is deleted below
 Car.Delete(66@)
+set_lvar_int_to_lvar_int 253@ = 67@
+gosub @MUSIC3_COOP_LEAVE_CAR // the car is deleted below
 Car.Delete(67@)
 Streaming.MarkModelAsNoLongerNeeded(20)
 Streaming.MarkModelAsNoLongerNeeded(91)
@@ -1425,6 +1588,13 @@ Camera.SetBehindPlayer
 Camera.RestoreJumpcut
 Player.SetControl($player1, True)
 Text.Print('STP3_06', 7000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintForNetworkPlayer('STP3_06', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 if 
   124@ == 1
 goto_if_false @MUSIC3_9708
@@ -1505,9 +1675,22 @@ goto @MUSIC3_10122
 Text.ClearPrints
 
 :MUSIC3_10122
+252@ = 1 // all the network players are behind the convoy, off the spots the scene puts its cars on
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if not Char.LocateAnyMeans2D($NETWORK_PLAYER[$temp_int], 0, 1066.0, -1139.2, 24.0, 15.0)
+        then
+            252@ = 0
+        end
+    end
+end
+
 if and
   Car.LocateStopped2D(73@, 0, 225@, 226@, 10.0, 10.0)
   Char.IsSittingInCar($scplayer, 73@)
+  252@ == 1
 goto_if_false @MUSIC3_10210
 Blip.Remove(113@)
 Text.ClearPrints
@@ -1528,6 +1711,13 @@ if
 goto_if_false @MUSIC3_10277
 Text.ClearPrints
 Text.PrintNow('STP3_12', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('STP3_12', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @MUSIC3_15492
 
 :MUSIC3_10277
@@ -1541,6 +1731,13 @@ if
 goto_if_false @MUSIC3_10352
 Text.ClearPrints
 Text.PrintNow('STP3_24', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('STP3_24', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @MUSIC3_15492
 
 :MUSIC3_10352
@@ -1927,7 +2124,21 @@ Sequence.Clear(232@)
 Char.ClearLookAt($scplayer)
 Text.ClearPrints
 Text.Print('STP3_08', 7000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintForNetworkPlayer('STP3_08', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Text.Print('STP3_09', 7000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintForNetworkPlayer('STP3_09', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Blip.Remove(113@)
 113@ = Blip.AddForCoord(836.9, -2041.5, 11.8)
 DecisionMakerChar.AddEventResponse(233@, 13, 917, 0.0, 100.0, 0.0, 0.0, False, True)
@@ -2074,6 +2285,13 @@ if
   Char.IsInArea3D($scplayer, 0, 853.7, -1810.1, 10.0, 818.5, -1874.0, 20.0)
 goto_if_false @MUSIC3_13833
 Text.PrintNow('STP3_35', 7000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('STP3_35', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 163@ = 1
 
 :MUSIC3_13833
@@ -2088,6 +2306,13 @@ if
   Char.IsInArea3D($scplayer, 0, 820.0, -2004.0, 10.0, 852.4, -2068.0, 20.0)
 goto_if_false @MUSIC3_13951
 Text.PrintNow('STP3_34', 7000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('STP3_34', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 163@ = 2
 
 :MUSIC3_13951
@@ -2203,6 +2428,13 @@ if
 goto_if_false @MUSIC3_14585
 Text.ClearPrints
 Text.PrintNow('STP3_31', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('STP3_31', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @MUSIC3_15492
 
 :MUSIC3_14585
@@ -2218,6 +2450,13 @@ goto_if_false @MUSIC3_14684
 Task.LeaveCarAndFlee(102@, 73@, 2316.4, -1519.2, 24.3)
 Text.ClearPrints
 Text.PrintNow('STP3_18', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('STP3_18', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @MUSIC3_15492
 
 :MUSIC3_14684
@@ -2286,6 +2525,13 @@ goto_if_false @MUSIC3_14963
 
 :MUSIC3_14963
 Text.PrintNow('STP3_26', 11000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('STP3_26', 11000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 123@ = 1
 
 :MUSIC3_14986
@@ -2396,6 +2642,13 @@ if
   $minutes > 30
 goto_if_false @MUSIC3_15478
 Text.Print('STP3_28', 7000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintForNetworkPlayer('STP3_28', 7000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 162@ = 1
 
 :MUSIC3_15478
@@ -2484,6 +2737,20 @@ Path.SwitchPedRoadsBackToOriginal(972.1, -1135.4, 10.0, 952.9, -1044.3, 50.0)
 Path.SwitchRoadsBackToOriginal(1072.8, -1135.0, 10.0, 1092.4, -1045.5, 50.0)
 Path.SwitchPedRoadsBackToOriginal(1072.8, -1135.0, 10.0, 1092.4, -1045.5, 50.0)
 Game.EnableAmbientCrime(True)
+if
+    240@ <> -1
+then
+    Car.MarkAsNoLongerNeeded(240@)
+end
+Streaming.MarkModelAsNoLongerNeeded(467)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        Coop.ClearAllEntityBlipsForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+    end
+end
 $timer_mobile_start = Clock.GetGameTimer()
 $onmission = 0
 Mission.Finish
@@ -2498,6 +2765,13 @@ if
 goto_if_false @MUSIC3_16232
 Text.ClearPrints
 Text.PrintNow('STP3_10', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('STP3_10', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 125@ = 1
 
 :MUSIC3_16232
@@ -2509,6 +2783,13 @@ if
 goto_if_false @MUSIC3_16291
 Text.ClearPrints
 Text.PrintNow('STP3_10', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('STP3_10', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 125@ = 1
 
 :MUSIC3_16291
@@ -2517,6 +2798,13 @@ if
 goto_if_false @MUSIC3_16332
 Text.ClearPrints
 Text.PrintNow('STP3_10', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('STP3_10', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 125@ = 1
 
 :MUSIC3_16332
@@ -2531,6 +2819,13 @@ if
 goto_if_false @MUSIC3_16409
 Text.ClearPrints
 Text.PrintNow('STP3_16', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('STP3_16', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 125@ = 1
 
 :MUSIC3_16409
@@ -2545,6 +2840,13 @@ if
 goto_if_false @MUSIC3_16486
 Text.ClearPrints
 Text.PrintNow('STP3_17', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('STP3_17', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 125@ = 1
 
 :MUSIC3_16486
@@ -2553,6 +2855,13 @@ if
 goto_if_false @MUSIC3_16527
 Text.ClearPrints
 Text.PrintNow('STP3_17', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('STP3_17', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 125@ = 1
 
 :MUSIC3_16527
@@ -3185,6 +3494,13 @@ if
   0 > 146@
 goto_if_false @MUSIC3_21400
 Text.PrintNow('STP3_07', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('STP3_07', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 125@ = 1
 
 :MUSIC3_21400
@@ -3206,6 +3522,13 @@ if
   not Car.IsHealthGreater(72@, 950)
 goto_if_false @MUSIC3_21498
 Text.PrintNow('STP3_30', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('STP3_30', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 175@ = 1
 
 :MUSIC3_21498
@@ -3213,6 +3536,13 @@ if
   not Car.IsHealthGreater(74@, 950)
 goto_if_false @MUSIC3_21540
 Text.PrintNow('STP3_30', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('STP3_30', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 175@ = 1
 
 :MUSIC3_21540
@@ -3224,6 +3554,13 @@ if
 goto_if_false @MUSIC3_21602
 Text.ClearPrints
 Text.Print('STP3_23', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintForNetworkPlayer('STP3_23', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 175@ = 2
 
 :MUSIC3_21602
@@ -3232,6 +3569,13 @@ if
 goto_if_false @MUSIC3_21646
 Text.ClearPrints
 Text.Print('STP3_23', 4000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintForNetworkPlayer('STP3_23', 4000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 175@ = 2
 
 :MUSIC3_21646
@@ -4136,6 +4480,13 @@ if
 goto_if_false @MUSIC3_26736
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 Text.PrintNow(178@(176@,14s), 4500, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer(178@(176@,14s), 4500, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 221@ = 2
 
 :MUSIC3_26736
@@ -4150,6 +4501,13 @@ if
 goto_if_false @MUSIC3_26812
 Audio.PlayMissionAudio(MissionAudioSlot.Slot2)
 Text.PrintNow(178@(176@,14s), 4500, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer(178@(176@,14s), 4500, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 222@ = 2
 
 :MUSIC3_26812
@@ -4181,4 +4539,243 @@ Text.ClearThisPrint(178@(176@,14s))
 
 :MUSIC3_26940
 return 
+
+:MUSIC3_COOP_UPDATE
+if // the spare car blip is not needed anymore when the player found a car
+    245@ == 1
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                242@($temp_int,3i) == 0
+            then
+                if
+                    Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+                then
+                    242@($temp_int,3i) = 1
+                    Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 240@)
+                end
+            end
+        end
+    end
+end
+
+// the network players get the host's current destination: the chauffeur's car to steal, then checkpoints,
+// the ones at the convoy behind the spots the host and the convoy cars take
+251@ = 0
+if
+    Blip.DoesExist(113@)
+then
+    if
+        122@ == 0
+    then
+        251@ = 1 // the chauffeur's car
+    end
+    if and
+        122@ == 1
+        142@ == 1
+    then
+        251@ = 2 // the convoy line, 142@ is set while the host's blip is on the line and not on his car
+    end
+    if and
+        122@ == 3
+        123@ == 1
+    then
+        251@ = 3 // the convoy stop
+    end
+    if
+        122@ == 5
+    then
+        251@ = 4 // the pier
+    end
+end
+if
+    not is_int_lvar_equal_to_int_lvar 251@ == 250@
+then
+    if // the chauffeur's car is not the destination anymore
+        250@ == 1
+    then
+        if
+            Car.DoesExist(73@)
+        then
+            for $temp_int = 0 to 2
+                if
+                    Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                then
+                    Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 73@)
+                end
+            end
+        end
+    end
+    set_lvar_int_to_lvar_int 250@ = 251@
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+            if
+                250@ == 1
+            then
+                Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 73@, false, BlipDisplay.BlipOnly, BlipColor.Red, 2) // the chauffeur's car
+            end
+            if
+                250@ == 2
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(1332.0, -1137.5, 22.5, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int]) // behind the convoy line
+            end
+            if
+                250@ == 3
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(1066.0, -1139.2, 22.7, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int]) // behind the convoy stop
+            end
+            if
+                250@ == 4
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(836.9, -2041.5, 11.8, 4.0, 4.0, 4.0, $NETWORK_PLAYER[$temp_int]) // the pier
+            end
+        end
+    end
+end
+
+// the chauffeur's car is the host's: its back seats are the manager's and the scenes move it and sink it,
+// keep the network players out of it
+set_lvar_int_to_lvar_int 253@ = 73@
+gosub @MUSIC3_COOP_LEAVE_CAR
+
+// the convoy cars are moved, driven and deleted by the mission until their drivers get out to fight
+if
+    3 > 153@
+then
+    set_lvar_int_to_lvar_int 253@ = 72@
+    gosub @MUSIC3_COOP_LEAVE_CAR
+end
+if
+    3 > 154@
+then
+    set_lvar_int_to_lvar_int 253@ = 74@
+    gosub @MUSIC3_COOP_LEAVE_CAR
+end
+
+// after the pier a convoy man has a blip for the network players while the host's blip exists and he is alive,
+// the blips 114@-121@ go with the men of MUSIC3_COOP_GET_ENEMY
+if and
+    122@ == 6
+    123@ == 1
+then
+    for 264@ = 0 to 7
+        265@ = -1
+        if
+            Blip.DoesExist(114@(264@,8i))
+        then
+            gosub @MUSIC3_COOP_GET_ENEMY
+            if
+                not Char.IsDead(254@)
+            then
+                set_lvar_int_to_lvar_int 265@ = 254@
+            end
+        end
+        if
+            not is_int_lvar_equal_to_int_lvar 256@(264@,8i) == 265@
+        then
+            if
+                256@(264@,8i) <> -1
+            then
+                if // a deleted man takes his blip with him
+                    Char.DoesExist(256@(264@,8i))
+                then
+                    for $temp_int = 0 to 2
+                        if
+                            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                        then
+                            Coop.RemoveCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 256@(264@,8i))
+                        end
+                    end
+                end
+            end
+            if
+                265@ <> -1
+            then
+                for $temp_int = 0 to 2
+                    if
+                        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                    then
+                        Coop.UpdateCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 265@, false, BlipDisplay.BlipOnly, BlipColor.Red, 2)
+                    end
+                end
+            end
+            set_lvar_int_to_lvar_int 256@(264@,8i) = 265@
+        end
+    end
+end
+return
+
+:MUSIC3_COOP_GET_ENEMY
+// the convoy man of the blip 114@(264@): 75@, 77@, 104@, 105@, 106@, 108@, 109@, 110@
+if
+    264@ == 0
+then
+    set_lvar_int_to_lvar_int 254@ = 75@
+end
+if
+    264@ == 1
+then
+    set_lvar_int_to_lvar_int 254@ = 77@
+end
+if
+    264@ == 2
+then
+    set_lvar_int_to_lvar_int 254@ = 104@
+end
+if
+    264@ == 3
+then
+    set_lvar_int_to_lvar_int 254@ = 105@
+end
+if
+    264@ == 4
+then
+    set_lvar_int_to_lvar_int 254@ = 106@
+end
+if
+    264@ == 5
+then
+    set_lvar_int_to_lvar_int 254@ = 108@
+end
+if
+    264@ == 6
+then
+    set_lvar_int_to_lvar_int 254@ = 109@
+end
+if
+    264@ == 7
+then
+    set_lvar_int_to_lvar_int 254@ = 110@
+end
+return
+
+:MUSIC3_COOP_LEAVE_CAR
+// a network player in the car 253@ is taken out beside its left door
+if
+    Car.DoesExist(253@)
+then
+    if
+        not Car.IsDead(253@)
+    then
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                if
+                    Char.IsInCar($NETWORK_PLAYER[$temp_int], 253@)
+                then
+                    246@ = Car.GetOffsetInWorldCoords(247@, 248@, 253@, -2.5, 0.0, 0.0)
+                    Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 246@, 247@, 248@)
+                end
+            end
+        end
+    end
+end
+return
 
