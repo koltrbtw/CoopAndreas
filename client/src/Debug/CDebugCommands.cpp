@@ -610,7 +610,7 @@ void CDebugCommands::RunCommand(const std::string& line)
         stream >> ms_watchedVehicle;
     }
     else if (command == "blow" || command == "vehicle-health" || command == "vehicle-state" || command == "burst" ||
-             command == "explode-car")
+             command == "explode-car" || command == "siren" || command == "alarm" || command == "force-lights")
     {
         // the watched vehicle (watch-vehicle <id>), else the last `car`, else the nearest one: blows up through the
         // game's own BlowUpCar (CVehicleBlowSync takes it), gets a health (below 250 it burns, then blows up by its
@@ -653,6 +653,22 @@ void CDebugCommands::RunCommand(const std::string& line)
             CVector pos = pVehicle->GetPosition() + pVehicle->GetRight() * 3.0f;
             CExplosion::AddExplosion(nullptr, pPlayer, EXPLOSION_GRENADE, pos, 0, true, -1.0f, false);
         }
+        else if (command == "siren")
+        {
+            int on = 1;
+            stream >> on;
+            pVehicle->m_nVehicleFlags.bSirenOrAlarm = on != 0;
+        }
+        else if (command == "alarm")
+        {
+            pVehicle->m_nAlarmState = 8000;  // rings 8 s, as a pulled door of a locked car
+        }
+        else if (command == "force-lights")
+        {
+            int mode = 2;
+            stream >> mode;
+            plugin::Command<Commands::FORCE_CAR_LIGHTS>(CPools::GetVehicleRef(pVehicle), mode);
+        }
         else if (command == "vehicle-health")
         {
             float health = 1000.0f;
@@ -672,9 +688,11 @@ void CDebugCommands::RunCommand(const std::string& line)
                     szWheels[i] = static_cast<char>('0' + damage.GetWheelStatus(i));
                 }
             }
-            logger::info("stand debug: vehicle %s syncing %d status %d health %.0f wheels %s at %.2f %.2f %.2f",
+            logger::info("stand debug: vehicle %s syncing %d status %d health %.0f wheels %s siren %d alarm %d lights %d "
+                         "at %.2f %.2f %.2f",
                 to_string(pNetworkVehicle->m_vehicleId).c_str(), pNetworkVehicle->m_bSyncing, pVehicle->m_nStatus,
-                pVehicle->m_fHealth, szWheels, pos.x, pos.y, pos.z);
+                pVehicle->m_fHealth, szWheels, pVehicle->m_nVehicleFlags.bSirenOrAlarm, pVehicle->m_nAlarmState,
+                pVehicle->m_nOverrideLights, pos.x, pos.y, pos.z);
         }
     }
     else if (command == "push-vehicle")
