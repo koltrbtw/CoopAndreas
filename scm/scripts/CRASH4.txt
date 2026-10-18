@@ -3,6 +3,8 @@
 
 :CRASH4
 script_name 'CRASH4'
+Coop.EnableSyncingThisScript()
+
 gosub @CRASH4_47
 if 
   has_deatharrest_been_executed 
@@ -44,6 +46,20 @@ $flag_bought_gun_for_doberman = 0
 73@ = 0
 74@ = 0
 Stat.RegisterMissionGiven
+$NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2] = Coop.CollectNetworkPlayersForTheMission()
+76@ = 0 // a network player is in glen park
+77@ = 0 // the grass's blip is shown to the network players
+78@ = 0
+79@ = -1 // the spare car for the network players
+for 84@ = 0 to 2
+    80@(84@,3i) = 0 // car_blip_removed
+end
+83@ = 0 // the spare car blip is shown to the network players
+84@ = 0
+85@ = 0.0 // the point a network player is moved to
+86@ = 0.0
+87@ = 0.0
+88@ = 0 // the fight with the grass is on
 wait 0
 Text.ClearThisPrintBigNow(TextStyle.Middle)
 wait 1000
@@ -65,6 +81,7 @@ Streaming.RequestAnimation("SMOKING")
 Streaming.RequestModel(#CIGAR)
 Streaming.RequestModel(106)
 Streaming.RequestModel(107)
+Streaming.RequestModel(492) // the spare car for the network players
 Streaming.LoadAllModelsNow
 
 :CRASH4_442
@@ -93,6 +110,37 @@ World.ClearArea(1, 1363.689, -1280.441, 12.5469, 1.0)
 Char.SetCoordinates($scplayer, 1363.689, -1280.441, 12.5469)
 Streaming.LoadScene(1363.689, -1280.441, 12.5469)
 Char.SetHeading($scplayer, 90.0)
+
+// the host is put in front of ammu-nation for the intro, bring the network players to him
+gosub @CRASH4_COOP_BRING_TO_HOST
+
+// the host starts on foot, a car for the network players for the drive to glen park, on the road west of
+// ammu-nation heading north
+84@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        84@ += 1
+    end
+end
+if
+    84@ > 0
+then
+    World.ClearArea(1, 1357.5, -1270.0, 12.4, 4.0)
+    79@ = Car.Create(492, 1357.5, -1270.0, 12.4)
+    Car.SetHeading(79@, 0.0)
+    Car.SetHealth(79@, 1000)
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            80@($temp_int,3i) = 0 // car_blip_removed
+            Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 79@, true, BlipDisplay.MarkerOnly, BlipColor.Blue, 3)
+        end
+    end
+    83@ = 1
+end
 Camera.SetBehindPlayer
 Camera.RestoreJumpcut
 Player.MakeGangDisappear
@@ -115,6 +163,13 @@ goto @CRASH4_730
 
 :CRASH4_754
 Text.PrintNow('AMUHLP', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('AMUHLP', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 skip_cutscene_start_internal @CRASH4_814
 TIMERA = 0
 
@@ -128,6 +183,13 @@ goto @CRASH4_784
 :CRASH4_814
 skip_cutscene_end 
 Text.ClearThisPrint('AMUHLP')
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.ClearThisPrintForNetworkPlayer('AMUHLP', $NETWORK_PLAYER[$temp_int])
+    end
+end
 Camera.SetFadingColor(0, 0, 0)
 Camera.DoFade(0, 1000)
 
@@ -199,6 +261,13 @@ goto @CRASH4_1412
 
 :CRASH4_1436
 Text.PrintNow('CM2_10', 20000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CM2_10', 20000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 TIMERA = 0
 
 :CRASH4_1459
@@ -213,6 +282,13 @@ Text.ClearThisPrint('CM2_10')
 Camera.SetFixedPosition(1916.77, -1130.479, 26.9978, 0.0, 0.0, 0.0)
 Camera.PointAtPoint(1917.738, -1130.27, 26.8593, SwitchType.JumpCut)
 Text.PrintNow('CM2_11', 20000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CM2_11', 20000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 TIMERA = 0
 
 :CRASH4_1574
@@ -243,6 +319,13 @@ goto @CRASH4_1574
 
 :CRASH4_1774
 Text.ClearThisPrint('CM2_11')
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.ClearThisPrintForNetworkPlayer('CM2_11', $NETWORK_PLAYER[$temp_int])
+    end
+end
 Camera.SetFadingColor(0, 0, 0)
 Camera.DoFade(0, 1000)
 
@@ -370,13 +453,23 @@ Game.CanTriggerGangWarWhenOnAMission(True)
 Game.SetGangWarsActive(True)
 $flag_gang_war_active = 1
 Text.PrintNow('CM2_3', 8000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CM2_3', 8000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 45@ = Blip.AddSpriteForCoord(62, 1932.351, -1189.647, 19.063)
 
 :CRASH4_2552
-if 
+// a network player can get to glen park first and start the war there, as the host would
+if and
   not Player.IsInInfoZone($player1, 'GLN1')
+  76@ == 0
 goto_if_false @CRASH4_2804
 wait 0
+gosub @CRASH4_COOP_UPDATE
 if 
 is_ps2_keyboard_key_pressed 83
 goto_if_false @CRASH4_2603
@@ -414,8 +507,17 @@ Text.PrintHelp('CM2_19')
 goto @CRASH4_2552
 
 :CRASH4_2804
+// the loop above may end before reading the ballas' strength when a network player is already in glen park
+47@ = Zone.GetGangStrength('GLN1', GangType.Ballas)
 Blip.Remove(52@)
 Text.PrintNow('CM2_5', 8000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CM2_5', 8000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 TIMERA = 0
 
 :CRASH4_2832
@@ -423,6 +525,7 @@ if
   not Game.IsGangWarGoingOn
 goto_if_false @CRASH4_3096
 wait 0
+gosub @CRASH4_COOP_UPDATE
 if 
   not Player.IsInInfoZone($player1, 'GLN1')
 goto_if_false @CRASH4_2922
@@ -441,6 +544,13 @@ if
 goto_if_false @CRASH4_2974
 Text.ClearThisPrint('CM2_6')
 Text.PrintNow('CM2_5', 8000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CM2_5', 8000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 46@ = 0
 
 :CRASH4_2974
@@ -451,6 +561,13 @@ if
   TIMERA >= 60000
 goto_if_false @CRASH4_3036
 Text.PrintNow('CM2_5', 8000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CM2_5', 8000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 73@ = 1
 
 :CRASH4_3036
@@ -468,6 +585,13 @@ goto @CRASH4_2832
 
 :CRASH4_3096
 Text.ClearThisPrint('CM2_5')
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.ClearThisPrintForNetworkPlayer('CM2_5', $NETWORK_PLAYER[$temp_int])
+    end
+end
 TIMERA = 0
 
 :CRASH4_3114
@@ -475,6 +599,7 @@ if
   47@ <> 0
 goto_if_false @CRASH4_3456
 wait 0
+gosub @CRASH4_COOP_UPDATE
 47@ = Zone.GetGangStrength('GLN1', GangType.Ballas)
 74@ = Zone.GetGangStrength('GLN1', GangType.Grove)
 if 
@@ -497,6 +622,13 @@ if
   66@ == 0
 goto_if_false @CRASH4_3306
 Text.PrintNow('CM2_17', 8000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CM2_17', 8000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 66@ = 1
 
 :CRASH4_3306
@@ -526,6 +658,13 @@ if
   65@ == 0
 goto_if_false @CRASH4_3435
 Text.PrintNow('CM2_16', 8000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CM2_16', 8000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 65@ = 1
 
 :CRASH4_3435
@@ -543,6 +682,15 @@ Text.ClearThisPrint('CM2_16')
 Text.ClearThisPrint('CM2_17')
 Text.ClearThisPrint('CM2_6')
 Text.ClearThisPrint('CM2_5')
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.ClearThisPrintForNetworkPlayer('CM2_16', $NETWORK_PLAYER[$temp_int])
+        Coop.ClearThisPrintForNetworkPlayer('CM2_17', $NETWORK_PLAYER[$temp_int])
+        Coop.ClearThisPrintForNetworkPlayer('CM2_5', $NETWORK_PLAYER[$temp_int])
+    end
+end
 Zone.SetGangStrength('GLN1', GangType.Ballas, 0)
 Game.CanTriggerGangWarWhenOnAMission(False)
 wait 5000
@@ -554,6 +702,7 @@ if
   $player_is_completely_safe <> 1
 goto_if_false @CRASH4_3576
 wait 0
+gosub @CRASH4_COOP_UPDATE
 ENTEXT_63()
 goto @CRASH4_3540
 
@@ -602,6 +751,9 @@ Char.SetHeading($scplayer, 284.0)
 Streaming.LoadScene(1859.931, -1137.139, 22.946)
 
 :CRASH4_3851
+// the host is put on the hill west of glen park for the closing scene and the grass, bring the network players
+// to him
+gosub @CRASH4_COOP_BRING_TO_HOST
 Camera.SetFixedPosition(1859.828, -1136.18, 33.7679, 0.0, 0.0, 0.0)
 Camera.PointAtPoint(1860.751, -1136.463, 33.508, SwitchType.JumpCut)
 if 
@@ -636,6 +788,13 @@ skip_cutscene_start_internal @CRASH4_4675
 
 :CRASH4_4145
 Text.PrintNow('CM2_12', 20000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CM2_12', 20000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 TIMERA = 0
 
 :CRASH4_4168
@@ -647,9 +806,23 @@ goto @CRASH4_4168
 
 :CRASH4_4198
 Text.ClearThisPrint('CM2_12')
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.ClearThisPrintForNetworkPlayer('CM2_12', $NETWORK_PLAYER[$temp_int])
+    end
+end
 Camera.SetFixedPosition(1891.889, -1163.394, 25.5792, 0.0, 0.0, 0.0)
 Camera.PointAtPoint(1892.865, -1163.187, 25.5167, SwitchType.JumpCut)
 Text.PrintNow('CM2_13', 20000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CM2_13', 20000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 TIMERA = 0
 
 :CRASH4_4283
@@ -661,7 +834,21 @@ goto @CRASH4_4283
 
 :CRASH4_4313
 Text.ClearThisPrint('CM2_13')
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.ClearThisPrintForNetworkPlayer('CM2_13', $NETWORK_PLAYER[$temp_int])
+    end
+end
 Text.PrintNow('CM2_14', 20000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CM2_14', 20000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 TIMERA = 0
 
 :CRASH4_4347
@@ -673,9 +860,23 @@ goto @CRASH4_4347
 
 :CRASH4_4377
 Text.ClearThisPrint('CM2_14')
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.ClearThisPrintForNetworkPlayer('CM2_14', $NETWORK_PLAYER[$temp_int])
+    end
+end
 Camera.SetFixedPosition(1859.828, -1136.18, 33.7679, 0.0, 0.0, 0.0)
 Camera.PointAtPoint(1860.751, -1136.463, 33.508, SwitchType.JumpCut)
 Text.PrintNow('CM2_15', 20000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CM2_15', 20000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 TIMERA = 0
 
 :CRASH4_4462
@@ -687,7 +888,21 @@ goto @CRASH4_4462
 
 :CRASH4_4492
 Text.ClearThisPrint('CM2_15')
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.ClearThisPrintForNetworkPlayer('CM2_15', $NETWORK_PLAYER[$temp_int])
+    end
+end
 Text.PrintNow('CM2_20', 20000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CM2_20', 20000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 TIMERA = 0
 
 :CRASH4_4526
@@ -699,6 +914,13 @@ goto @CRASH4_4526
 
 :CRASH4_4556
 Text.ClearThisPrint('CM2_20')
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.ClearThisPrintForNetworkPlayer('CM2_20', $NETWORK_PLAYER[$temp_int])
+    end
+end
 Camera.SetFadingColor(0, 0, 0)
 Camera.DoFade(0, 1000)
 
@@ -813,6 +1035,13 @@ if
   $flag_end_guy_audio_crash4 == 0
 goto_if_false @CRASH4_5205
 Text.PrintNow('CRA2_ZA', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CRA2_ZA', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 Char.StartFacialTalk(34@, 999999)
 goto @CRASH4_5308
@@ -822,6 +1051,13 @@ if
   $flag_end_guy_audio_crash4 == 1
 goto_if_false @CRASH4_5260
 Text.PrintNow('CRA2_ZB', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CRA2_ZB', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 Char.StartFacialTalk(34@, 999999)
 goto @CRASH4_5308
@@ -831,6 +1067,13 @@ if
   $flag_end_guy_audio_crash4 == 2
 goto_if_false @CRASH4_5308
 Text.PrintNow('CRA2_ZC', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CRA2_ZC', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Audio.PlayMissionAudio(MissionAudioSlot.Slot1)
 Char.StartFacialTalk(34@, 999999)
 
@@ -841,6 +1084,7 @@ goto @CRASH4_5355
 Text.ClearThisPrint('CRA2_ZA')
 Text.ClearThisPrint('CRA2_ZB')
 Text.ClearThisPrint('CRA2_ZC')
+gosub @CRASH4_COOP_CLEAR_GRASS_LINES
 38@ = 1
 
 :CRASH4_5355
@@ -867,6 +1111,7 @@ Audio.ClearMissionAudio(MissionAudioSlot.Slot1)
 Text.ClearThisPrint('CRA2_ZA')
 Text.ClearThisPrint('CRA2_ZB')
 Text.ClearThisPrint('CRA2_ZC')
+gosub @CRASH4_COOP_CLEAR_GRASS_LINES
 38@ = 1
 goto @CRASH4_5540
 
@@ -888,6 +1133,7 @@ goto_if_false @CRASH4_5595
 Text.ClearThisPrint('CRA2_ZA')
 Text.ClearThisPrint('CRA2_ZB')
 Text.ClearThisPrint('CRA2_ZC')
+gosub @CRASH4_COOP_CLEAR_GRASS_LINES
 
 :CRASH4_5595
 if 
@@ -992,13 +1238,22 @@ goto_if_false @CRASH4_6072
 $flag_end_guy_audio_crash4 = 0
 
 :CRASH4_6072
+88@ = 1
 Text.PrintNow('CM2_8', 8000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CM2_8', 8000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 
 :CRASH4_6088
 if 
   38@ <> 1
 goto_if_false @CRASH4_6174
 wait 0
+gosub @CRASH4_COOP_UPDATE
 if 
   38@ == 0
 goto_if_false @CRASH4_6167
@@ -1092,6 +1347,133 @@ Char.Delete(53@)
 Char.Delete(54@)
 Char.Delete(55@)
 DecisionMaker.Remove(43@)
+// the spare car is not needed anymore, the network players lose their blips
+if
+    79@ <> -1
+then
+    Car.MarkAsNoLongerNeeded(79@)
+end
+Streaming.MarkModelAsNoLongerNeeded(492)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.ClearAllEntityBlipsForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+    end
+end
 Mission.Finish
 return 
+
+:CRASH4_COOP_UPDATE
+if // the spare car blip is not needed anymore when the player found a car
+    83@ == 1
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                80@($temp_int,3i) == 0
+            then
+                if or
+                    Car.IsDead(79@)
+                    Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+                then
+                    80@($temp_int,3i) = 1
+                    Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 79@)
+                end
+            end
+        end
+    end
+end
+
+// a network player is in glen park: the box of the info zone gln1 (data\info.zon) the host's check uses
+76@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if
+            Char.IsInArea2D($NETWORK_PLAYER[$temp_int], 0, 1812.62, -1350.72, 2056.86, -1100.82)
+        then
+            76@ = 1
+        end
+    end
+end
+
+// the grass has a blip for the network players while the host has his and he is alive
+77@ = 0
+if
+    88@ == 1
+then
+    if
+        Blip.DoesExist(35@)
+    then
+        if
+            not Char.IsDead(34@)
+        then
+            77@ = 1
+        end
+    end
+end
+if
+    not is_int_lvar_equal_to_int_lvar 77@ == 78@
+then
+    set_lvar_int_to_lvar_int 78@ = 77@
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                78@ == 1
+            then
+                Coop.UpdateCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 34@, false, BlipDisplay.Both, BlipColor.Red, 3) // the grass
+            else
+                if // a removed grass takes his blip with him
+                    Char.DoesExist(34@)
+                then
+                    Coop.RemoveCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 34@)
+                end
+            end
+        end
+    end
+end
+return
+
+:CRASH4_COOP_BRING_TO_HOST
+// the network players in a car are taken out of it at the host's spot first, the teleport moves them on foot
+84@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if
+            Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+        then
+            85@, 86@, 87@ = Char.GetCoordinates($scplayer)
+            Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 85@, 86@, 87@)
+            84@ = 1
+        end
+    end
+end
+if
+    84@ == 1
+then
+    wait 500 // let the warp out of the car reach them before the teleport
+end
+Coop.TeleportPlayersToHostSafely($NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2])
+return
+
+:CRASH4_COOP_CLEAR_GRASS_LINES
+// the grass's lines are over, their subtitles are cleared for the network players as well
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.ClearThisPrintForNetworkPlayer('CRA2_ZA', $NETWORK_PLAYER[$temp_int])
+        Coop.ClearThisPrintForNetworkPlayer('CRA2_ZB', $NETWORK_PLAYER[$temp_int])
+        Coop.ClearThisPrintForNetworkPlayer('CRA2_ZC', $NETWORK_PLAYER[$temp_int])
+    end
+end
+return
 
