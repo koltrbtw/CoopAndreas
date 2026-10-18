@@ -13,6 +13,23 @@ terminate_this_script
 $onmission = 1
 Stat.RegisterMissionGiven
 script_name 'CATALIN'
+Coop.EnableSyncingThisScript()
+
+$NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2] = Coop.CollectNetworkPlayersForTheMission()
+249@ = 0 // the robbery spot nearest to the host among the ones he has a blip for: 0 none, 1-4 the robberies
+250@ = 0 // the robbery spot of the checkpoint shown to the network players
+251@ = 1 // all the network players are around that robbery spot
+252@ = 0 // catalina's blip is shown to the network players
+253@ = 0.0 // the host's position, a point
+254@ = 0.0
+255@ = 0.0
+256@ = 0.0 // the distance to a robbery spot
+257@ = 0.0 // the nearest one
+258@ = -1 // the host's car
+259@ = -1 // the char in its front passenger seat
+260@ = 0.0 // the robbery spot of the checkpoint
+261@ = 0.0
+262@ = 0 // a network player was taken out of a car
 wait 0
 Text.LoadMissionText('CAT')
 52@ = 0
@@ -521,6 +538,8 @@ set_lvar_int_to_var_int 180@ = $catalina
 53@ = 9
 
 :CATALIN_3878
+// the host is put next to catalina after the cutscene, bring the network players to him
+gosub @CATALIN_COOP_BRING_TO_HOST
 Char.SetAnimGroup($catalina, "WOMAN")
 Char.SetOnlyDamagedByPlayer($catalina, True)
 Char.SetNeverTargeted($catalina, True)
@@ -665,6 +684,7 @@ goto_if_false @CATALIN_4821
 
 :CATALIN_4828
 wait 0
+gosub @CATALIN_COOP_UPDATE
 $game_timer = Clock.GetGameTimer()
 if 
   not Char.IsDead($catalina)
@@ -720,6 +740,7 @@ goto_if_false @CATALIN_5201
 set_var_text_label s$audio_string = 56@(232@,20s)
 set_var_int_to_lvar_int $audio_sound_file = 96@(232@,20i)
 start_new_script @AUDIOL 116@(232@,20i) 0 1 235@ 232@ 
+gosub @CATALIN_COOP_PRINT_AUDIO_LINE
 if 
   is_int_lvar_equal_to_int_var 116@(232@,20i) == $catalina
 goto_if_false @CATALIN_5201
@@ -732,6 +753,7 @@ goto_if_false @CATALIN_5302
 set_var_text_label s$audio_string = 136@(232@,12s)
 set_var_int_to_lvar_int $audio_sound_file = 160@(232@,12i)
 start_new_script @AUDIOL 172@(232@,12i) 0 1 235@ 232@ 
+gosub @CATALIN_COOP_PRINT_AUDIO_LINE
 if 
   is_int_lvar_equal_to_int_var 172@(232@,12i) == $catalina
 goto_if_false @CATALIN_5302
@@ -744,6 +766,7 @@ goto_if_false @CATALIN_5403
 set_var_text_label s$audio_string = 184@(232@,12s)
 set_var_int_to_lvar_int $audio_sound_file = 208@(232@,12i)
 start_new_script @AUDIOL 220@(232@,12i) 0 1 235@ 232@ 
+gosub @CATALIN_COOP_PRINT_AUDIO_LINE
 if 
   is_int_lvar_equal_to_int_var 220@(232@,12i) == $catalina
 goto_if_false @CATALIN_5403
@@ -897,8 +920,10 @@ goto_if_false @CATALIN_6448
 if 
   238@ == 1
 goto_if_false @CATALIN_6448
-if 
+// the host's stop at the robbery marker waits for all the network players around it
+if and
   Char.LocateAnyMeans3D($scplayer, 1, $507, $513, $519, 3.0, 3.0, 3.0)
+  251@ == 1
 goto_if_false @CATALIN_6448
 Player.SetControl($player1, False)
 Text.PrintBig('CAT_1', 1000, TextStyle.BottomRight)
@@ -922,8 +947,10 @@ goto_if_false @CATALIN_6589
 if 
   239@ == 1
 goto_if_false @CATALIN_6589
-if 
+// the host's stop at the robbery marker waits for all the network players around it
+if and
   Char.LocateAnyMeans3D($scplayer, 1, $508, $514, $520, 3.0, 3.0, 3.0)
+  251@ == 1
 goto_if_false @CATALIN_6589
 Player.SetControl($player1, False)
 Text.PrintBig('CAT_2', 1000, TextStyle.BottomRight)
@@ -947,8 +974,10 @@ goto_if_false @CATALIN_6730
 if 
   240@ == 1
 goto_if_false @CATALIN_6730
-if 
+// the host's stop at the robbery marker waits for all the network players around it
+if and
   Char.LocateAnyMeans3D($scplayer, 1, $509, $515, $521, 3.0, 3.0, 3.0)
+  251@ == 1
 goto_if_false @CATALIN_6730
 Player.SetControl($player1, False)
 Text.PrintBig('CAT_3', 1000, TextStyle.BottomRight)
@@ -972,8 +1001,10 @@ goto_if_false @CATALIN_6871
 if 
   241@ == 1
 goto_if_false @CATALIN_6871
-if 
+// the host's stop at the robbery marker waits for all the network players around it
+if and
   Char.LocateAnyMeans3D($scplayer, 1, $510, $516, $522, 3.0, 3.0, 3.0)
+  251@ == 1
 goto_if_false @CATALIN_6871
 Player.SetControl($player1, False)
 Text.PrintBig('CAT_4', 1000, TextStyle.BottomRight)
@@ -998,6 +1029,13 @@ if
   237@ == 1
 goto_if_false @CATALIN_6954
 Text.PrintNow('CATLEFT', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CATLEFT', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Blip.Remove(242@)
 Blip.Remove(243@)
 Blip.Remove(244@)
@@ -1051,6 +1089,13 @@ goto @CATALIN_7208
 
 :CATALIN_7185
 Text.PrintNow('CATDEAD', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CATDEAD', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @CATALIN_7507
 
 :CATALIN_7208
@@ -1088,6 +1133,7 @@ goto @CATALIN_7500
 if 
   246@ == 1
 goto_if_false @CATALIN_7500
+gosub @CATALIN_COOP_LEAVE_TANKER // the tanker is deleted below
 Car.Delete(247@)
 Car.Delete(248@)
 Streaming.MarkModelAsNoLongerNeeded(514)
@@ -1111,6 +1157,15 @@ Blip.Remove(245@)
 Streaming.UnloadSpecialCharacter(5)
 Streaming.MarkModelAsNoLongerNeeded(514)
 Streaming.MarkModelAsNoLongerNeeded(584)
+// the network players lose their checkpoints and blips
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        Coop.ClearAllEntityBlipsForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+    end
+end
 $onmission = 0
 Mission.Finish
 if 
@@ -1120,4 +1175,285 @@ Camera.DoFade(0, Fade.Out)
 
 :CATALIN_7602
 return 
+
+:CATALIN_COOP_UPDATE
+// the network players get a checkpoint on the robbery spot nearest to the host among the ones he has a blip for, he
+// picks the robbery by driving catalina to its marker
+249@ = 0
+if and
+    237@ == 1
+    not Char.IsDead($catalina)
+then
+    253@, 254@, 255@ = Char.GetCoordinates($scplayer)
+    257@ = 100000.0
+    if
+        238@ == 1
+    then
+        256@ = Math.GetDistanceBetweenCoords2D(253@, 254@, $507, $513)
+        if
+            is_float_lvar_greater_than_float_lvar 257@ > 256@
+        then
+            set_lvar_float_to_lvar_float 257@ = 256@
+            249@ = 1
+        end
+    end
+    if
+        239@ == 1
+    then
+        256@ = Math.GetDistanceBetweenCoords2D(253@, 254@, $508, $514)
+        if
+            is_float_lvar_greater_than_float_lvar 257@ > 256@
+        then
+            set_lvar_float_to_lvar_float 257@ = 256@
+            249@ = 2
+        end
+    end
+    if
+        240@ == 1
+    then
+        256@ = Math.GetDistanceBetweenCoords2D(253@, 254@, $509, $515)
+        if
+            is_float_lvar_greater_than_float_lvar 257@ > 256@
+        then
+            set_lvar_float_to_lvar_float 257@ = 256@
+            249@ = 3
+        end
+    end
+    if
+        241@ == 1
+    then
+        256@ = Math.GetDistanceBetweenCoords2D(253@, 254@, $510, $516)
+        if
+            is_float_lvar_greater_than_float_lvar 257@ > 256@
+        then
+            set_lvar_float_to_lvar_float 257@ = 256@
+            249@ = 4
+        end
+    end
+end
+if
+    not is_int_lvar_equal_to_int_lvar 249@ == 250@
+then
+    set_lvar_int_to_lvar_int 250@ = 249@
+    if
+        250@ == 1
+    then
+        set_lvar_float_to_var_float 260@ = $507
+        set_lvar_float_to_var_float 261@ = $513
+    end
+    if
+        250@ == 2
+    then
+        set_lvar_float_to_var_float 260@ = $508
+        set_lvar_float_to_var_float 261@ = $514
+    end
+    if
+        250@ == 3
+    then
+        set_lvar_float_to_var_float 260@ = $509
+        set_lvar_float_to_var_float 261@ = $515
+    end
+    if
+        250@ == 4
+    then
+        set_lvar_float_to_var_float 260@ = $510
+        set_lvar_float_to_var_float 261@ = $516
+    end
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+            if
+                250@ == 1
+            then
+                Coop.UpdateCheckpointForNetworkPlayer($507, $513, $519, 3.0, 3.0, 3.0, $NETWORK_PLAYER[$temp_int]) // the liquor store in blueberry
+            end
+            if
+                250@ == 2
+            then
+                Coop.UpdateCheckpointForNetworkPlayer($508, $514, $520, 3.0, 3.0, 3.0, $NETWORK_PLAYER[$temp_int]) // the bank in palomino creek
+            end
+            if
+                250@ == 3
+            then
+                Coop.UpdateCheckpointForNetworkPlayer($509, $515, $521, 3.0, 3.0, 3.0, $NETWORK_PLAYER[$temp_int]) // the gas station in dillimore
+            end
+            if
+                250@ == 4
+            then
+                Coop.UpdateCheckpointForNetworkPlayer($510, $516, $522, 3.0, 3.0, 3.0, $NETWORK_PLAYER[$temp_int]) // the betting shop in montgomery
+            end
+        end
+    end
+end
+
+// the host's stop at the robbery marker waits for all the network players around it
+251@ = 1
+if
+    250@ > 0
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                not Char.LocateAnyMeans2D($NETWORK_PLAYER[$temp_int], 0, 260@, 261@, 20.0, 20.0)
+            then
+                251@ = 0
+            end
+        end
+    end
+end
+
+// catalina has a blip for the network players while the host has hers (she left his group) and she is alive
+if and
+    237@ == 2
+    not Char.IsDead($catalina)
+then
+    if
+        252@ == 0
+    then
+        252@ = 1
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                Coop.UpdateCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], $catalina, true, BlipDisplay.Both, BlipColor.Blue, 3) // catalina
+            end
+        end
+    end
+else
+    if
+        252@ == 1
+    then
+        252@ = 0
+        if // a removed catalina takes her blip with her
+            Char.DoesExist($catalina)
+        then
+            for $temp_int = 0 to 2
+                if
+                    Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                then
+                    Coop.RemoveCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], $catalina)
+                end
+            end
+        end
+    end
+end
+
+// catalina gets into the host's car as his passenger, keep its front passenger seat free while she follows him and is
+// out of it
+if
+    not Char.IsDead($catalina)
+then
+    if and
+        Char.IsGroupMember($catalina, $Players_Group)
+        Char.IsInAnyCar($scplayer)
+    then
+        258@ = Char.StoreCarIsInNoSave($scplayer)
+        if
+            not Char.IsInCar($catalina, 258@)
+        then
+            gosub @CATALIN_COOP_FREE_CATALINA_SEAT
+        end
+    end
+end
+
+// the tanker by the dillimore gas station is deleted once the host leaves the area, keep the network players out of it
+if
+    246@ == 1
+then
+    gosub @CATALIN_COOP_LEAVE_TANKER
+end
+return
+
+:CATALIN_COOP_PRINT_AUDIO_LINE
+// the dialogue subtitles are printed by AUDIOL, which is not synced
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer(s$audio_string, 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
+return
+
+:CATALIN_COOP_FREE_CATALINA_SEAT
+// a network player in the front passenger seat of the host's car 258@ is taken out beside its right door
+if
+    not Car.IsDead(258@)
+then
+    if
+        not Car.IsPassengerSeatFree(258@, 0)
+    then
+        259@ = Car.GetCharInPassengerSeat(258@, 0)
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                if
+                    is_int_var_equal_to_int_lvar $NETWORK_PLAYER[$temp_int] == 259@
+                then
+                    253@, 254@, 255@ = Car.GetOffsetInWorldCoords(258@, 2.5, 0.0, 0.0)
+                    Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 253@, 254@, 255@)
+                end
+            end
+        end
+    end
+end
+return
+
+:CATALIN_COOP_LEAVE_TANKER
+// a network player in the tanker 247@ is taken out beside its left door
+if
+    Car.DoesExist(247@)
+then
+    if
+        not Car.IsDead(247@)
+    then
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                if
+                    Char.IsInCar($NETWORK_PLAYER[$temp_int], 247@)
+                then
+                    253@, 254@, 255@ = Car.GetOffsetInWorldCoords(247@, -2.5, 0.0, 0.0)
+                    Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 253@, 254@, 255@)
+                end
+            end
+        end
+    end
+end
+return
+
+:CATALIN_COOP_LEAVE_ANY_CAR
+// the network players in a car are taken out of it at the host's spot
+262@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if
+            Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+        then
+            253@, 254@, 255@ = Char.GetCoordinates($scplayer)
+            Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 253@, 254@, 255@)
+            262@ = 1
+        end
+    end
+end
+if
+    262@ == 1
+then
+    wait 500 // let the warp out of the car reach them before a teleport
+end
+return
+
+:CATALIN_COOP_BRING_TO_HOST
+// the teleport moves the network players on foot, the ones in a car are taken out of it first
+gosub @CATALIN_COOP_LEAVE_ANY_CAR
+Coop.TeleportPlayersToHostSafely($NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2])
+return
 
