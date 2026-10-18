@@ -142,6 +142,7 @@ PACKET_HANDLER(ePacketType::VEHICLE_DRIVER_UPDATE, Packets::Vehicles::VehicleDri
         pNetworkPlayer->m_vecPosition = pVehicleDriverUpdate->pos;
         pNetworkPlayer->m_bHasPosition = true;
         pNetworkVehicle->ReassignSyncer(pNetworkPlayer);
+        CNetworkVehicleManager::AssignTowed(pVehicleDriverUpdate->trailerid, pNetworkPlayer);
 
         pVehicleDriverUpdate->senderPlayerid = pNetworkPlayer->m_playerId;
         GetPacketFactory().SendToAll(*pVehicleDriverUpdate, pNetworkPlayer);

@@ -78,3 +78,20 @@ void CNetworkVehicleManager::RemoveAllHostedAndNotify(CNetworkPlayer* player)
         }
     }
 }
+void CNetworkVehicleManager::AssignTowed(vehicleid_t trailerid, CNetworkPlayer* pTractorSyncer)
+{
+    CNetworkVehicle* pTrailer = trailerid.valid() ? GetVehicle(trailerid) : nullptr;
+    if (!pTrailer || pTrailer->m_pSyncer == pTractorSyncer)
+    {
+        return;
+    }
+
+    // a car with a player inside belongs to its driver
+    if (std::any_of(std::begin(pTrailer->m_pPlayers), std::end(pTrailer->m_pPlayers),
+            [](CNetworkPlayer* p) { return p != nullptr; }))
+    {
+        return;
+    }
+
+    pTrailer->ReassignSyncer(pTractorSyncer);
+}

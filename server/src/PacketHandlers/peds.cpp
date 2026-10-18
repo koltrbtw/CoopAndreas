@@ -167,6 +167,7 @@ PACKET_HANDLER(
     pNetworkVehicle->m_vecRotation = pPedDriverUpdate->rot;
     pNetworkVehicle->m_vecRight = pPedDriverUpdate->roll;
     pNetworkPed->m_vecPos = pPedDriverUpdate->pos;
+    CNetworkVehicleManager::AssignTowed(pPedDriverUpdate->trailerid, pNetworkPlayer);
 
     CRelevanceManager::SendToRelevant(*pPedDriverUpdate, pNetworkPed->m_vRelevantTo, pNetworkPlayer);
 }
