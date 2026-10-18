@@ -34,7 +34,17 @@ static bool IsDropped(uint8_t type)
 static bool IsSynced(const CPickup& pickup)
 {
     return pickup.m_nPickupType == PICKUP_ON_STREET || pickup.m_nPickupType == PICKUP_ON_STREET_SLOW ||
-           pickup.m_nPickupType == PICKUP_ONCE || IsDropped(pickup.m_nPickupType);
+           pickup.m_nPickupType == PICKUP_ONCE || pickup.m_nPickupType == PICKUP_MONEY_DOESNTDISAPPEAR ||
+           IsDropped(pickup.m_nPickupType);
+}
+
+// the host's scripts made them (the missions run there): the others got copies, a copy taken goes into the host's
+// collected array for its script's HAS_PICKUP_BEEN_COLLECTED
+static std::vector<PickupKey> s_hostScriptKeys;
+
+static bool IsHostScriptKey(const PickupKey& key)
+{
+    return std::find(s_hostScriptKeys.begin(), s_hostScriptKeys.end(), key) != s_hostScriptKeys.end();
 }
 
 static PickupKey GetKey(const CPickup& pickup)
@@ -63,6 +73,17 @@ static constexpr int MODEL_HORSESHOE = 954;
 
 static void ApplyState(CPickup& pickup, int32_t remainingMs)
 {
+    PickupKey key = GetKey(pickup);
+    if (IsHostScriptKey(key))
+    {
+        int index = static_cast<int>(&pickup - CPickups::aPickUps);
+        CPickups::AddToCollectedPickupsArray((static_cast<uint16_t>(pickup.m_nReferenceIndex) << 16) | index);
+        if (remainingMs == PickupCollected::FOREVER)
+        {
+            s_hostScriptKeys.erase(std::find(s_hostScriptKeys.begin(), s_hostScriptKeys.end(), key));
+        }
+    }
+
     if (remainingMs == PickupCollected::FOREVER)
     {
         // a collectible: the collector's game counted it (PickedUpHorseShoe, PickedUpOyster, PictureTaken), the money
@@ -176,8 +197,8 @@ static void __cdecl CPickups__PictureTaken_Hook()
     }
 }
 
-// a pickup our game dropped goes to the others
-static void SendSpawn(int handle)
+// a pickup our game dropped (or our script made, we are the host) goes to the others
+static void SendSpawn(int handle, bool bByHostScript = false)
 {
     int index = handle & 0xFFFF;  // tPickupReference: (refIndex << 16) | index
     if (!CNetwork::m_bAuthenticated || handle == -1 || index >= PICKUP_COUNT)
@@ -186,18 +207,23 @@ static void SendSpawn(int handle)
     }
 
     CPickup& pickup = CPickups::aPickUps[index];
-    if (!IsDropped(pickup.m_nPickupType))
+    if (!IsSynced(pickup) || (!bByHostScript && !IsDropped(pickup.m_nPickupType)))
     {
         return;
+    }
+    if (bByHostScript)
+    {
+        s_hostScriptKeys.push_back(GetKey(pickup));
     }
 
     PickupSpawn packet{};
     packet.key = GetKey(pickup);
     packet.ammo = pickup.m_nAmmo;
     packet.isEmpty = pickup.m_nFlags.bEmpty;
-    packet.remainingMs = pickup.m_nPickupType == PICKUP_ONCE_FOR_MISSION
-                             ? PickupSpawn::NO_TIMEOUT
-                             : static_cast<int32_t>(pickup.m_nRegenerationTime - CTimer::m_snTimeInMilliseconds);
+    bool bTimeout = pickup.m_nPickupType == PICKUP_ONCE_TIMEOUT || pickup.m_nPickupType == PICKUP_ONCE_TIMEOUT_SLOW ||
+                    pickup.m_nPickupType == PICKUP_MONEY;
+    packet.remainingMs = bTimeout ? static_cast<int32_t>(pickup.m_nRegenerationTime - CTimer::m_snTimeInMilliseconds)
+                                  : PickupSpawn::NO_TIMEOUT;
     GetPacketFactory().Send(packet);
 }
 
@@ -220,8 +246,46 @@ static int __cdecl CPickups__GenerateNewOne_WeaponType_Hook(
     return handle;
 }
 
+// CPickups::GenerateNewOne from the pickup opcodes (CREATE_PICKUP, CREATE_PICKUP_WITH_AMMO, CREATE_MONEY_PICKUP...;
+// not 0x48B243, the asset revenue one): the host's missions make them
+static int __cdecl CPickups__GenerateNewOne_Script_Hook(CVector coors, unsigned int modelId, unsigned char pickupType,
+    unsigned int ammo, unsigned int moneyPerDay, bool isEmpty, char* message)
+{
+    int handle = CPickups::GenerateNewOne(coors, modelId, pickupType, ammo, moneyPerDay, isEmpty, message);
+    if (CLocalPlayer::m_bIsHost)
+    {
+        SendSpawn(handle, true);
+    }
+    return handle;
+}
+
+// CPickups::RemovePickUp from REMOVE_PICKUP (0x47E6BB): the host's script took its pickup away, the copies go too
+static void __cdecl CPickups__RemovePickUp_Hook(int handle)
+{
+    int index = CPickups::GetActualPickupIndex(handle);
+    PickupKey key{};
+    bool bHostScript = index >= 0 && index < PICKUP_COUNT && IsHostScriptKey(key = GetKey(CPickups::aPickUps[index]));
+
+    CPickups::RemovePickUp(handle);
+
+    if (bHostScript && CNetwork::m_bAuthenticated)
+    {
+        s_hostScriptKeys.erase(std::find(s_hostScriptKeys.begin(), s_hostScriptKeys.end(), key));
+        PickupCollected packet{};
+        packet.key = key;
+        packet.regenerationMs = PickupCollected::FOREVER;
+        GetPacketFactory().Send(packet);
+    }
+}
+
 void CPickupSync::InjectHooks()
 {
+    for (uintptr_t callSite : {0x477983u, 0x47E636u, 0x480658u, 0x481744u, 0x48CEB9u, 0x156DF52u})
+    {
+        patch::RedirectCall(callSite, CPickups__GenerateNewOne_Script_Hook);
+    }
+    patch::RedirectCall(0x47E6BB, CPickups__RemovePickUp_Hook);
+
     patch::RedirectCall(0x45902E, CPickup__Update_Hook);
 
     for (uintptr_t callSite : {0x458A58u, 0x67B6DEu, 0x445098u, 0x445AFDu})
@@ -315,5 +379,6 @@ void CPickupSync::Process()
 void CPickupSync::Reset()
 {
     s_pending.clear();
+    s_hostScriptKeys.clear();
     s_grantUntil = 0;
 }
