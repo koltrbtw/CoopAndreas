@@ -3,6 +3,7 @@
 
 :BCESAR4
 script_name 'BCESAR4'
+Coop.EnableSyncingThisScript()
 gosub @BCESAR4_47
 if 
   has_deatharrest_been_executed 
@@ -14,6 +15,8 @@ gosub @BCESAR4_2736
 terminate_this_script 
 
 :BCESAR4_47
+// no RegisterMissionGiven here: the cut scenes after the races are the mission
+$NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2] = Coop.CollectNetworkPlayersForTheMission()
 $onmission = 1
 
 :BCESAR4_54
@@ -349,6 +352,8 @@ goto @BCESAR4_1957
 :BCESAR4_1923
 Char.SetCoordinates($scplayer, -503.3945, -186.0599, 76.6103)
 Char.SetHeading($scplayer, 53.0)
+// the network players watched the cut scene where they were: back to the host
+Coop.TeleportPlayersToHostSafely($NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2])
 Camera.SetBehindPlayer
 Camera.RestoreJumpcut
 
@@ -483,6 +488,7 @@ goto @BCESAR4_2617
 :BCESAR4_2583
 Char.SetCoordinates($scplayer, 1559.768, 14.4176, 23.1641)
 Char.SetHeading($scplayer, 10.0)
+Coop.TeleportPlayersToHostSafely($NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2])
 Camera.SetBehindPlayer
 Camera.RestoreJumpcut
 
