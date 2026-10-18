@@ -152,7 +152,7 @@ static void __fastcall CDamageManager__FuckCarCompletely_Hook(CDamageManager* Th
 {
     CAutomobile* pAutomobile = (CAutomobile*)((uintptr_t)This - 0x5A0);
     CNetworkVehicle* vehicle = CNetworkVehicleManager::GetVehicle(pAutomobile);
-    if (vehicle != nullptr && vehicle->m_bSyncing)
+    if (vehicle != nullptr && (vehicle->m_bSyncing || CVehicleBlowSync::IsFromNetwork()))
     {
         This->FuckCarCompletely(bDontDetachWheel);
     }

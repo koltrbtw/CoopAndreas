@@ -49,4 +49,5 @@ void CHook::Init()
     CGangZonesSync::InjectHooks();
     CGangWarSync::InjectHooks();
     CRadialPopulation::InjectHooks();  // after CCarPedGenHooks, overrides some of its call sites
+    CVehicleBlowSync::InjectHooks();
 }

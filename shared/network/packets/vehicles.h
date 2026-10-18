@@ -18,6 +18,7 @@ public:
     eVehicleCreatedBy createdBy = RANDOM_VEHICLE;
     // CVehicle::m_anExtras, the model's extra1..6 parts (roof, bed cover) the game picks at random, -1 is none
     int8_t extras[2] = {-1, -1};
+    bool wrecked = false;  // blown up already (VEHICLE_BLOWN): the clone is made a wreck with no explosion
 
 private:
     template <typename Stream>
@@ -32,6 +33,27 @@ private:
         serialize_int(stream, (int&)createdBy, RANDOM_VEHICLE, PERMANENT_VEHICLE);
         serialize_int(stream, extras[0], -1, 5);
         serialize_int(stream, extras[1], -1, 5);
+        serialize_bool(stream, wrecked);
+        return true;
+    }
+};
+
+// the syncer's vehicle blew up (CVehicle::BlowUpCar): its clones blow up then, never by their own fire timer, ram or
+// cheat; the server keeps it for the late ones, they get a wreck with no explosion (CVehicleBlowSync)
+class VehicleBlown : public Packet
+{
+    DEFINE_PACKET_TYPE(VehicleBlown, ePacketType::VEHICLE_BLOWN, ePacketChannel::EVENT);
+
+public:
+    vehicleid_t vehicleid{};
+    bool hideExplosion = false;  // BlowUpCar's bHideExplosionFx
+
+private:
+    template <typename Stream>
+    bool Serialize(Stream& stream)
+    {
+        serialize_vehicleid(stream, vehicleid);
+        serialize_bool(stream, hideExplosion);
         return true;
     }
 };

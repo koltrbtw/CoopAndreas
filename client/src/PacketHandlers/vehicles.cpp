@@ -32,6 +32,15 @@ PACKET_HANDLER(ePacketType::VEHICLE_SPAWN, Packets::Vehicles::VehicleSpawn* pVeh
             pVehicleSpawn->rot.m_angle, pVehicleSpawn->color1, pVehicleSpawn->color2, pVehicleSpawn->createdBy,
             pVehicleSpawn->extras);
     CNetworkVehicleManager::Add(pNetworkVehicle);
+    if (pVehicleSpawn->wrecked && pNetworkVehicle->m_pVehicle)
+    {
+        CVehicleBlowSync::MakeWreck(pNetworkVehicle->m_pVehicle);
+    }
+}
+
+PACKET_HANDLER(ePacketType::VEHICLE_BLOWN, Packets::Vehicles::VehicleBlown* pVehicleBlown)
+{
+    CVehicleBlowSync::HandlePacket(*pVehicleBlown);
 }
 
 PACKET_HANDLER(ePacketType::TRAIN_SPAWN, Packets::Vehicles::TrainSpawn* pTrainSpawn)
