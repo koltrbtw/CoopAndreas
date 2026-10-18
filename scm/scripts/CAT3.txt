@@ -3,6 +3,8 @@
 
 :CAT3
 script_name 'CAT3'
+Coop.EnableSyncingThisScript()
+
 gosub @CAT3_1452
 if 
   has_deatharrest_been_executed 
@@ -227,6 +229,31 @@ return
 
 :CAT3_1452
 $onmission = 1
+// the mission has no register_mission_given, collect the network players here
+$NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2] = Coop.CollectNetworkPlayersForTheMission()
+357@ = 1 // all the network players are around catalina's buyer
+358@ = 0 // catalina's blip is shown to the network players
+359@ = 0 // the rivals' car blip is shown to the network players
+360@ = 0.0 // a point
+361@ = 0.0
+362@ = 0.0
+363@ = -1 // the host's car
+364@ = -1 // the char in its front passenger seat
+365@ = 0 // a network player was taken out of a car
+for $temp_int = 0 to 2
+    366@($temp_int,3i) = -1 // the spare car of each network player
+    369@($temp_int,3i) = 0 // spare_car_blip_removed
+    372@($temp_int,3i) = 0 // the checkpoint shown to each network player: 0 none, 1 catalina's buyer
+end
+375@ = 0 // the checkpoint of the current network player
+376@ = -1 // the car the network players are kept out of
+377@ = 0.0 // the heading of a road node
+378@ = 0 // the number of a road node
+379@ = 0.0 // the distance from a road node to a spot
+380@ = 0 // a slot
+381@ = 0.0 // the position of a spare car, a point
+382@ = 0.0
+383@ = 0.0
 wait 0
 Text.LoadMissionText('CAT')
 34@ = 5000
@@ -427,6 +454,8 @@ goto @CAT3_3466
 Char.SetCoordinates($scplayer, 659.6722, -569.272, 15.3465)
 
 :CAT3_3466
+// the host is put on the gas station forecourt for the hold-up scene, bring the network players to him
+gosub @CAT3_COOP_BRING_TO_HOST
 if and
   not Char.IsDead($catalina)
   not Char.IsDead(310@)
@@ -464,6 +493,7 @@ World.SetCarDensityMultiplier(0.5)
 
 :CAT3_3696
 wait 0
+gosub @CAT3_COOP_UPDATE
 if 
   301@ <> 0
 goto_if_false @CAT3_4141
@@ -505,6 +535,13 @@ Char.ShutUpForScriptedSpeech(244@, True)
 :CAT3_3891
 Audio.PlayMissionAudio(303@)
 Text.PrintNow(132@(301@,56s), 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer(132@(301@,56s), 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 302@ = 3
 
 :CAT3_3917
@@ -784,6 +821,9 @@ Car.FreezePosition(334@, True)
 :CAT3_5590
 Streaming.RemoveAnimation("MISC")
 World.ClearArea(1, $509, $515, $521, 200.0)
+// the cab has a single passenger seat (catalina's), a car for each network player to follow the host in (the screen
+// is faded out)
+gosub @CAT3_COOP_CREATE_CARS
 Char.SetHeading($scplayer, 332@)
 Player.SetControl($player1, True)
 Hud.SwitchWidescreen(False)
@@ -813,7 +853,7 @@ if and
   not Char.IsDead($scplayer)
   not Car.IsDead(334@)
 goto_if_false @CAT3_5847
-Text.PrintNow('CAT3_02', 5000, 1)
+Text.PrintNow('CAT3_02', 5000, 1) // the cab is the host's, not forwarded to the network players
 if 
   Char.IsInCar($scplayer, 327@)
 goto_if_false @CAT3_5847
@@ -1176,6 +1216,13 @@ if
   37@ == 4
 goto_if_false @CAT3_7948
 Text.Print('CAT3_05', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintForNetworkPlayer('CAT3_05', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 37@ = -4
 
 :CAT3_7948
@@ -1756,6 +1803,13 @@ goto @CAT3_11758
 Camera.DoFade(1, 300)
 Text.ClearPrints
 Text.PrintNow('CAT3_08', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CAT3_08', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @CAT3_17048
 
 :CAT3_11758
@@ -1763,12 +1817,22 @@ goto @CAT3_11788
 
 :CAT3_11765
 Text.PrintNow('CAT3_08', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CAT3_08', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @CAT3_17048
 
 :CAT3_11788
+// the host's stop at catalina's buyer waits for all the network players around it (the rivals stop chasing him 120 m
+// before it)
 if and
   Char.IsInCar($catalina, 327@)
   Char.IsInCar($scplayer, 327@)
+  357@ == 1
 goto_if_false @CAT3_12172
 if or
   Car.Locate3D(327@, 1, 50@, 51@, 52@, 5.0, 5.0, 5.0)
@@ -1815,6 +1879,9 @@ Char.WarpFromCarToCoord($scplayer, -74.2582, -1130.526, 0.0781)
 Char.SetHeading($scplayer, 135.9294)
 
 :CAT3_12144
+// the host is put out of the cab at the buyer's yard for the closing scene (the screen is faded out), bring the network
+// players to him, off the way of the rivals' car
+gosub @CAT3_COOP_BRING_TO_HOST
 gosub @CAT3_576
 Text.ClearPrints
 44@ = Clock.GetGameTimer()
@@ -1865,6 +1932,7 @@ Char.WarpFromCarToCoord($scplayer, -74.2582, -1130.526, 0.0781)
 Char.SetHeading($scplayer, 135.9294)
 
 :CAT3_12443
+gosub @CAT3_COOP_BRING_TO_HOST // the same for the debug skip
 gosub @CAT3_576
 Text.ClearHelp
 Text.ClearPrints
@@ -2389,7 +2457,7 @@ if and
   35@ <> 1
   35@ <> 3
 goto_if_false @CAT3_15344
-Text.PrintNow('CAT3_10', 100, 1)
+Text.PrintNow('CAT3_10', 100, 1) // the host's way back into the cab, not forwarded to the network players
 
 :CAT3_15344
 if 
@@ -2473,6 +2541,13 @@ if or
 goto_if_false @CAT3_15781
 Text.ClearPrints
 Text.PrintNow('CAT3_06', 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CAT3_06', 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @CAT3_17048
 
 :CAT3_15781
@@ -2484,6 +2559,13 @@ if
 goto_if_false @CAT3_15840
 Text.ClearPrints
 Text.PrintNow('CAT3_07', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CAT3_07', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @CAT3_17048
 
 :CAT3_15840
@@ -2495,6 +2577,13 @@ if
 goto_if_false @CAT3_15899
 Text.ClearPrints
 Text.PrintNow('CAT3_09', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CAT3_09', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 goto @CAT3_17048
 
 :CAT3_15899
@@ -2542,6 +2631,13 @@ Char.StartFacialTalk(244@, 10000)
 :CAT3_16094
 Audio.PlayMissionAudio(303@)
 Text.PrintNow(132@(301@,56s), 10000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer(132@(301@,56s), 10000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 302@ = 3
 
 :CAT3_16120
@@ -2710,6 +2806,13 @@ goto @CAT3_16987
 
 :CAT3_17011
 Text.PrintNow('CAT3_08', 5000, 1)
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.PrintNowForNetworkPlayer('CAT3_08', 5000, 1, $NETWORK_PLAYER[$temp_int])
+    end
+end
 Player.SetControl($player1, True)
 goto @CAT3_17048
 
@@ -2788,6 +2891,21 @@ Streaming.RemoveAnimation("MISC")
 Streaming.RemoveCarRecording(188)
 Streaming.RemoveCarRecording(189)
 Streaming.RemoveCarRecording(199)
+// the spare cars are not needed anymore, the network players lose their checkpoints and blips
+for $temp_int = 0 to 2
+    if
+        366@($temp_int,3i) <> -1
+    then
+        Car.MarkAsNoLongerNeeded(366@($temp_int,3i))
+        366@($temp_int,3i) = -1
+    end
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+        Coop.ClearAllEntityBlipsForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+    end
+end
 $onmission = 0
 $timer_mobile_start = Clock.GetGameTimer()
 Camera.DoFade(1, 500)
@@ -3065,11 +3183,366 @@ Blip.SetAsFriendly(309@, True)
 if 
   35@ <> 3
 goto_if_false @CAT3_18818
-Text.PrintNow('CAT3_01', 5000, 1)
+Text.PrintNow('CAT3_01', 5000, 1) // catalina left the host's group, not forwarded to the network players
 
 :CAT3_18818
 49@ = 0
 
 :CAT3_18825
 return 
+
+:CAT3_COOP_UPDATE
+// the spare car blip is not needed anymore when the player found a vehicle
+for $temp_int = 0 to 2
+    if
+        366@($temp_int,3i) <> -1
+    then
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                369@($temp_int,3i) == 0
+            then
+                if or
+                    Car.IsDead(366@($temp_int,3i))
+                    Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+                then
+                    369@($temp_int,3i) = 1
+                    Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 366@($temp_int,3i))
+                end
+            end
+        end
+    end
+end
+
+// the cab is the host's with catalina in its only passenger seat (the towed trailer goes to the cab's syncer), keep the
+// network players out of it
+set_lvar_int_to_lvar_int 376@ = 327@
+gosub @CAT3_COOP_LEAVE_CAR
+
+// the rivals' car is locked, played back in the scenes and put behind the trailer while it chases the host
+set_lvar_int_to_lvar_int 376@ = 340@
+gosub @CAT3_COOP_LEAVE_CAR
+
+// the buyer's car is blown up and catalina rides off on the bike in the closing scene
+if
+    35@ == 5
+then
+    set_lvar_int_to_lvar_int 376@ = 346@
+    gosub @CAT3_COOP_LEAVE_CAR
+    set_lvar_int_to_lvar_int 376@ = 352@
+    gosub @CAT3_COOP_LEAVE_CAR
+end
+
+// catalina gets into the host's vehicle as his passenger, keep its front passenger seat free while she follows him and
+// is out of it
+if and
+    35@ >= 2
+    5 > 35@
+then
+    if
+        not Char.IsDead($catalina)
+    then
+        if and
+            Char.IsGroupMember($catalina, $Players_Group)
+            Char.IsInAnyCar($scplayer)
+        then
+            363@ = Char.StoreCarIsInNoSave($scplayer)
+            if
+                not Char.IsInCar($catalina, 363@)
+            then
+                gosub @CAT3_COOP_FREE_CATALINA_SEAT
+            end
+        end
+    end
+end
+
+// catalina has a blip for the network players while the host has hers (she left his group) and she is alive
+if and
+    35@ >= 2
+    5 > 35@
+    49@ == 0
+    Blip.DoesExist(309@)
+    not Char.IsDead($catalina)
+then
+    if
+        358@ == 0
+    then
+        358@ = 1
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                Coop.UpdateCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], $catalina, true, BlipDisplay.Both, BlipColor.Blue, 3) // catalina
+            end
+        end
+    end
+else
+    if
+        358@ == 1
+    then
+        358@ = 0
+        if // a removed catalina takes her blip with her
+            Char.DoesExist($catalina)
+        then
+            for $temp_int = 0 to 2
+                if
+                    Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                then
+                    Coop.RemoveCharBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], $catalina)
+                end
+            end
+        end
+    end
+end
+
+// the rivals' car has a blip (a red marker like the host's one) for the network players while the host has its blip
+// in the chase and it is not wrecked
+if and
+    35@ == 4
+    Blip.DoesExist(341@)
+    not Car.IsDead(340@)
+then
+    if
+        359@ == 0
+    then
+        359@ = 1
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 340@, false, BlipDisplay.MarkerOnly, BlipColor.Red, 3) // the rivals' car
+            end
+        end
+    end
+else
+    if
+        359@ == 1
+    then
+        359@ = 0
+        if // a removed car takes its blip with it
+            Car.DoesExist(340@)
+        then
+            for $temp_int = 0 to 2
+                if
+                    Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                then
+                    Coop.RemoveCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 340@)
+                end
+            end
+        end
+    end
+end
+
+// each network player gets a checkpoint on catalina's buyer while the host has its blip (he is in the cab with catalina
+// in his group)
+for $temp_int = 0 to 2
+    375@ = 0
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if and
+            35@ >= 3
+            5 > 35@
+            Blip.DoesExist(41@)
+        then
+            375@ = 1
+        end
+        if
+            not is_int_lvar_equal_to_int_lvar 375@ == 372@($temp_int,3i)
+        then
+            set_lvar_int_to_lvar_int 372@($temp_int,3i) = 375@
+            Coop.RemoveCheckpointForNetworkPlayer($NETWORK_PLAYER[$temp_int])
+            if
+                375@ == 1
+            then
+                Coop.UpdateCheckpointForNetworkPlayer(50@, 51@, 52@, 5.0, 5.0, 5.0, $NETWORK_PLAYER[$temp_int]) // catalina's buyer
+            end
+        end
+    end
+end
+
+// the host's stop at catalina's buyer waits for all the network players around it
+357@ = 1
+if
+    35@ == 4
+then
+    for $temp_int = 0 to 2
+        if
+            Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+        then
+            if
+                not Char.LocateAnyMeans2D($NETWORK_PLAYER[$temp_int], 0, 50@, 51@, 20.0, 20.0)
+            then
+                357@ = 0
+            end
+        end
+    end
+end
+return
+
+:CAT3_COOP_LEAVE_CAR
+// a network player in the car 376@ is taken out beside its left side
+if and
+    376@ <> 0
+    376@ <> -1
+then
+    if
+        Car.DoesExist(376@)
+    then
+        if
+            not Car.IsDead(376@)
+        then
+            for $temp_int = 0 to 2
+                if
+                    Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+                then
+                    if
+                        Char.IsInCar($NETWORK_PLAYER[$temp_int], 376@)
+                    then
+                        360@, 361@, 362@ = Car.GetOffsetInWorldCoords(376@, -2.5, 0.0, 0.0)
+                        Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 360@, 361@, 362@)
+                    end
+                end
+            end
+        end
+    end
+end
+return
+
+:CAT3_COOP_FREE_CATALINA_SEAT
+// a network player in the front passenger seat of the host's vehicle 363@ is taken out beside its right side
+if
+    not Car.IsDead(363@)
+then
+    if
+        not Car.IsPassengerSeatFree(363@, 0)
+    then
+        364@ = Car.GetCharInPassengerSeat(363@, 0)
+        for $temp_int = 0 to 2
+            if
+                Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+            then
+                if
+                    is_int_var_equal_to_int_lvar $NETWORK_PLAYER[$temp_int] == 364@
+                then
+                    360@, 361@, 362@ = Car.GetOffsetInWorldCoords(363@, 2.5, 0.0, 0.0)
+                    Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 360@, 361@, 362@)
+                end
+            end
+        end
+    end
+end
+return
+
+:CAT3_COOP_CREATE_CARS
+// the cars stand on the road nodes nearest to the forecourt, facing along the road
+378@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if
+            366@($temp_int,3i) == -1
+        then
+            gosub @CAT3_COOP_WAIT_CAR
+            gosub @CAT3_COOP_GET_CAR_POINT
+            World.ClearArea(1, 360@, 361@, 362@, 4.0)
+            366@($temp_int,3i) = Car.Create(422, 360@, 361@, 362@)
+            Car.SetHeading(366@($temp_int,3i), 377@)
+            Car.SetHealth(366@($temp_int,3i), 1000)
+            369@($temp_int,3i) = 0 // spare_car_blip_removed
+            Coop.UpdateCarBlipForNetworkPlayer($NETWORK_PLAYER[$temp_int], 366@($temp_int,3i), true, BlipDisplay.MarkerOnly, BlipColor.Blue, 3)
+        end
+    end
+end
+Streaming.MarkModelAsNoLongerNeeded(422)
+return
+
+:CAT3_COOP_GET_CAR_POINT
+// the next road node 360@-362@ (heading 377@) at least 12 m away from the cab, the trailer, the rivals' car and the spot
+// it is put on for the scene after the hitching, 8 m from the other spare cars (gives up after a dozen nodes)
+378@ += 1
+360@, 361@, 362@, 377@ = Path.GetNthClosestCarNodeWithHeading(659.6722, -569.272, 15.3465, 378@)
+if
+    12 > 378@
+then
+    379@ = Math.GetDistanceBetweenCoords2D(360@, 361@, 657.49, -585.13) // the cab
+    if
+        12.0 > 379@
+    then
+        goto @CAT3_COOP_GET_CAR_POINT
+    end
+    379@ = Math.GetDistanceBetweenCoords2D(360@, 361@, 667.49, -583.13) // the trailer
+    if
+        12.0 > 379@
+    then
+        goto @CAT3_COOP_GET_CAR_POINT
+    end
+    379@ = Math.GetDistanceBetweenCoords2D(360@, 361@, 667.54, -545.97) // the rivals' car
+    if
+        12.0 > 379@
+    then
+        goto @CAT3_COOP_GET_CAR_POINT
+    end
+    379@ = Math.GetDistanceBetweenCoords2D(360@, 361@, 658.6589, -567.5756) // its spot for the scene
+    if
+        12.0 > 379@
+    then
+        goto @CAT3_COOP_GET_CAR_POINT
+    end
+    for 380@ = 0 to 2 // the spare cars already standing
+        if
+            366@(380@,3i) <> -1
+        then
+            381@, 382@, 383@ = Car.GetCoordinates(366@(380@,3i))
+            379@ = Math.GetDistanceBetweenCoords2D(360@, 361@, 381@, 382@)
+            if
+                8.0 > 379@
+            then
+                goto @CAT3_COOP_GET_CAR_POINT
+            end
+        end
+    end
+end
+return
+
+:CAT3_COOP_WAIT_CAR
+if
+    not Streaming.HasModelLoaded(422)
+then
+    Streaming.RequestModel(422)
+    wait 0
+    goto @CAT3_COOP_WAIT_CAR
+end
+return
+
+:CAT3_COOP_LEAVE_ANY_CAR
+// the network players in a car are taken out of it at the host's spot
+365@ = 0
+for $temp_int = 0 to 2
+    if
+        Coop.IsNetworkPlayerActorValid($NETWORK_PLAYER[$temp_int])
+    then
+        if
+            Char.IsInAnyCar($NETWORK_PLAYER[$temp_int])
+        then
+            360@, 361@, 362@ = Char.GetCoordinates($scplayer)
+            Char.WarpFromCarToCoord($NETWORK_PLAYER[$temp_int], 360@, 361@, 362@)
+            365@ = 1
+        end
+    end
+end
+if
+    365@ == 1
+then
+    wait 500 // let the warp out of the car reach them before a teleport
+end
+return
+
+:CAT3_COOP_BRING_TO_HOST
+// the teleport moves the network players on foot, the ones in a car are taken out of it first
+gosub @CAT3_COOP_LEAVE_ANY_CAR
+Coop.TeleportPlayersToHostSafely($NETWORK_PLAYER[0], $NETWORK_PLAYER[1], $NETWORK_PLAYER[2])
+return
 
