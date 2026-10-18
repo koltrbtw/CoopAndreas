@@ -344,6 +344,34 @@ void CDebugCommands::RunCommand(const std::string& line)
             logger::info("stand debug: on pickup at %.2f %.2f %.2f", target.x, target.y, target.z);
         }
     }
+    else if (command == "pickup-script")
+    {
+        // as a mission does it, through the opcodes: create <model> <type> (CREATE_PICKUP), collected
+        // (HAS_PICKUP_BEEN_COLLECTED), remove (REMOVE_PICKUP); the last one made
+        static int handle = -1;
+        std::string action;
+        stream >> action;
+        if (action == "create")
+        {
+            int model = 1240, type = PICKUP_ONCE;
+            stream >> model >> type;
+            CVector pos = pPlayer->GetPosition() + pPlayer->GetForward() * 3.0f;
+            plugin::Command<Commands::REQUEST_MODEL>(model);
+            plugin::Command<Commands::LOAD_ALL_MODELS_NOW>();
+            plugin::Command<Commands::CREATE_PICKUP>(model, type, pos.x, pos.y, pos.z, &handle);
+            logger::info("stand debug: script pickup %d at %.2f %.2f %.2f", handle, pos.x, pos.y, pos.z);
+        }
+        else if (action == "collected")
+        {
+            bool bCollected = plugin::Command<Commands::HAS_PICKUP_BEEN_COLLECTED>(handle);
+            logger::info("stand debug: script pickup %d collected %d", handle, bCollected);
+        }
+        else if (action == "remove")
+        {
+            plugin::Command<Commands::REMOVE_PICKUP>(handle);
+            logger::info("stand debug: script pickup %d removed", handle);
+        }
+    }
     else if (command == "pickup-money" || command == "pickup-create")
     {
         // in front of the player: money as from a body (CreateSomeMoney), or any pickup as a script makes it
