@@ -549,12 +549,16 @@ class VehicleRequestOwnership : public Packet
 
 public:
     vehicleid_t vehicleid{};
+    // we hit the empty clone (CVehiclePushSync): the handoff comes with no transform, we go on from where our hit
+    // moved it, the syncer's one is from before it
+    bool pushed = false;
 
 private:
     template <typename Stream>
     bool Serialize(Stream& stream)
     {
         serialize_vehicleid(stream, vehicleid);
+        serialize_bool(stream, pushed);
         return true;
     }
 };

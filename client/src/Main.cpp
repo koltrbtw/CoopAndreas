@@ -156,6 +156,7 @@ public:
                 CVehicleExitSync::ProcessClones();
                 CPlayerFallSync::Process();
                 CPedDeathSync::Process();
+                CVehiclePushSync::Process();
 
                 int syncRate = 50;
                 CVector velocity{};
